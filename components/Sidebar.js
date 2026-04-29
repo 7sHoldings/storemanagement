@@ -85,9 +85,12 @@ export default function Sidebar({ selectedStore, onStoreChange }) {
     ]},
   ] : [
     { title: null, items: [
-      { path: '/sales',     icon: I.sales,     label: 'Enter Sales' },
-      { path: '/inventory', icon: I.inventory, label: 'Inventory' },
-      { path: '/restock',   icon: I.restock,   label: 'Restock' },
+      { path: '/sales', icon: I.sales, label: 'Enter Sales' },
+      // Inventory and Restock temporarily hidden for employees — re-enable
+      // here (and in AppShell's allowed[] list) once the inventory flow is
+      // ready for them.
+      // { path: '/inventory', icon: I.inventory, label: 'Inventory' },
+      // { path: '/restock',   icon: I.restock,   label: 'Restock' },
     ]},
   ];
 

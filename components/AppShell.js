@@ -20,7 +20,10 @@ export default function AppShell({ children }) {
   useEffect(() => {
     if (!loading && profile && profile.role === 'employee') {
       if (typeof window === 'undefined') return;
-      const allowed = ['/sales', '/inventory'];
+      // Inventory + Restock temporarily disabled for employees. Add them
+      // back to this list (and to the Sidebar nav) once those flows are
+      // ready for the employee role.
+      const allowed = ['/sales'];
       const path = window.location.pathname;
       if (!allowed.some(p => path === p || path.startsWith(p + '/'))) {
         router.replace('/sales');
