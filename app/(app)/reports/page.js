@@ -193,16 +193,15 @@ export default function ReportsPage() {
         setTrendStatsPrev(statsFor(daysPrev));
 
         // ── Section 6 — Cash reconciliation (current + previous) ──
-        // "Expected" matches the Cash Collection page: total cash dropped in
-        // the safe (R1 safe drop + R2 safe drop), which captures both R1 cash
-        // and R2 cash flows for Bells/Kerens. Falling back to cash_sales for
-        // legacy rows where neither safe drop column was filled.
+        // "Expected" matches the Cash Collection page exactly: total cash
+        // dropped in the safe (R1 safe drop + R2 safe drop). No cash_sales
+        // fallback — Cash Collection treats unfilled safe drops as $0
+        // expected, and these two views should always agree.
         const buildRecon = (salesRows, cashRows) => {
           const cashByKey = {};
           (salesRows || []).forEach(r => {
             const k = `${r.store_id}|${r.date}`;
-            const dropped = (r.r1_safe_drop || 0) + (r.r2_safe_drop || 0);
-            const expected = dropped > 0 ? dropped : (r.cash_sales || 0);
+            const expected = (r.r1_safe_drop || 0) + (r.r2_safe_drop || 0);
             cashByKey[k] = { expected: (cashByKey[k]?.expected || 0) + expected, collected: cashByKey[k]?.collected || 0 };
           });
           (cashRows || []).forEach(r => {
@@ -383,10 +382,8 @@ export default function ReportsPage() {
     rows.push(['Store', 'Expected (Safe Drop)', 'Cash Collected', 'Short/Over', 'Status']);
     let reconExp = 0, reconCol = 0;
     storeRows.forEach(s => {
-      const expected = rawSales.filter(r => r.store_id === s.id).reduce((sum, r) => {
-        const dropped = (r.r1_safe_drop || 0) + (r.r2_safe_drop || 0);
-        return sum + (dropped > 0 ? dropped : (r.cash_sales || 0));
-      }, 0);
+      const expected = rawSales.filter(r => r.store_id === s.id)
+        .reduce((sum, r) => sum + (r.r1_safe_drop || 0) + (r.r2_safe_drop || 0), 0);
       const collected = rawCash.filter(r => r.store_id === s.id).reduce((sum, r) => sum + (r.cash_collected || 0), 0);
       const diff = collected - expected;
       let status = 'pending';

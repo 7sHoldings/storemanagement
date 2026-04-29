@@ -507,10 +507,8 @@ function buildDashboard(wb, bundle, range) {
   tableHeaderRow(ws, r++, ['Store','Expected (Safe Drop)','Cash Collected','Short / Over','Status','','','','',''], COLORS.tealGreen);
   const crStart = r;
   (storeRows || []).forEach(st => {
-    const expected = (rawSales || []).filter(x => x.store_id === st.id).reduce((a, x) => {
-      const dropped = (x.r1_safe_drop || 0) + (x.r2_safe_drop || 0);
-      return a + (dropped > 0 ? dropped : (x.cash_sales || 0));
-    }, 0);
+    const expected = (rawSales || []).filter(x => x.store_id === st.id)
+      .reduce((a, x) => a + (x.r1_safe_drop || 0) + (x.r2_safe_drop || 0), 0);
     const collected = (rawCash || []).filter(x => x.store_id === st.id).reduce((a, x) => a + (x.cash_collected || 0), 0);
     const diff = collected - expected;
     let status = 'Pending';
