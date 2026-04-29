@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import Sidebar from '@/components/Sidebar';
+import NrsStatusBar from '@/components/NrsStatusBar';
 
 export default function AppShell({ children }) {
   const { loading, profile, user, selectedStore, setSelectedStore, effectiveStoreId } = useAuth();
@@ -60,6 +61,7 @@ export default function AppShell({ children }) {
             ⚠️ Profile data unavailable — some permissions may be incorrect. Try signing out and back in, or contact an owner.
           </div>
         )}
+        <NrsStatusBar />
         {typeof children === 'function' ? children({ selectedStore: effectiveStoreId, setSelectedStore }) : children}
       </main>
     </div>
