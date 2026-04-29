@@ -799,8 +799,9 @@ export function SortDropdown({ options, value, onChange }) {
 //
 // DataTable props:
 //   defaultSort={{ key, dir }} — initial sort state
-export function DataTable({ columns, rows, onEdit, onDelete, isOwner = true, emptyMessage = 'No data', defaultSort, sortState, onSortChange }) {
+export function DataTable({ columns, rows, onEdit, onDelete, isOwner = true, emptyMessage = 'No data', defaultSort, sortState, onSortChange, pageSize = 50 }) {
   const [internalSort, setInternalSort] = useState(defaultSort || null);
+  const [page, setPage] = useState(1);
   const sort = sortState !== undefined ? sortState : internalSort;
   const setSort = (v) => {
     const next = typeof v === 'function' ? v(sort) : v;
@@ -849,8 +850,18 @@ export function DataTable({ columns, rows, onEdit, onDelete, isOwner = true, emp
     });
   };
 
-  const visible = sortedRows.slice(0, 100);
   const total = sortedRows.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  // Reset to page 1 if the filter shrinks the dataset below the current page,
+  // or if rows/sort changed enough to invalidate the page index.
+  const safePage = Math.min(page, totalPages);
+  useEffect(() => {
+    if (page > totalPages) setPage(1);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [total, totalPages]);
+  const startIdx = (safePage - 1) * pageSize;
+  const endIdx = Math.min(startIdx + pageSize, total);
+  const visible = sortedRows.slice(startIdx, endIdx);
 
   return (
     <div>
@@ -927,8 +938,51 @@ export function DataTable({ columns, rows, onEdit, onDelete, isOwner = true, emp
         </table>
       </div>
       {total > 0 && (
-        <div className="px-3 py-1.5 text-sw-dim text-[10px] border-t border-sw-border">
-          Showing {Math.min(visible.length, 100)} of {total} entries
+        <div className="px-3 py-2 border-t border-sw-border flex items-center justify-between gap-2 flex-wrap">
+          <div className="text-sw-dim text-[10px]">
+            Showing {startIdx + 1}–{endIdx} of {total} entries
+          </div>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setPage(1)}
+                disabled={safePage === 1}
+                className="px-2 py-1 text-[11px] rounded border border-sw-border bg-sw-card2 text-sw-text disabled:opacity-40 disabled:cursor-not-allowed hover:bg-sw-card"
+                title="First page"
+              >
+                ‹‹
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={safePage === 1}
+                className="px-2 py-1 text-[11px] rounded border border-sw-border bg-sw-card2 text-sw-text disabled:opacity-40 disabled:cursor-not-allowed hover:bg-sw-card"
+              >
+                ‹ Prev
+              </button>
+              <span className="text-sw-sub text-[11px] font-mono px-1.5">
+                Page {safePage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                disabled={safePage === totalPages}
+                className="px-2 py-1 text-[11px] rounded border border-sw-border bg-sw-card2 text-sw-text disabled:opacity-40 disabled:cursor-not-allowed hover:bg-sw-card"
+              >
+                Next ›
+              </button>
+              <button
+                type="button"
+                onClick={() => setPage(totalPages)}
+                disabled={safePage === totalPages}
+                className="px-2 py-1 text-[11px] rounded border border-sw-border bg-sw-card2 text-sw-text disabled:opacity-40 disabled:cursor-not-allowed hover:bg-sw-card"
+                title="Last page"
+              >
+                ››
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
