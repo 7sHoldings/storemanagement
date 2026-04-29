@@ -7,6 +7,7 @@ import { Card, V2StatCard, Badge } from '@/components/ui';
 import { fmt, fK, dayLabel, today, downloadCSV } from '@/lib/utils';
 import { logActivity, fmtMoney, shortDate } from '@/lib/activity';
 import { uploadReceipt, compressImage } from '@/lib/storage';
+import { clampShiftHours } from '@/lib/shift-hours';
 import NRSSyncModal from '@/components/NRSSyncModal';
 
 export default function SalesPage() {
@@ -218,7 +219,7 @@ export default function SalesPage() {
     })();
     supabase
       .from('employee_shifts')
-      .select('shift_date, total_hours, employee_name, daily_sales(short_over, total_sales)')
+      .select('shift_date, total_hours, opened_at, closed_at, employee_name, daily_sales_id, daily_sales(short_over, total_sales)')
       .eq('store_id', profile.store_id)
       .gte('shift_date', sevenDaysAgo)
       .then(({ data }) => {
@@ -1366,7 +1367,17 @@ export default function SalesPage() {
     }, 0);
     const mySubmittedDays = sales.filter(s => s.date >= sevenDaysAgo).length;
 
-    const myHours = myShifts.reduce((s, x) => s + Number(x.total_hours || 0), 0);
+    const myStore = stores.find(s => s.id === profile?.store_id);
+    const myHours = myShifts.reduce((s, x) => {
+      const clamped = clampShiftHours({
+        openedAt: x.opened_at,
+        closedAt: x.closed_at,
+        shiftDate: x.shift_date,
+        storeOpen: myStore?.open_time,
+        storeClose: myStore?.close_time,
+      });
+      return s + (clamped != null ? clamped : Number(x.total_hours || 0));
+    }, 0);
     const myShiftCount = myShifts.length;
     // Attribute short/over to the last closer per daily_sales row to avoid
     // double-counting when two cashiers shared a register.

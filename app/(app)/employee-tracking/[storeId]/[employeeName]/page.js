@@ -5,6 +5,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { DataTable, DateBar, useDateRange, Loading, Button } from '@/components/UI';
 import { V2StatCard, Card } from '@/components/ui';
 import { fmt, fK, dayLabel, downloadCSV } from '@/lib/utils';
+import { clampShiftHours } from '@/lib/shift-hours';
 
 function fmtTime(iso) {
   if (!iso) return '—';
@@ -56,7 +57,7 @@ export default function EmployeeDetailPage() {
       ].filter(Boolean)));
 
       const [{ data: st }, { data: shAll }, { data: salesRows }] = await Promise.all([
-        supabase.from('stores').select('id, name, color').eq('id', storeId).single(),
+        supabase.from('stores').select('id, name, color, open_time, close_time').eq('id', storeId).single(),
         supabase.from('employee_shifts')
           .select('*, daily_sales(total_sales, net_sales, r1_short_over, short_over)')
           .eq('store_id', storeId)
@@ -110,23 +111,33 @@ export default function EmployeeDetailPage() {
       }
     });
     const primaryIds = new Set(Object.values(dsMap).map(s => s.id));
-    return shifts.map(s => ({
-      ...s,
-      // short_over is the canonical day total (driven by cash collection
-      // when present, sales math otherwise).
-      _so: primaryIds.has(s.id) ? Number(s.daily_sales?.short_over ?? s.daily_sales?.r1_short_over ?? 0) : 0,
-      _sales: primaryIds.has(s.id) ? Number(s.daily_sales?.total_sales ?? s.daily_sales?.net_sales ?? 0) : 0,
-      _isPrimary: primaryIds.has(s.id),
-    }));
-  }, [shifts]);
+    return shifts.map(s => {
+      const clamped = clampShiftHours({
+        openedAt: s.opened_at,
+        closedAt: s.closed_at,
+        shiftDate: s.shift_date,
+        storeOpen: store?.open_time,
+        storeClose: store?.close_time,
+      });
+      return {
+        ...s,
+        _hours: clamped != null ? clamped : Number(s.total_hours || 0),
+        // short_over is the canonical day total (driven by cash collection
+        // when present, sales math otherwise).
+        _so: primaryIds.has(s.id) ? Number(s.daily_sales?.short_over ?? s.daily_sales?.r1_short_over ?? 0) : 0,
+        _sales: primaryIds.has(s.id) ? Number(s.daily_sales?.total_sales ?? s.daily_sales?.net_sales ?? 0) : 0,
+        _isPrimary: primaryIds.has(s.id),
+      };
+    });
+  }, [shifts, store]);
 
   const stats = useMemo(() => {
-    const withHours = enriched.filter(s => Number(s.total_hours) > 0);
-    const totalHours = withHours.reduce((s, r) => s + Number(r.total_hours), 0);
+    const withHours = enriched.filter(s => Number(s._hours) > 0);
+    const totalHours = withHours.reduce((s, r) => s + Number(r._hours), 0);
     const totalSales = enriched.reduce((s, r) => s + r._sales, 0);
     const totalSO = enriched.reduce((s, r) => s + r._so, 0);
     const avgShift = withHours.length ? (totalHours / withHours.length).toFixed(1) : '0';
-    const longest = withHours.length ? withHours.reduce((a, b) => (Number(b.total_hours) > Number(a.total_hours) ? b : a)) : null;
+    const longest = withHours.length ? withHours.reduce((a, b) => (Number(b._hours) > Number(a._hours) ? b : a)) : null;
 
     const dateSet = new Set(enriched.map(s => s.shift_date));
     const sortedDates = [...dateSet].sort();
@@ -146,7 +157,7 @@ export default function EmployeeDetailPage() {
       totalSales: totalSales.toFixed(2),
       totalSO: totalSO.toFixed(2),
       avgShift,
-      longest: longest ? { hours: Number(longest.total_hours).toFixed(1), date: longest.shift_date } : null,
+      longest: longest ? { hours: Number(longest._hours).toFixed(1), date: longest.shift_date } : null,
       maxConsec,
     };
   }, [enriched]);
@@ -158,7 +169,7 @@ export default function EmployeeDetailPage() {
     downloadCSV(`shifts-${employeeName}.csv`, ['Date', 'Day', 'Opened', 'Closed', 'Hours', 'Sales', 'Short/Over'],
       enriched.map(r => {
         const dow = DOW[new Date(r.shift_date + 'T12:00:00').getDay()];
-        return [r.shift_date, dow, fmtTime(r.opened_at), fmtTime(r.closed_at), r.total_hours || '', r._sales || '', r._so || ''];
+        return [r.shift_date, dow, fmtTime(r.opened_at), fmtTime(r.closed_at), r._hours || '', r._sales || '', r._so || ''];
       }));
   };
 
@@ -210,8 +221,8 @@ export default function EmployeeDetailPage() {
               render: (_, r) => <span className="text-[var(--text-secondary)] text-[11px]">{DOW[new Date(r.shift_date + 'T12:00:00').getDay()]}</span> },
             { key: 'opened_at', label: 'Opened', render: v => <span className="font-mono text-[11px]">{fmtTime(v)}</span> },
             { key: 'closed_at', label: 'Closed', render: v => <span className="font-mono text-[11px]">{fmtTime(v)}</span> },
-            { key: 'total_hours', label: 'Hours', align: 'right', mono: true, sortValue: r => Number(r.total_hours || 0),
-              render: v => v ? <span className={`font-bold ${v >= 8 ? 'text-[var(--color-success)]' : v >= 4 ? 'text-[var(--color-info)]' : 'text-[var(--color-warning)]'}`}>{Number(v).toFixed(1)}h</span> : <span className="text-[var(--text-muted)]">—</span> },
+            { key: '_hours', label: 'Hours', align: 'right', mono: true, sortValue: r => Number(r._hours || 0),
+              render: (_, r) => r._hours ? <span className={`font-bold ${r._hours >= 8 ? 'text-[var(--color-success)]' : r._hours >= 4 ? 'text-[var(--color-info)]' : 'text-[var(--color-warning)]'}`}>{Number(r._hours).toFixed(1)}h</span> : <span className="text-[var(--text-muted)]">—</span> },
             { key: '_sales', label: 'Sales', align: 'right', mono: true, sortValue: r => r._sales,
               render: (_, r) => r._sales > 0 ? <span className="text-[var(--text-primary)]">{fmt(r._sales)}</span> : <span className="text-[var(--text-muted)]">—</span> },
             { key: '_so', label: 'S/O', align: 'right', mono: true, sortable: true, sortValue: r => r._so,

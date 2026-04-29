@@ -41,7 +41,7 @@ export default function SettingsPage() {
   const [telegramTesting, setTelegramTesting] = useState(false);
   const [telegramMsg, setTelegramMsg] = useState('');
 
-  const blankStore = { name: '', color: '#60A5FA', email: '', has_register2: false, tax_rate: '8.25', address: '', phone: '', is_active: true, telegram_chat_id: '' };
+  const blankStore = { name: '', color: '#60A5FA', email: '', has_register2: false, tax_rate: '8.25', address: '', phone: '', is_active: true, telegram_chat_id: '', open_time: '11:00', close_time: '22:00' };
   const [form, setForm] = useState(blankStore);
 
   const load = async () => {
@@ -64,6 +64,8 @@ export default function SettingsPage() {
       phone: s.phone || '',
       is_active: s.is_active !== false,
       telegram_chat_id: s.telegram_chat_id || '',
+      open_time: s.open_time || '11:00',
+      close_time: s.close_time || '22:00',
     });
   };
 
@@ -86,6 +88,8 @@ export default function SettingsPage() {
       phone: form.phone.trim(),
       is_active: form.is_active,
       telegram_chat_id: form.telegram_chat_id.trim() || null,
+      open_time: (form.open_time || '11:00').trim(),
+      close_time: (form.close_time || '22:00').trim(),
     };
     const { error } = editStore
       ? await supabase.from('stores').update(payload).eq('id', editStore.id)
@@ -253,6 +257,18 @@ export default function SettingsPage() {
           <Field label="Phone (optional)">
             <input type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="(555) 123-4567" />
           </Field>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Open Time (CT)">
+              <input type="time" value={form.open_time} onChange={e => setForm({ ...form, open_time: e.target.value })} />
+            </Field>
+            <Field label="Close Time (CT)">
+              <input type="time" value={form.close_time} onChange={e => setForm({ ...form, close_time: e.target.value })} />
+            </Field>
+          </div>
+          <div className="text-[var(--text-muted)] text-[10px] -mt-1 mb-3">
+            Employee shift hours are clamped to this window. A late open or early close still counts as actual minutes worked; opening early or closing late doesn't add extra hours.
+          </div>
 
           <Field label="Telegram Group Chat ID">
             <input type="text" value={form.telegram_chat_id} onChange={e => setForm({ ...form, telegram_chat_id: e.target.value })} placeholder="e.g. -1001234567890" />

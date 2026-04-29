@@ -5,6 +5,7 @@ import { useAuth } from '@/components/AuthProvider';
 import { DateBar, useDateRange, Loading, Button } from '@/components/UI';
 import { V2StatCard } from '@/components/ui';
 import { fmt, fK, dayLabel, downloadCSV } from '@/lib/utils';
+import { clampShiftHours } from '@/lib/shift-hours';
 
 export default function EmployeeTrackingPage() {
   const router = useRouter();
@@ -20,7 +21,7 @@ export default function EmployeeTrackingPage() {
     (async () => {
       setLoading(true);
       const [{ data: st }, { data: sh }, { data: salesRows }, { data: profs }] = await Promise.all([
-        supabase.from('stores').select('id, name, color').order('created_at'),
+        supabase.from('stores').select('id, name, color, open_time, close_time').order('created_at'),
         supabase.from('employee_shifts')
           .select('*, stores(name, color), daily_sales(total_sales, net_sales, r1_short_over, short_over)')
           .gte('shift_date', range.start)
@@ -67,16 +68,28 @@ export default function EmployeeTrackingPage() {
       }
     });
     const primaryIds = new Set(Object.values(dsMap).map(s => s.id));
-    return shifts.map(s => ({
-      ...s,
-      _isPrimary: primaryIds.has(s.id),
-      // short_over is the canonical day total (driven by cash collection
-      // when present, sales math otherwise). r1_short_over is always 0 on
-      // R2 stores, so we read short_over first.
-      _so: primaryIds.has(s.id) ? Number(s.daily_sales?.short_over ?? s.daily_sales?.r1_short_over ?? 0) : 0,
-      _sales: primaryIds.has(s.id) ? Number(s.daily_sales?.total_sales ?? s.daily_sales?.net_sales ?? 0) : 0,
-    }));
-  }, [shifts]);
+    const storeMap = Object.fromEntries((stores || []).map(st => [st.id, st]));
+    return shifts.map(s => {
+      const st = storeMap[s.store_id];
+      const clamped = clampShiftHours({
+        openedAt: s.opened_at,
+        closedAt: s.closed_at,
+        shiftDate: s.shift_date,
+        storeOpen: st?.open_time,
+        storeClose: st?.close_time,
+      });
+      return {
+        ...s,
+        _hours: clamped != null ? clamped : Number(s.total_hours || 0),
+        _isPrimary: primaryIds.has(s.id),
+        // short_over is the canonical day total (driven by cash collection
+        // when present, sales math otherwise). r1_short_over is always 0 on
+        // R2 stores, so we read short_over first.
+        _so: primaryIds.has(s.id) ? Number(s.daily_sales?.short_over ?? s.daily_sales?.r1_short_over ?? 0) : 0,
+        _sales: primaryIds.has(s.id) ? Number(s.daily_sales?.total_sales ?? s.daily_sales?.net_sales ?? 0) : 0,
+      };
+    });
+  }, [shifts, stores]);
 
   const grouped = useMemo(() => {
     // 1. Seed the store map from `stores` so empty stores still appear.
@@ -119,7 +132,7 @@ export default function EmployeeTrackingPage() {
       const match = Object.values(store.employees).find(e => e.nrsAliases.includes(lc));
       if (match) {
         match.shifts.push(s);
-        match.totalHours += Number(s.total_hours) || 0;
+        match.totalHours += Number(s._hours) || 0;
         match.totalSO += s._so;
         match.totalSales += s._sales;
       } else {
@@ -134,7 +147,7 @@ export default function EmployeeTrackingPage() {
           unmatched: true,
         };
         bucket.shifts.push(s);
-        bucket.totalHours += Number(s.total_hours) || 0;
+        bucket.totalHours += Number(s._hours) || 0;
         bucket.totalSO += s._so;
         bucket.totalSales += s._sales;
       }
@@ -188,7 +201,7 @@ export default function EmployeeTrackingPage() {
   }, [shiftsWithSO, credits, stores, profiles]);
 
   const totals = useMemo(() => {
-    const h = shiftsWithSO.reduce((s, r) => s + (Number(r.total_hours) || 0), 0);
+    const h = shiftsWithSO.reduce((s, r) => s + (Number(r._hours) || 0), 0);
     const so = shiftsWithSO.reduce((s, r) => s + r._so, 0);
     const emps = new Set(shiftsWithSO.map(r => r.employee_name)).size;
     return { shifts: shiftsWithSO.length, hours: h.toFixed(1), employees: emps, so: so.toFixed(2) };
