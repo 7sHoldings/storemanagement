@@ -226,15 +226,19 @@ export default function SalesPage() {
     }
     const storeForRegister = stores.find(s => s.id === storeIdToUse);
     const usesReg2 = !!storeForRegister?.has_register2;
-    // Employees at R2 stores only enter R2 Net + receipt; the owner / NRS
-    // sync fills the rest. Owners/employees at single-register stores still
-    // submit the full set.
-    const simpleR2Save = isEmployee && usesReg2;
+    // Employees see a slimmed flow: Bells/Kerens enter R2 Net + Credit,
+    // single-register stores enter just Credit. The owner / NRS sync
+    // fills the rest. Owners always submit the full set.
+    const simpleR2Save     = isEmployee && usesReg2;
+    const simpleSingleSave = isEmployee && !usesReg2;
+    const simpleSave       = simpleR2Save || simpleSingleSave;
 
     // ── Validation ─────────────────────────────────────────────
     const errs = {};
     if (simpleR2Save) {
       if (form.r2_net === '') errs.r2_net = true;
+    } else if (simpleSingleSave) {
+      // Single-register employees only enter credits — nothing else is required.
     } else {
       const r1Required = ['r1_gross', 'r1_net', 'cash_sales', 'card_sales', 'r1_canceled_basket', 'r1_safe_drop', 'r1_sales_tax'];
       r1Required.forEach(k => { if (form[k] === '') errs[k] = true; });
@@ -254,8 +258,14 @@ export default function SalesPage() {
       setFieldErrors(errs);
       setModalError('Please fill all required fields.');
       // Jump to whichever tab has the first error.
-      const hasR1Err = Object.keys(errs).some(k => k !== 'r2_net');
-      setActiveTab(hasR1Err && !simpleR2Save ? 'r1' : 'r2');
+      const haKeys = Object.keys(errs).filter(k => k.startsWith('ha_name_'));
+      const onlyHaErrs = haKeys.length === Object.keys(errs).length;
+      const hasR1Err = Object.keys(errs).some(k => k !== 'r2_net' && !k.startsWith('ha_name_'));
+      const targetTab = simpleSingleSave
+        ? 'credit'
+        : (simpleR2Save || (onlyHaErrs && usesReg2)) ? 'r2'
+        : hasR1Err ? 'r1' : (usesReg2 ? 'r2' : 'r1');
+      setActiveTab(targetTab);
       return;
     }
     setFieldErrors({});
@@ -268,7 +278,7 @@ export default function SalesPage() {
         setActiveTab('r2');
         return;
       }
-    } else {
+    } else if (!simpleSingleSave) {
       if (isEmployee && r1Images.length === 0) {
         setModalError('Please upload at least one Register 1 receipt before submitting.');
         setActiveTab('r1');
@@ -281,11 +291,10 @@ export default function SalesPage() {
       }
     }
     // Credit receipt is required for employees whenever a House Account
-    // amount has been entered. The credit upload lives on the R1 tab for
-    // single-register stores and on the R2 tab in simpleR2 mode.
+    // amount has been entered.
     if (isEmployee && haTotal > 0 && creditImages.length === 0) {
       setModalError('Please upload at least one Credit receipt before submitting.');
-      setActiveTab(simpleR2Save ? 'r2' : 'r1');
+      setActiveTab(simpleR2Save ? 'r2' : simpleSingleSave ? 'credit' : 'r1');
       return;
     }
 
@@ -328,16 +337,17 @@ export default function SalesPage() {
       store_id: storeIdToUse,
       // Employees can only enter for today.
       date: isEmployee ? today() : form.date,
-      // Register 1 — for simpleR2Save (R2-store employees), R1 stays at 0
-      // and gets filled in later by the owner / NRS sync.
-      r1_gross: simpleR2Save ? 0 : num(form.r1_gross),
-      r1_net: simpleR2Save ? 0 : num(form.r1_net),
-      cash_sales: simpleR2Save ? 0 : num(form.cash_sales),
-      card_sales: simpleR2Save ? 0 : num(form.card_sales),
-      cashapp_check: simpleR2Save ? 0 : num(form.cashapp_check),
-      r1_canceled_basket: simpleR2Save ? 0 : num(form.r1_canceled_basket),
-      r1_safe_drop: simpleR2Save ? 0 : num(form.r1_safe_drop),
-      r1_sales_tax: simpleR2Save ? 0 : num(form.r1_sales_tax),
+      // Register 1 — for any employee submission (Bells/Kerens or single-
+      // register), R1 stays at 0 and gets filled in later by the owner /
+      // NRS sync.
+      r1_gross: simpleSave ? 0 : num(form.r1_gross),
+      r1_net: simpleSave ? 0 : num(form.r1_net),
+      cash_sales: simpleSave ? 0 : num(form.cash_sales),
+      card_sales: simpleSave ? 0 : num(form.card_sales),
+      cashapp_check: simpleSave ? 0 : num(form.cashapp_check),
+      r1_canceled_basket: simpleSave ? 0 : num(form.r1_canceled_basket),
+      r1_safe_drop: simpleSave ? 0 : num(form.r1_safe_drop),
+      r1_sales_tax: simpleSave ? 0 : num(form.r1_sales_tax),
       house_accounts: houseAccounts
         .filter(e => (parseFloat(e.amount) || 0) > 0)
         .map(e => ({ name: resolveHAName(e) || 'Unnamed', amount: parseFloat(e.amount) || 0 })),
@@ -643,38 +653,52 @@ export default function SalesPage() {
   const totalCash  = r1Cash + r2Cash;
   const totalCard  = r1Card; // R2 has no card
 
-  // Employee at R2 stores (Bells/Kerens) only enters R2 Net + receipts.
-  // R1 and the rest of R2 are filled in later by the owner / NRS sync.
-  const empSimpleR2 = isEmployee && currentUsesReg2;
+  // Employees only enter the bits that NRS can't fill automatically:
+  //   • Bells/Kerens (R2 stores): R2 Net + receipt + house-account credits
+  //   • Reno/Denison/Troup (single-register): house-account credits only
+  // The owner / NRS sync fills R1 figures.
+  const empSimpleR2     = isEmployee && currentUsesReg2;
+  const empSimpleSingle = isEmployee && !currentUsesReg2;
 
   // Employee "Next →" flow.
   const flowTabs = empSimpleR2
     ? ['r2', 'summary']
-    : ['r1', ...(currentUsesReg2 ? ['r2'] : []), 'summary'];
+    : empSimpleSingle
+      ? ['credit', 'summary']
+      : ['r1', ...(currentUsesReg2 ? ['r2'] : []), 'summary'];
   const curIdx = flowTabs.indexOf(activeTab);
   const nextTabId = curIdx >= 0 && curIdx < flowTabs.length - 1 ? flowTabs[curIdx + 1] : null;
   const isOnSummaryTab = activeTab === 'summary';
 
   // Force the active tab into the allowed set when the flow changes (e.g.
-  // an R2-store employee defaults to R1 from initial state).
+  // an employee defaults to 'r1' from initial state but their store needs
+  // 'r2' or 'credit').
   useEffect(() => {
     if (!flowTabs.includes(activeTab)) setActiveTab(flowTabs[0]);
-  }, [empSimpleR2]);
+  }, [empSimpleR2, empSimpleSingle]);
 
   // ── Tabbed register form (shared by employee + owner modal) ──
-  const renderTabbedForm = (usesReg2, allowShortOver, dateField, simpleR2Mode = false) => {
-    // For single-register stores (Reno/Denison/Troup), hide R2 completely.
-    // For R2-store employees (simpleR2Mode), hide R1 and trim R2.
+  const renderTabbedForm = (usesReg2, allowShortOver, dateField, empSimpleMode = false) => {
+    // Owner mode shows the full R1 + R2(if applicable) + Summary tabs.
+    // Employees use a slimmed flow: Bells/Kerens enter R2 Net + Credit,
+    // single-register stores enter just Credit. NRS / owner fills R1.
+    const simpleR2Mode     = empSimpleMode && usesReg2;
+    const simpleSingleMode = empSimpleMode && !usesReg2;
     const tabs = simpleR2Mode
       ? [
           { id: 'r2', label: 'Register 2' },
           { id: 'summary', label: 'Summary' },
         ]
-      : [
-          { id: 'r1', label: 'Register 1' },
-          ...(usesReg2 ? [{ id: 'r2', label: 'Register 2' }] : []),
-          { id: 'summary', label: 'Summary' },
-        ];
+      : simpleSingleMode
+        ? [
+            { id: 'credit', label: 'Credit' },
+            { id: 'summary', label: 'Summary' },
+          ]
+        : [
+            { id: 'r1', label: 'Register 1' },
+            ...(usesReg2 ? [{ id: 'r2', label: 'Register 2' }] : []),
+            { id: 'summary', label: 'Summary' },
+          ];
     const tabIds = tabs.map(t => t.id);
     const currentIdx = tabIds.indexOf(activeTab);
     const nextTabId = currentIdx >= 0 && currentIdx < tabIds.length - 1 ? tabIds[currentIdx + 1] : null;
@@ -830,7 +854,7 @@ export default function SalesPage() {
           ))}
         </div>
 
-        {activeTab === 'r1' && !simpleR2Mode && (
+        {activeTab === 'r1' && !simpleR2Mode && !simpleSingleMode && (
           <div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <Field label={<>Gross Sales {reqMark}</>}>
@@ -942,6 +966,17 @@ export default function SalesPage() {
           </div>
         )}
 
+        {activeTab === 'credit' && simpleSingleMode && (
+          <div>
+            <div className="bg-sw-blueD/40 border border-sw-blue/20 rounded-lg p-2.5 mb-3 text-[11px] text-sw-sub">
+              Enter any House Account credits issued today and upload a
+              receipt photo for each. Sales figures are filled in by the
+              owner / NRS sync — you only need credits here.
+            </div>
+            {houseAccountSection}
+          </div>
+        )}
+
         {activeTab === 'r2' && usesReg2 && (
           <div>
             <div className="bg-sw-blueD/40 border border-sw-blue/20 rounded-lg p-2.5 mb-3 text-[11px] text-sw-sub">
@@ -1029,12 +1064,22 @@ export default function SalesPage() {
                     ? <span className="text-sw-text">{fmt(haTotal)} ({houseAccounts.filter(e => (parseFloat(e.amount)||0) > 0).length})</span>
                     : <span className="text-sw-dim">None · {fmt(0)}</span>}
                 </div>
-                <div className="text-sw-sub">Receipt</div>
+                <div className="text-sw-sub">R2 Receipt</div>
                 <div className="text-right font-mono">
                   {r2Images.length > 0
                     ? <span className="text-sw-green">{r2Images.length} attached</span>
                     : <span className="text-sw-red">None</span>}
                 </div>
+                {haTotal > 0 && (
+                  <>
+                    <div className="text-sw-sub">Credit Receipt</div>
+                    <div className="text-right font-mono">
+                      {creditImages.length > 0
+                        ? <span className="text-sw-green">{creditImages.length} attached</span>
+                        : <span className="text-sw-red">None</span>}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
             <p className="text-sw-dim text-[10px] italic">
@@ -1044,7 +1089,39 @@ export default function SalesPage() {
           </div>
         )}
 
-        {activeTab === 'summary' && !simpleR2Mode && (
+        {activeTab === 'summary' && simpleSingleMode && (
+          <div className="space-y-3">
+            <div className="bg-sw-card2 border border-sw-border rounded-lg p-3">
+              <div className="text-sw-sub text-[10px] font-bold uppercase mb-1.5">Credit</div>
+              <div className="grid grid-cols-2 gap-y-1 gap-x-2 text-[11px]">
+                <div className="text-sw-sub">House Account</div>
+                <div className="text-right font-mono">
+                  {haTotal > 0
+                    ? <span className="text-sw-text">{fmt(haTotal)} ({houseAccounts.filter(e => (parseFloat(e.amount)||0) > 0).length})</span>
+                    : <span className="text-sw-dim">None · {fmt(0)}</span>}
+                </div>
+                {haTotal > 0 && (
+                  <>
+                    <div className="text-sw-sub">Credit Receipt</div>
+                    <div className="text-right font-mono">
+                      {creditImages.length > 0
+                        ? <span className="text-sw-green">{creditImages.length} attached</span>
+                        : <span className="text-sw-red">None</span>}
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+            <p className="text-sw-dim text-[10px] italic">
+              Sales figures are filled in by the owner / NRS sync — you only
+              need to record any House Account credits with a receipt photo.
+              You can submit with no credits if there were none today.
+            </p>
+            <Field label="Notes"><input placeholder="Optional" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></Field>
+          </div>
+        )}
+
+        {activeTab === 'summary' && !simpleR2Mode && !simpleSingleMode && (
           <div className="space-y-3">
             <div className="bg-sw-card2 border border-sw-border rounded-lg p-3">
               <div className="text-sw-sub text-[10px] font-bold uppercase mb-1.5">Register 1</div>
@@ -1162,7 +1239,8 @@ export default function SalesPage() {
               </div>
             </div>
 
-            {/* R1 detail */}
+            {/* R1 detail — hidden for single-register employees (they don't enter R1) */}
+            {empUsesReg2 && (
             <div className="bg-sw-card2 rounded-lg p-3 border border-sw-border mb-2">
               <div className="text-sw-sub text-[10px] font-bold uppercase mb-1.5">Register 1</div>
               <div className="grid grid-cols-2 gap-y-0.5 gap-x-2 text-[11px]">
@@ -1194,6 +1272,7 @@ export default function SalesPage() {
                 </div>
               </div>
             </div>
+            )}
 
             {/* R2 detail */}
             {empUsesReg2 && (
@@ -1215,7 +1294,38 @@ export default function SalesPage() {
               </div>
             )}
 
-            {/* Total S/O */}
+            {/* Credit detail — shown for single-register employees who only entered credits */}
+            {!empUsesReg2 && (() => {
+              const entries = Array.isArray(todayEntry.house_accounts) ? todayEntry.house_accounts : [];
+              const amt = entries.length ? entries.reduce((s,e) => s + (e.amount||0), 0) : Number(todayEntry.r1_house_account_amount ?? todayEntry.credits ?? 0);
+              const credit = Array.isArray(todayEntry.credit_receipt_urls) ? todayEntry.credit_receipt_urls : [];
+              return (
+                <div className="bg-sw-card2 rounded-lg p-3 border border-sw-border mb-2">
+                  <div className="text-sw-sub text-[10px] font-bold uppercase mb-1.5">Credit</div>
+                  <div className="grid grid-cols-2 gap-y-0.5 gap-x-2 text-[11px]">
+                    <div className="text-sw-sub">House Account</div>
+                    <div className="text-right font-mono">
+                      {amt > 0
+                        ? <span className="text-sw-text">{entries.length > 1 ? `${entries.length} entries` : (entries[0]?.name || todayEntry.r1_house_account_name || 'Unnamed')} · {fmt(amt)}</span>
+                        : <span className="text-sw-dim">None · {fmt(0)}</span>}
+                    </div>
+                    {amt > 0 && (
+                      <>
+                        <div className="text-sw-sub">Credit Receipt</div>
+                        <div className="text-right font-mono">
+                          {credit.length > 0
+                            ? <span className="text-sw-green">{credit.length} attached</span>
+                            : <span className="text-sw-red">None</span>}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Total S/O — only for R2 stores; single-register employees haven't entered cash so it's not meaningful */}
+            {empUsesReg2 && (
             <div className="bg-sw-blueD border border-sw-blue/30 rounded-lg p-2.5 flex justify-between items-center">
               <span className="text-sw-blue text-[11px] font-bold uppercase">Total Short/Over</span>
               {(() => {
@@ -1225,6 +1335,7 @@ export default function SalesPage() {
                 return <span className="text-sw-green font-mono font-extrabold">Over +{fmt(Math.abs(v))}</span>;
               })()}
             </div>
+            )}
 
             <p className="text-sw-sub text-[11px] mt-3">
               🔒 Only the owner can edit today's entry. Contact the owner if you need to make a correction.
@@ -1239,7 +1350,7 @@ export default function SalesPage() {
             )}
             {renderTabbedForm(empUsesReg2, /*allowShortOver*/ false, (
               <Field label="Date"><input type="date" value={todayStr} readOnly disabled /></Field>
-            ), /*simpleR2Mode*/ empUsesReg2)}
+            ), /*empSimpleMode*/ true)}
             {isOnSummaryTab ? (
               <Button onClick={handleSave} disabled={saving} className="w-full !py-3 !text-sm !rounded-xl mt-4">
                 {saving ? 'Saving…' : 'Submit Sales'}
