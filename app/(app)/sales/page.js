@@ -63,8 +63,13 @@ export default function SalesPage() {
   // dropdown so the cashier picks a real teammate (and we can roll the
   // credit up on the Employee Tracking page later).
   const [employeesByStore, setEmployeesByStore] = useState({});
-  // Personal-stats fetch for the employee "My Week" card.
+  // Personal-stats fetch for the employee "My Stats" card.
   const [myShifts, setMyShifts] = useState([]);
+  const [myStatsCredits, setMyStatsCredits] = useState(0);
+  const [myStatsDays, setMyStatsDays] = useState(0);
+  // Independent range from the page-level table so employees can flip
+  // between This Week / Last Week / This Month / custom on the stats card.
+  const myStatsRange = useDateRange('thisweek');
   const [saving, setSaving] = useState(false);
   const r1CameraRef = useRef(null);
   const r1LibraryRef = useRef(null);
@@ -202,7 +207,7 @@ export default function SalesPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  // Fetch this employee's last-7-days shifts for the My Week card.
+  // Fetch this employee's shifts + credits for the chosen My Stats range.
   useEffect(() => {
     if (!isEmployee || !profile?.store_id) return;
     let cancelled = false;
@@ -210,25 +215,40 @@ export default function SalesPage() {
       (profile?.name || '').trim().toLowerCase(),
       (profile?.nrs_employee_name || '').trim().toLowerCase(),
     ].filter(Boolean);
-    const sevenDaysAgo = (() => {
-      const d = new Date(); d.setDate(d.getDate() - 6);
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${y}-${m}-${day}`;
-    })();
-    supabase
-      .from('employee_shifts')
-      .select('shift_date, total_hours, opened_at, closed_at, employee_name, daily_sales_id, daily_sales(short_over, total_sales)')
-      .eq('store_id', profile.store_id)
-      .gte('shift_date', sevenDaysAgo)
-      .then(({ data }) => {
-        if (cancelled) return;
-        const mine = (data || []).filter(s => aliases.includes((s.employee_name || '').trim().toLowerCase()));
-        setMyShifts(mine);
+    const { start, end } = myStatsRange.range;
+    Promise.all([
+      supabase
+        .from('employee_shifts')
+        .select('shift_date, total_hours, opened_at, closed_at, employee_name, daily_sales_id, daily_sales(short_over, total_sales)')
+        .eq('store_id', profile.store_id)
+        .gte('shift_date', start)
+        .lte('shift_date', end),
+      supabase
+        .from('daily_sales')
+        .select('date, house_accounts')
+        .eq('store_id', profile.store_id)
+        .gte('date', start)
+        .lte('date', end),
+    ]).then(([{ data: shifts }, { data: salesRows }]) => {
+      if (cancelled) return;
+      const mine = (shifts || []).filter(s => aliases.includes((s.employee_name || '').trim().toLowerCase()));
+      setMyShifts(mine);
+      let credits = 0;
+      let days = 0;
+      (salesRows || []).forEach(r => {
+        days += 1;
+        if (!Array.isArray(r.house_accounts)) return;
+        r.house_accounts.forEach(e => {
+          const byId = profile?.id && e?.employee_id === profile.id;
+          const byName = aliases.includes((e?.name || '').trim().toLowerCase());
+          if (byId || byName) credits += Number(e?.amount || 0);
+        });
       });
+      setMyStatsCredits(credits);
+      setMyStatsDays(days);
+    });
     return () => { cancelled = true; };
-  }, [isEmployee, profile?.store_id, profile?.name, profile?.nrs_employee_name, supabase]);
+  }, [isEmployee, profile?.store_id, profile?.id, profile?.name, profile?.nrs_employee_name, myStatsRange.range.start, myStatsRange.range.end, supabase]);
 
   // Deep link from Cash Collection: /sales?date=YYYY-MM-DD&store=<id>
   // scrolls to and highlights the matching daily_sales row in the table
@@ -1341,32 +1361,10 @@ export default function SalesPage() {
     const empStoreObj = stores.find(s => s.id === profile?.store_id);
     const empUsesReg2 = !!empStoreObj?.has_register2;
 
-    // ── My Week — personal stats card ─────────────────────────────
-    // Compute hours/sales/S-O from the sales rows + a separate shifts
-    // fetch (kept lightweight, last 7 days only). Credits are matched by
-    // employee_id (preferred) or by case-insensitive name + nrs alias.
-    const sevenDaysAgo = (() => {
-      const d = new Date(); d.setDate(d.getDate() - 6);
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const day = String(d.getDate()).padStart(2, '0');
-      return `${y}-${m}-${day}`;
-    })();
-    const myAliases = [
-      (profile?.name || '').trim().toLowerCase(),
-      (profile?.nrs_employee_name || '').trim().toLowerCase(),
-    ].filter(Boolean);
-    const myCreditTotal = sales.reduce((sum, s) => {
-      if (s.date < sevenDaysAgo) return sum;
-      if (!Array.isArray(s.house_accounts)) return sum;
-      return sum + s.house_accounts.reduce((acc, e) => {
-        const byId = profile?.id && e?.employee_id === profile.id;
-        const byName = myAliases.includes((e?.name || '').trim().toLowerCase());
-        return acc + ((byId || byName) ? Number(e?.amount || 0) : 0);
-      }, 0);
-    }, 0);
-    const mySubmittedDays = sales.filter(s => s.date >= sevenDaysAgo).length;
-
+    // ── My Stats — personal stats card ────────────────────────────
+    // Hours / S-O come from the range-driven myShifts state; credits and
+    // submitted-day count come from myStatsCredits / myStatsDays. Sales
+    // Handled is intentionally hidden — owner side has that detail.
     const myStore = stores.find(s => s.id === profile?.store_id);
     const myHours = myShifts.reduce((s, x) => {
       const clamped = clampShiftHours({
@@ -1389,14 +1387,21 @@ export default function SalesPage() {
       if (!prev || (s.closed_at && (!prev.closed_at || s.closed_at > prev.closed_at))) dsLastCloser[id] = s;
     });
     const mySO = Object.values(dsLastCloser).reduce((s, x) => s + Number(x.daily_sales?.short_over || 0), 0);
-    const mySalesHandled = Object.values(dsLastCloser).reduce((s, x) => s + Number(x.daily_sales?.total_sales || 0), 0);
-    const myWeekEmpty = (myShiftCount === 0 && mySubmittedDays === 0 && myCreditTotal === 0 && Math.abs(mySO) < 0.01);
+    const myStatsEmpty = (myShiftCount === 0 && myStatsDays === 0 && myStatsCredits === 0 && Math.abs(mySO) < 0.01);
 
-    // Render helpers for the My Week stat rows.
+    // Render helpers for the My Stats rows.
     const soClass = Math.abs(mySO) < 0.01 ? 'text-sw-dim' : mySO > 0 ? 'text-sw-red' : 'text-sw-green';
     const soText  = Math.abs(mySO) < 0.01 ? fmt(0) : mySO > 0 ? `−${fmt(mySO)}` : `+${fmt(Math.abs(mySO))}`;
     const soSub   = Math.abs(mySO) < 0.01 ? 'matched' : mySO > 0 ? 'short' : 'over';
-    const creditClass = myCreditTotal > 0 ? 'text-sw-amber' : 'text-sw-dim';
+    const creditClass = myStatsCredits > 0 ? 'text-sw-amber' : 'text-sw-dim';
+
+    const myStatsPresets = [
+      { id: 'thisweek',  label: 'This Week' },
+      { id: 'lastweek',  label: 'Last Week' },
+      { id: 'thismonth', label: 'This Month' },
+      { id: 'custom',    label: 'Custom' },
+    ];
+    const presetLabel = myStatsPresets.find(p => p.id === myStatsRange.preset)?.label || 'Custom';
 
     return (
       <div className="max-w-xl mx-auto">
@@ -1404,15 +1409,52 @@ export default function SalesPage() {
         {msg === 'success' && <Alert type="success">Sales recorded!</Alert>}
         {msg && msg !== 'success' && <Alert type="error">{msg}</Alert>}
 
-        {/* My Week — personal stats card */}
+        {/* My Stats — personal stats card */}
         <div className="bg-sw-card rounded-xl border border-sw-border mb-4 overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-sw-border flex items-center justify-between gap-2">
+          <div className="px-4 py-2.5 border-b border-sw-border flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
-              <span className="text-sw-text text-[13px] font-bold">My Week</span>
-              <span className="text-sw-dim text-[10px]">· Last 7 days · {profile?.name}</span>
+              <span className="text-sw-text text-[13px] font-bold">My Stats</span>
+              <span className="text-sw-dim text-[10px]">· {presetLabel} · {profile?.name}</span>
             </div>
-            {myWeekEmpty && (
-              <span className="text-sw-dim text-[10px] italic">No activity yet</span>
+            {myStatsEmpty && (
+              <span className="text-sw-dim text-[10px] italic">No activity in range</span>
+            )}
+          </div>
+          <div className="px-4 py-2 border-b border-sw-border bg-sw-card2">
+            <div className="flex flex-wrap gap-1 mb-1">
+              {myStatsPresets.map(p => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => myStatsRange.selectPreset(p.id)}
+                  className={`px-2.5 py-1 rounded text-[11px] font-semibold border transition-colors ${
+                    myStatsRange.preset === p.id
+                      ? 'bg-sw-blueD border-sw-blue/40 text-sw-blue'
+                      : 'bg-sw-card border-sw-border text-sw-sub hover:text-sw-text'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            {myStatsRange.preset === 'custom' && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <input
+                  type="date"
+                  value={myStatsRange.range.start}
+                  max={myStatsRange.range.end}
+                  onChange={e => myStatsRange.setStart(e.target.value)}
+                  className="!text-[11px] !py-1 !px-2 flex-1"
+                />
+                <span className="text-sw-dim text-[10px]">→</span>
+                <input
+                  type="date"
+                  value={myStatsRange.range.end}
+                  min={myStatsRange.range.start}
+                  onChange={e => myStatsRange.setEnd(e.target.value)}
+                  className="!text-[11px] !py-1 !px-2 flex-1"
+                />
+              </div>
             )}
           </div>
           <div className="divide-y divide-sw-border">
@@ -1424,16 +1466,6 @@ export default function SalesPage() {
               <div className="text-right">
                 <div className="text-sw-text font-mono font-extrabold text-[15px]">{myHours.toFixed(1)}h</div>
                 <div className="text-sw-dim text-[10px]">{myShiftCount} shift{myShiftCount === 1 ? '' : 's'}</div>
-              </div>
-            </div>
-            <div className="flex items-center justify-between px-4 py-2.5">
-              <div className="flex items-center gap-2 text-sw-sub text-[12px]">
-                <span className="text-base">💵</span>
-                <span className="font-semibold uppercase tracking-wide text-[10px]">Sales Handled</span>
-              </div>
-              <div className="text-right">
-                <div className="text-sw-text font-mono font-extrabold text-[15px]">{fmt(mySalesHandled)}</div>
-                <div className="text-sw-dim text-[10px]">{mySubmittedDays} day{mySubmittedDays === 1 ? '' : 's'} submitted</div>
               </div>
             </div>
             <div className="flex items-center justify-between px-4 py-2.5">
@@ -1452,7 +1484,7 @@ export default function SalesPage() {
                 <span className="font-semibold uppercase tracking-wide text-[10px]">House Credit</span>
               </div>
               <div className="text-right">
-                <div className={`font-mono font-extrabold text-[15px] ${creditClass}`}>{fmt(myCreditTotal)}</div>
+                <div className={`font-mono font-extrabold text-[15px] ${creditClass}`}>{fmt(myStatsCredits)}</div>
                 <div className="text-sw-dim text-[10px]">deducted at payroll</div>
               </div>
             </div>
