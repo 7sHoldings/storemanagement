@@ -1207,22 +1207,6 @@ export default function SalesPage() {
           </div>
         )}
 
-        <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
-          <div className="px-3 py-2 border-b border-sw-border"><h3 className="text-sw-text text-xs font-bold">Recent Entries (read-only)</h3></div>
-          <DataTable columns={[
-            { key: 'date', label: 'Date', render: v => dayLabel(v) },
-            { key: 'gross_sales', label: 'Gross', align: 'right', mono: true, render: (v, r) => fmt(v ?? r.total_sales) },
-            { key: 'total_sales', label: 'Total', align: 'right', mono: true, render: (v, r) => <span className="text-sw-green font-bold">{fmt(v ?? r.net_sales ?? 0)}</span> },
-            { key: 'short_over', label: 'S/O', align: 'right', mono: true, render: v => {
-              const n = Number(v || 0);
-              if (Math.abs(n) < 0.01) return <span className="text-[var(--text-muted)]">{fmt(0)}</span>;
-              // Positive short_over = SHORT (missing cash, red, shown with −).
-              // Negative = OVER (extra cash, green, shown with +).
-              return <span className={n > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}>{n > 0 ? '−' : '+'}{fmt(Math.abs(n))}</span>;
-            } },
-          ]} rows={sales.slice(0, 14)} isOwner={false} />
-        </div>
-        <div className="mt-3 p-2 bg-sw-card2 rounded-lg"><p className="text-sw-dim text-[10px]">🔒 Only the owner can edit/delete entries</p></div>
       </div>
     );
   }
