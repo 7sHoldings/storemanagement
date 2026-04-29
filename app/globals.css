@@ -170,3 +170,12 @@ tr:hover td { background: #131C28; }
   th { padding: 8px 10px; font-size: 9px; }
   td { padding: 7px 10px; font-size: 12px; }
 }
+
+/* Highlight row when navigated to via deep link (e.g. /sales?date=…&store=…). */
+@keyframes sw-row-pulse {
+  0%   { background: rgba(96, 165, 250, 0.32); box-shadow: inset 3px 0 0 #60A5FA; }
+  60%  { background: rgba(96, 165, 250, 0.18); box-shadow: inset 3px 0 0 #60A5FA; }
+  100% { background: rgba(96, 165, 250, 0.10); box-shadow: inset 3px 0 0 #60A5FA; }
+}
+tr.sw-row-highlight td { animation: sw-row-pulse 6s ease-out forwards; }
+tr.sw-row-highlight:hover td { background: rgba(96, 165, 250, 0.22); }

@@ -799,7 +799,7 @@ export function SortDropdown({ options, value, onChange }) {
 //
 // DataTable props:
 //   defaultSort={{ key, dir }} — initial sort state
-export function DataTable({ columns, rows, onEdit, onDelete, isOwner = true, emptyMessage = 'No data', defaultSort, sortState, onSortChange, pageSize = 50 }) {
+export function DataTable({ columns, rows, onEdit, onDelete, isOwner = true, emptyMessage = 'No data', defaultSort, sortState, onSortChange, pageSize = 50, highlightId = null }) {
   const [internalSort, setInternalSort] = useState(defaultSort || null);
   const [page, setPage] = useState(1);
   const sort = sortState !== undefined ? sortState : internalSort;
@@ -897,8 +897,14 @@ export function DataTable({ columns, rows, onEdit, onDelete, isOwner = true, emp
                 </td>
               </tr>
             )}
-            {visible.map((row, i) => (
-              <tr key={row.id || i}>
+            {visible.map((row, i) => {
+              const isHighlighted = highlightId && row.id === highlightId;
+              return (
+              <tr
+                key={row.id || i}
+                data-sales-row-id={row.id || undefined}
+                className={isHighlighted ? 'sw-row-highlight' : undefined}
+              >
                 {columns.map(c => (
                   <td
                     key={c.key}
@@ -933,7 +939,8 @@ export function DataTable({ columns, rows, onEdit, onDelete, isOwner = true, emp
                   </td>
                 )}
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

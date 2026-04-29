@@ -200,20 +200,28 @@ export default function SalesPage() {
   useEffect(() => { load(); }, [load]);
 
   // Deep link from Cash Collection: /sales?date=YYYY-MM-DD&store=<id>
-  // opens the matching daily_sales row in the edit modal once loaded.
-  const editParamHandled = useRef(false);
+  // scrolls to and highlights the matching daily_sales row in the table
+  // (without opening the edit modal — owner can click Edit themselves).
+  const [highlightId, setHighlightId] = useState(null);
+  const linkParamHandled = useRef(false);
   useEffect(() => {
-    if (editParamHandled.current) return;
+    if (linkParamHandled.current) return;
     if (loading || !sales.length || !isOwner) return;
     const date = searchParams.get('date');
     const store = searchParams.get('store');
     if (!date || !store) return;
     const row = sales.find(r => r.date === date && r.store_id === store);
     if (row) {
-      openEditRow(row);
-      editParamHandled.current = true;
-      // Strip the params so refreshing the page doesn't re-open the modal.
+      setHighlightId(row.id);
+      linkParamHandled.current = true;
+      // Strip the params so refreshing the page doesn't re-trigger the highlight.
       router.replace('/sales', { scroll: false });
+      // Scroll the highlighted row into view, fade the highlight out after a few seconds.
+      setTimeout(() => {
+        const el = document.querySelector(`[data-sales-row-id="${row.id}"]`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
+      setTimeout(() => setHighlightId(null), 6000);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, sales, searchParams, isOwner]);
@@ -1619,6 +1627,7 @@ export default function SalesPage() {
         <DataTable
           sortState={sortState}
           onSortChange={setSortState}
+          highlightId={highlightId}
           columns={[
           {
             key: '_status', label: '', align: 'center', sortable: true,
