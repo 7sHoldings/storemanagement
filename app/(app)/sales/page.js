@@ -1379,8 +1379,13 @@ export default function SalesPage() {
     });
     const mySO = Object.values(dsLastCloser).reduce((s, x) => s + Number(x.daily_sales?.short_over || 0), 0);
     const mySalesHandled = Object.values(dsLastCloser).reduce((s, x) => s + Number(x.daily_sales?.total_sales || 0), 0);
-    const soColor = mySO > 0 ? 'text-sw-red' : mySO < 0 ? 'text-sw-green' : 'text-sw-dim';
-    const soLabel = Math.abs(mySO) < 0.01 ? `Matched ${fmt(0)}` : mySO > 0 ? `Short -${fmt(mySO)}` : `Over +${fmt(Math.abs(mySO))}`;
+    const myWeekEmpty = (myShiftCount === 0 && mySubmittedDays === 0 && myCreditTotal === 0 && Math.abs(mySO) < 0.01);
+
+    // Render helpers for the My Week stat rows.
+    const soClass = Math.abs(mySO) < 0.01 ? 'text-sw-dim' : mySO > 0 ? 'text-sw-red' : 'text-sw-green';
+    const soText  = Math.abs(mySO) < 0.01 ? fmt(0) : mySO > 0 ? `−${fmt(mySO)}` : `+${fmt(Math.abs(mySO))}`;
+    const soSub   = Math.abs(mySO) < 0.01 ? 'matched' : mySO > 0 ? 'short' : 'over';
+    const creditClass = myCreditTotal > 0 ? 'text-sw-amber' : 'text-sw-dim';
 
     return (
       <div className="max-w-xl mx-auto">
@@ -1389,36 +1394,56 @@ export default function SalesPage() {
         {msg && msg !== 'success' && <Alert type="error">{msg}</Alert>}
 
         {/* My Week — personal stats card */}
-        <div className="bg-sw-card rounded-xl p-4 border border-sw-border mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <div className="text-sw-text text-[13px] font-bold">My Week</div>
-              <div className="text-sw-dim text-[10px]">Last 7 days · {profile?.name}</div>
+        <div className="bg-sw-card rounded-xl border border-sw-border mb-4 overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-sw-border flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-sw-text text-[13px] font-bold">My Week</span>
+              <span className="text-sw-dim text-[10px]">· Last 7 days · {profile?.name}</span>
             </div>
-            {(myShiftCount === 0 && mySubmittedDays === 0 && myCreditTotal === 0) && (
+            {myWeekEmpty && (
               <span className="text-sw-dim text-[10px] italic">No activity yet</span>
             )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
-            <div className="bg-sw-card2 rounded-lg p-2.5 border border-sw-border">
-              <div className="text-sw-sub text-[10px] font-bold uppercase">Hours</div>
-              <div className="text-sw-text text-[16px] font-extrabold mt-0.5 font-mono">{myHours.toFixed(1)}h</div>
-              <div className="text-sw-dim text-[10px]">{myShiftCount} shift{myShiftCount === 1 ? '' : 's'}</div>
+          <div className="divide-y divide-sw-border">
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <div className="flex items-center gap-2 text-sw-sub text-[12px]">
+                <span className="text-base">🕐</span>
+                <span className="font-semibold uppercase tracking-wide text-[10px]">Hours</span>
+              </div>
+              <div className="text-right">
+                <div className="text-sw-text font-mono font-extrabold text-[15px]">{myHours.toFixed(1)}h</div>
+                <div className="text-sw-dim text-[10px]">{myShiftCount} shift{myShiftCount === 1 ? '' : 's'}</div>
+              </div>
             </div>
-            <div className="bg-sw-card2 rounded-lg p-2.5 border border-sw-border">
-              <div className="text-sw-sub text-[10px] font-bold uppercase">Sales Handled</div>
-              <div className="text-sw-text text-[16px] font-extrabold mt-0.5 font-mono">{fmt(mySalesHandled)}</div>
-              <div className="text-sw-dim text-[10px]">{mySubmittedDays} day{mySubmittedDays === 1 ? '' : 's'} submitted</div>
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <div className="flex items-center gap-2 text-sw-sub text-[12px]">
+                <span className="text-base">💵</span>
+                <span className="font-semibold uppercase tracking-wide text-[10px]">Sales Handled</span>
+              </div>
+              <div className="text-right">
+                <div className="text-sw-text font-mono font-extrabold text-[15px]">{fmt(mySalesHandled)}</div>
+                <div className="text-sw-dim text-[10px]">{mySubmittedDays} day{mySubmittedDays === 1 ? '' : 's'} submitted</div>
+              </div>
             </div>
-            <div className="bg-sw-card2 rounded-lg p-2.5 border border-sw-border">
-              <div className="text-sw-sub text-[10px] font-bold uppercase">Short / Over</div>
-              <div className={`text-[16px] font-extrabold mt-0.5 font-mono ${soColor}`}>{soLabel}</div>
-              <div className="text-sw-dim text-[10px]">positive = short</div>
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <div className="flex items-center gap-2 text-sw-sub text-[12px]">
+                <span className="text-base">📊</span>
+                <span className="font-semibold uppercase tracking-wide text-[10px]">Short / Over</span>
+              </div>
+              <div className="text-right">
+                <div className={`font-mono font-extrabold text-[15px] ${soClass}`}>{soText}</div>
+                <div className="text-sw-dim text-[10px] capitalize">{soSub}</div>
+              </div>
             </div>
-            <div className="bg-sw-card2 rounded-lg p-2.5 border border-sw-border">
-              <div className="text-sw-sub text-[10px] font-bold uppercase">House Credit</div>
-              <div className={`text-[16px] font-extrabold mt-0.5 font-mono ${myCreditTotal > 0 ? 'text-sw-amber' : 'text-sw-dim'}`}>{fmt(myCreditTotal)}</div>
-              <div className="text-sw-dim text-[10px]">deducted at payroll</div>
+            <div className="flex items-center justify-between px-4 py-2.5">
+              <div className="flex items-center gap-2 text-sw-sub text-[12px]">
+                <span className="text-base">🪙</span>
+                <span className="font-semibold uppercase tracking-wide text-[10px]">House Credit</span>
+              </div>
+              <div className="text-right">
+                <div className={`font-mono font-extrabold text-[15px] ${creditClass}`}>{fmt(myCreditTotal)}</div>
+                <div className="text-sw-dim text-[10px]">deducted at payroll</div>
+              </div>
             </div>
           </div>
         </div>
