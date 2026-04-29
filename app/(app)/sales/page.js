@@ -290,9 +290,9 @@ export default function SalesPage() {
         return;
       }
     }
-    // Credit receipt is required for employees whenever a House Account
-    // amount has been entered.
-    if (isEmployee && haTotal > 0 && creditImages.length === 0) {
+    // Credit receipt is required for every employee submission, whether
+    // or not a House Account amount was entered.
+    if (isEmployee && creditImages.length === 0) {
       setModalError('Please upload at least one Credit receipt before submitting.');
       setActiveTab(simpleR2Save ? 'r2' : simpleSingleSave ? 'credit' : 'r1');
       return;
@@ -786,8 +786,8 @@ export default function SalesPage() {
             {creditImages.length > 0 && (
               <span className="text-sw-dim text-[10px]">({creditImages.length})</span>
             )}
-            <span className={`text-[9px] px-1.5 py-0.5 rounded ${(isEmployee && haTotal > 0) ? 'bg-sw-red/20 text-sw-red' : 'bg-sw-card text-sw-dim'}`}>
-              {(isEmployee && haTotal > 0) ? 'Required' : 'Optional'}
+            <span className={`text-[9px] px-1.5 py-0.5 rounded ${isEmployee ? 'bg-sw-red/20 text-sw-red' : 'bg-sw-card text-sw-dim'}`}>
+              {isEmployee ? 'Required' : 'Optional'}
             </span>
           </div>
 
