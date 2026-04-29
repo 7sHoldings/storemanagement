@@ -228,9 +228,11 @@ export default function SalesPage() {
     const r1Required = ['r1_gross', 'r1_net', 'cash_sales', 'card_sales', 'r1_canceled_basket', 'r1_safe_drop', 'r1_sales_tax'];
     r1Required.forEach(k => { if (form[k] === '') errs[k] = true; });
 
-    // usesReg2 stores: R2 Net, R2 Cash, and R2 Safe Drop all auto-derive from
-    // R1 Canceled Basket + R1 Safe Drop (total) − Cash Sales. Nothing extra
-    // is required on the R2 tab.
+    // R2 stores (Bells, Kerens): employee enters R2 Net and R2 Cash manually.
+    // R2 Safe Drop and short/over derive from those entries.
+    if (usesReg2) {
+      ['r2_net', 'register2_cash', 'r2_safe_drop'].forEach(k => { if (form[k] === '') errs[k] = true; });
+    }
 
     houseAccounts.forEach((e, i) => {
       if ((parseFloat(e.amount) || 0) > 0 && !resolveHAName(e)) {
@@ -241,8 +243,10 @@ export default function SalesPage() {
     if (Object.keys(errs).length) {
       setFieldErrors(errs);
       setModalError('Please fill all required fields.');
-      // All required fields live on the R1 tab; jump there on any error.
-      setActiveTab('r1');
+      // Jump to whichever tab has the first error.
+      const r2Keys = ['r2_net', 'register2_cash', 'r2_safe_drop'];
+      const hasR1Err = Object.keys(errs).some(k => !r2Keys.includes(k));
+      setActiveTab(hasR1Err ? 'r1' : 'r2');
       return;
     }
     setFieldErrors({});
@@ -304,11 +308,7 @@ export default function SalesPage() {
       card_sales: num(form.card_sales),
       cashapp_check: num(form.cashapp_check),
       r1_canceled_basket: num(form.r1_canceled_basket),
-      // For usesReg2 stores, R1 Safe Drop field = TOTAL cash dropped.
-      // Split: R1 portion = cash_sales, R2 portion = rest.
-      r1_safe_drop: usesReg2
-        ? Math.min(num(form.r1_safe_drop), num(form.cash_sales))
-        : num(form.r1_safe_drop),
+      r1_safe_drop: num(form.r1_safe_drop),
       r1_sales_tax: num(form.r1_sales_tax),
       house_accounts: houseAccounts
         .filter(e => (parseFloat(e.amount) || 0) > 0)
@@ -316,15 +316,13 @@ export default function SalesPage() {
       r1_house_account_name: houseAccounts.length ? (resolveHAName(houseAccounts[0]) || null) : null,
       r1_house_account_amount: haTotal,
       credits: haTotal,
-      // Register 2 (manual cash register). R2 Net and R2 Cash always equal
-      // R1 Canceled Basket: cash rung on R1 is canceled and re-rung on R2.
-      // Zeros for single-register stores.
-      r2_net: usesReg2 ? num(form.r1_canceled_basket) : 0,
-      r2_gross: usesReg2 ? num(form.r1_canceled_basket) : 0, // legacy column kept in sync
-      register2_cash: usesReg2 ? num(form.r1_canceled_basket) : 0,
-      // R2 Safe Drop auto-derives from the total (R1 Safe Drop field) minus
-      // the R1 portion (cash_sales).
-      r2_safe_drop: usesReg2 ? Math.max(0, num(form.r1_safe_drop) - num(form.cash_sales)) : 0,
+      // Register 2 (manual cash register at Bells/Kerens). The employee enters
+      // R2 Net, R2 Cash, and R2 Safe Drop directly. Zeros for single-register
+      // stores (Reno/Denison/Troup).
+      r2_net: usesReg2 ? num(form.r2_net) : 0,
+      r2_gross: usesReg2 ? num(form.r2_net) : 0, // legacy column kept in sync with net
+      register2_cash: usesReg2 ? num(form.register2_cash) : 0,
+      r2_safe_drop: usesReg2 ? num(form.r2_safe_drop) : 0,
       register2_card: 0,
       register2_credits: 0,
       // Multi-image arrays
@@ -491,13 +489,6 @@ export default function SalesPage() {
 
   // Open the edit modal with form pre-filled from a sales row.
   const openEditRow = (r) => {
-    // For usesReg2 rows, show the user the TOTAL cash drop in the Safe Drop
-    // field (R1 portion + R2 portion), matching how they originally entered it.
-    const storeForEdit = stores.find(s => s.id === r.store_id);
-    const editUsesReg2 = !!storeForEdit?.has_register2;
-    const totalSafeDrop = editUsesReg2
-      ? (Number(r.r1_safe_drop || 0) + Number(r.r2_safe_drop || 0))
-      : null;
     setForm({
       date: r.date,
       r1_gross: r.r1_gross ?? r.gross_sales ?? '',
@@ -506,7 +497,7 @@ export default function SalesPage() {
       card_sales: r.card_sales ?? '',
       cashapp_check: r.cashapp_check ?? '',
       r1_canceled_basket: r.r1_canceled_basket ?? '',
-      r1_safe_drop: editUsesReg2 ? String(totalSafeDrop) : (r.r1_safe_drop ?? ''),
+      r1_safe_drop: r.r1_safe_drop ?? '',
       r1_sales_tax: r.r1_sales_tax ?? r.tax_collected ?? '',
       r2_net: r.r2_net ?? '',
       register2_cash: r.register2_cash ?? '',
@@ -592,22 +583,19 @@ export default function SalesPage() {
   const currentStoreObj = stores.find(s => s.id === currentStoreId);
   const currentUsesReg2 = !!currentStoreObj?.has_register2;
 
-  // R2 is a manual cash-only register. Cash customers are canceled in R1 and
-  // re-rung on R2, so R2 Net and R2 Cash always equal R1 Canceled Basket.
-  // For usesReg2 stores, the R1 Safe Drop field represents the TOTAL cash
-  // dropped across both registers, split: R1 portion = cash_sales, R2
-  // portion = whatever is left.
-  const r2Net              = currentUsesReg2 ? r1CancelBasket : num(form.r2_net);
-  const r2Cash             = currentUsesReg2 ? r1CancelBasket : num(form.register2_cash);
-  const r1SafeDropEffective = currentUsesReg2 ? Math.min(r1SafeDrop, r1Cash) : r1SafeDrop;
-  const r2SafeDrop         = currentUsesReg2 ? Math.max(0, r1SafeDrop - r1Cash) : num(form.r2_safe_drop);
+  // R2 is a manual cash-only register at Bells/Kerens. The employee enters
+  // R2 Net, R2 Cash, and R2 Safe Drop directly; we no longer derive them
+  // from R1 Canceled Basket.
+  const r2Net      = num(form.r2_net);
+  const r2Cash     = num(form.register2_cash);
+  const r2SafeDrop = num(form.r2_safe_drop);
 
   // Short/over — positive = SHORT (red), negative = OVER (green).
-  //   r1 = cash_sales - (r1_safe_drop_effective + r1_house_account_amount)
-  //   r2 = r2_net - r2_safe_drop
+  //   r1 = cash_sales - (r1_safe_drop + r1_house_account_amount)
+  //   r2 = r2_cash - r2_safe_drop
   //   Basket diff is tracked separately and NOT rolled into total_short.
-  const r1ShortOverCalc = r1Cash - (r1SafeDropEffective + r1HouseAmount);
-  const r2ShortOverCalc = r2Net - r2SafeDrop;
+  const r1ShortOverCalc = r1Cash - (r1SafeDrop + r1HouseAmount);
+  const r2ShortOverCalc = r2Cash - r2SafeDrop;
   const basketR2Diff = r2Net - r1CancelBasket;
   const totalShortOverCalc = r1ShortOverCalc + (currentUsesReg2 ? r2ShortOverCalc : 0);
 
@@ -686,12 +674,9 @@ export default function SalesPage() {
                 <input type="number" min="0" step="0.01" placeholder="0.00" value={form.r1_canceled_basket} onChange={onNum('r1_canceled_basket')} className={errCls('r1_canceled_basket')} />
                 {errHint('r1_canceled_basket')}
               </Field>
-              <Field label={<>{usesReg2 ? 'Safe Drop (R1 + R2)' : 'Safe Drop'} {reqMark}</>}>
+              <Field label={<>Safe Drop {reqMark}</>}>
                 <input type="number" min="0" step="0.01" placeholder="0.00" value={form.r1_safe_drop} onChange={onNum('r1_safe_drop')} className={errCls('r1_safe_drop')} />
                 {errHint('r1_safe_drop')}
-                {usesReg2 && (
-                  <div className="text-[10px] text-sw-dim mt-1">Total cash dropped. R2 portion = this − Cash Sales.</div>
-                )}
               </Field>
               <Field label={<>Sales Tax {reqMark}</>}>
                 <input type="number" min="0" step="0.01" placeholder="0.00" value={form.r1_sales_tax} onChange={onNum('r1_sales_tax')} className={errCls('r1_sales_tax')} />
@@ -764,15 +749,13 @@ export default function SalesPage() {
               </button>
             </div>
 
-            {/* Live R1 short/over preview — Cash Sales − (R1 portion of Safe Drop + House Account). */}
+            {/* Live R1 short/over preview — Cash Sales − (Safe Drop + House Account). */}
             {(form.r1_safe_drop !== '' || form.cash_sales !== '') && (
               <div className="mt-3 bg-sw-card2 border border-sw-border rounded-lg p-2.5 flex justify-between items-center">
                 <span className="text-sw-sub text-[11px] font-semibold uppercase">R1 Short/Over</span>
                 {(() => {
                   const cash = parseFloat(form.cash_sales) || 0;
-                  const totalDrop = parseFloat(form.r1_safe_drop) || 0;
-                  // For R2 stores, Safe Drop field is the TOTAL; R1 portion is capped at cash_sales.
-                  const r1Drop = usesReg2 ? Math.min(totalDrop, cash) : totalDrop;
+                  const r1Drop = parseFloat(form.r1_safe_drop) || 0;
                   const v = cash - (r1Drop + haTotal);
                   if (Math.abs(v) < 0.01) return <span className="text-sw-dim font-mono font-bold">Matched {fmt(0)}</span>;
                   if (v > 0) return <span className="text-sw-red font-mono font-bold">Short -{fmt(v)}</span>;
@@ -842,40 +825,34 @@ export default function SalesPage() {
         {activeTab === 'r2' && usesReg2 && (
           <div>
             <div className="bg-sw-blueD/40 border border-sw-blue/20 rounded-lg p-2.5 mb-3 text-[11px] text-sw-sub">
-              R2 is the manual cash register. All R2 fields auto-fill from R1 inputs — nothing to enter on this tab.
+              R2 is the manual cash register. Enter R2 Net Sales, Cash, and Safe Drop from the R2 shift report.
             </div>
-            {(() => {
-              const r2NetDerived = parseFloat(form.r1_canceled_basket) || 0;
-              const r1SafeDropTotal = parseFloat(form.r1_safe_drop) || 0;
-              const r1CashVal = parseFloat(form.cash_sales) || 0;
-              const r2SafeDropDerived = Math.max(0, r1SafeDropTotal - r1CashVal);
-              const v = r2NetDerived - r2SafeDropDerived;
-              return (
-                <>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                    <Field label={<>R2 Net Sales <span className="text-sw-dim text-[10px]">(auto)</span></>}>
-                      <input type="number" value={r2NetDerived} readOnly tabIndex={-1} className="opacity-60 cursor-not-allowed" placeholder="0.00" />
-                      <div className="text-[10px] text-sw-dim mt-1">= R1 Canceled Basket</div>
-                    </Field>
-                    <Field label={<>Cash <span className="text-sw-dim text-[10px]">(auto)</span></>}>
-                      <input type="number" value={r2NetDerived} readOnly tabIndex={-1} className="opacity-60 cursor-not-allowed" placeholder="0.00" />
-                      <div className="text-[10px] text-sw-dim mt-1">= R1 Canceled Basket</div>
-                    </Field>
-                    <Field label={<>R2 Safe Drop <span className="text-sw-dim text-[10px]">(auto)</span></>}>
-                      <input type="number" value={r2SafeDropDerived} readOnly tabIndex={-1} className="opacity-60 cursor-not-allowed" placeholder="0.00" />
-                      <div className="text-[10px] text-sw-dim mt-1">= Safe Drop (R1+R2) − Cash Sales</div>
-                    </Field>
-                  </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <Field label={<>R2 Net Sales {reqMark}</>}>
+                <input type="number" min="0" step="0.01" placeholder="0.00" value={form.r2_net} onChange={onNum('r2_net')} className={errCls('r2_net')} />
+                {errHint('r2_net')}
+              </Field>
+              <Field label={<>R2 Cash {reqMark}</>}>
+                <input type="number" min="0" step="0.01" placeholder="0.00" value={form.register2_cash} onChange={onNum('register2_cash')} className={errCls('register2_cash')} />
+                {errHint('register2_cash')}
+              </Field>
+              <Field label={<>R2 Safe Drop {reqMark}</>}>
+                <input type="number" min="0" step="0.01" placeholder="0.00" value={form.r2_safe_drop} onChange={onNum('r2_safe_drop')} className={errCls('r2_safe_drop')} />
+                {errHint('r2_safe_drop')}
+              </Field>
+            </div>
 
-                  <div className="mt-3 bg-sw-card2 border border-sw-border rounded-lg p-2.5 flex justify-between items-center">
-                    <span className="text-sw-sub text-[11px] font-semibold uppercase">R2 Short/Over</span>
-                    {Math.abs(v) < 0.01
-                      ? <span className="text-sw-dim font-mono font-bold">Matched {fmt(0)}</span>
-                      : v > 0
-                        ? <span className="text-sw-red font-mono font-bold">Short -{fmt(v)}</span>
-                        : <span className="text-sw-green font-mono font-bold">Over +{fmt(Math.abs(v))}</span>}
-                  </div>
-                </>
+            {(form.register2_cash !== '' || form.r2_safe_drop !== '') && (() => {
+              const v = (parseFloat(form.register2_cash) || 0) - (parseFloat(form.r2_safe_drop) || 0);
+              return (
+                <div className="mt-3 bg-sw-card2 border border-sw-border rounded-lg p-2.5 flex justify-between items-center">
+                  <span className="text-sw-sub text-[11px] font-semibold uppercase">R2 Short/Over</span>
+                  {Math.abs(v) < 0.01
+                    ? <span className="text-sw-dim font-mono font-bold">Matched {fmt(0)}</span>
+                    : v > 0
+                      ? <span className="text-sw-red font-mono font-bold">Short -{fmt(v)}</span>
+                      : <span className="text-sw-green font-mono font-bold">Over +{fmt(Math.abs(v))}</span>}
+                </div>
               );
             })()}
 
@@ -974,7 +951,7 @@ export default function SalesPage() {
                   <div className="text-sw-sub">Cash</div><div className="text-right font-mono">{fmt(r2Cash)}</div>
                   <div className="text-sw-sub">Safe Drop</div><div className="text-right font-mono">{fmt(r2SafeDrop)}</div>
                   <div className="text-sw-sub col-span-2 border-t border-sw-border pt-1 mt-1 flex justify-between">
-                    <span>Short/Over <span className="text-sw-dim text-[10px]">(Net − Safe Drop)</span></span>
+                    <span>Short/Over <span className="text-sw-dim text-[10px]">(Cash − Safe Drop)</span></span>
                     {(() => {
                       if (Math.abs(r2ShortOverCalc) < 0.01) return <span className="text-sw-dim font-mono font-bold">Matched {fmt(0)}</span>;
                       if (r2ShortOverCalc > 0) return <span className="text-sw-red font-mono font-bold">Short -{fmt(r2ShortOverCalc)}</span>;
@@ -1013,7 +990,7 @@ export default function SalesPage() {
                       </div>
                       {usesReg2 && (
                         <div className="flex justify-between">
-                          <span className="text-sw-sub">R2 Short/Over <span className="text-sw-dim text-[10px]">(Net − Safe Drop)</span></span>
+                          <span className="text-sw-sub">R2 Short/Over <span className="text-sw-dim text-[10px]">(Cash − Safe Drop)</span></span>
                           {fmtSO(r2ShortOverCalc)}
                         </div>
                       )}

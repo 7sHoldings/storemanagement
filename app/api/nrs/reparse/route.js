@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase-server';
-import { parseNRSStatsToDailySales, applyRegister2AutoSync } from '@/lib/nrs-client';
+import { parseNRSStatsToDailySales } from '@/lib/nrs-client';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -36,22 +36,14 @@ export async function POST(req) {
   const { data: logs, error: logsErr } = await logsQuery;
   if (logsErr) return NextResponse.json({ error: logsErr.message }, { status: 500 });
 
-  const storeIdsFound = Array.from(new Set((logs || []).map(l => l.store_id)));
-  const { data: storesData } = await admin
-    .from('stores').select('id, has_register2').in('id', storeIdsFound);
-  const storeMap = new Map((storesData || []).map(s => [s.id, s]));
-
   let updated = 0, skipped = 0, failed = 0;
   const errors = [];
 
   for (const log of logs || []) {
     try {
-      const parsed = applyRegister2AutoSync(
-        parseNRSStatsToDailySales(log.nrs_response, log.store_id, log.sync_date),
-        !!storeMap.get(log.store_id)?.has_register2,
-      );
-      // Only overwrite NRS-derived fields — preserve user edits to R2 Safe Drop,
-      // notes, receipts, house accounts, etc.
+      const parsed = parseNRSStatsToDailySales(log.nrs_response, log.store_id, log.sync_date);
+      // Only overwrite NRS-derived R1 fields — preserve user-entered R2
+      // (net, cash, safe drop), notes, receipts, house accounts, etc.
       const update = {
         r1_gross: parsed.r1_gross,
         r1_net: parsed.r1_net,
@@ -65,9 +57,6 @@ export async function POST(req) {
         r1_safe_drop: parsed.r1_safe_drop,
         r1_sales_tax: parsed.r1_sales_tax,
         tax_collected: parsed.tax_collected,
-        r2_net: parsed.r2_net,
-        r2_gross: parsed.r2_gross,
-        register2_cash: parsed.register2_cash,
       };
       const { error: upErr } = await admin
         .from('daily_sales').update(update).eq('id', log.created_daily_sales_id);

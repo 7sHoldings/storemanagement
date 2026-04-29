@@ -1,6 +1,6 @@
 import { createAdminClient, createClient } from '@/lib/supabase-server';
 import { NextResponse } from 'next/server';
-import { fetchNRSDailyStats, parseNRSStatsToDailySales, applyRegister2AutoSync } from '@/lib/nrs-client';
+import { fetchNRSDailyStats, parseNRSStatsToDailySales } from '@/lib/nrs-client';
 import { extractShiftsFromNRS } from '@/lib/extract-shifts';
 import { sendTelegram, buildSyncSummaryMessage } from '@/lib/telegram';
 
@@ -32,10 +32,7 @@ async function syncOneStore(supabase, store, targetDate) {
   }
 
   const nrsData = await fetchNRSDailyStats(store.nrs_store_id, targetDate);
-  const parsed = applyRegister2AutoSync(
-    parseNRSStatsToDailySales(nrsData, store.id, targetDate),
-    store.has_register2,
-  );
+  const parsed = parseNRSStatsToDailySales(nrsData, store.id, targetDate);
 
   const { data: inserted, error: insertErr } = await supabase
     .from('daily_sales')
@@ -76,7 +73,7 @@ async function runSync(supabase, targetDate) {
 
   const { data: stores } = await supabase
     .from('stores')
-    .select('id, name, nrs_store_id, has_register2')
+    .select('id, name, nrs_store_id')
     .not('nrs_store_id', 'is', null)
     .order('created_at');
 
