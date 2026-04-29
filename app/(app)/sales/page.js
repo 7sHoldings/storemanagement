@@ -1371,6 +1371,7 @@ export default function SalesPage() {
         openedAt: x.opened_at,
         closedAt: x.closed_at,
         shiftDate: x.shift_date,
+        hoursByDay: myStore?.hours_by_day,
         storeOpen: myStore?.open_time,
         storeClose: myStore?.close_time,
       });

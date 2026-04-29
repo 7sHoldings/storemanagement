@@ -41,7 +41,27 @@ export default function SettingsPage() {
   const [telegramTesting, setTelegramTesting] = useState(false);
   const [telegramMsg, setTelegramMsg] = useState('');
 
-  const blankStore = { name: '', color: '#60A5FA', email: '', has_register2: false, tax_rate: '8.25', address: '', phone: '', is_active: true, telegram_chat_id: '', open_time: '11:00', close_time: '22:00' };
+  // Per-day hours: each day is either { open, close } or null = closed.
+  const DAY_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const DAY_LABEL = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
+  const buildHoursByDay = (open, close) => DAY_KEYS.reduce((acc, d) => {
+    acc[d] = { open: open || '11:00', close: close || '22:00' };
+    return acc;
+  }, {});
+  const allDaysSame = (h) => {
+    if (!h) return true;
+    const ref = h.mon;
+    if (!ref) return false;
+    return DAY_KEYS.every(d => h[d] && h[d].open === ref.open && h[d].close === ref.close);
+  };
+
+  const blankStore = {
+    name: '', color: '#60A5FA', email: '', has_register2: false, tax_rate: '8.25',
+    address: '', phone: '', is_active: true, telegram_chat_id: '',
+    open_time: '11:00', close_time: '22:00',
+    hours_same_for_all: true,
+    hours_by_day: buildHoursByDay('11:00', '22:00'),
+  };
   const [form, setForm] = useState(blankStore);
 
   const load = async () => {
@@ -54,6 +74,16 @@ export default function SettingsPage() {
 
   const openEdit = (s) => {
     setEditStore(s);
+    const fallbackOpen = s.open_time || '11:00';
+    const fallbackClose = s.close_time || '22:00';
+    const savedHours = s.hours_by_day && typeof s.hours_by_day === 'object' ? s.hours_by_day : null;
+    const hours_by_day = DAY_KEYS.reduce((acc, d) => {
+      const v = savedHours ? savedHours[d] : undefined;
+      if (v === null) acc[d] = null;
+      else if (v && typeof v === 'object') acc[d] = { open: v.open || fallbackOpen, close: v.close || fallbackClose };
+      else acc[d] = { open: fallbackOpen, close: fallbackClose };
+      return acc;
+    }, {});
     setForm({
       name: s.name || '',
       color: s.color || '#60A5FA',
@@ -64,8 +94,10 @@ export default function SettingsPage() {
       phone: s.phone || '',
       is_active: s.is_active !== false,
       telegram_chat_id: s.telegram_chat_id || '',
-      open_time: s.open_time || '11:00',
-      close_time: s.close_time || '22:00',
+      open_time: fallbackOpen,
+      close_time: fallbackClose,
+      hours_same_for_all: allDaysSame(hours_by_day),
+      hours_by_day,
     });
   };
 
@@ -88,9 +120,25 @@ export default function SettingsPage() {
       phone: form.phone.trim(),
       is_active: form.is_active,
       telegram_chat_id: form.telegram_chat_id.trim() || null,
-      open_time: (form.open_time || '11:00').trim(),
-      close_time: (form.close_time || '22:00').trim(),
     };
+    // Hours: persist per-day jsonb. When the "same for all days" toggle is
+    // on, every day mirrors form.open_time / close_time. The legacy single
+    // open_time / close_time columns track the most common pair so older
+    // queries still work.
+    const baseOpen  = (form.open_time || '11:00').trim();
+    const baseClose = (form.close_time || '22:00').trim();
+    const hours = form.hours_same_for_all
+      ? buildHoursByDay(baseOpen, baseClose)
+      : DAY_KEYS.reduce((acc, d) => {
+          const v = form.hours_by_day?.[d];
+          acc[d] = v === null
+            ? null
+            : { open: (v?.open || baseOpen).trim(), close: (v?.close || baseClose).trim() };
+          return acc;
+        }, {});
+    payload.hours_by_day = hours;
+    payload.open_time  = (hours.mon?.open  || baseOpen).trim();
+    payload.close_time = (hours.mon?.close || baseClose).trim();
     const { error } = editStore
       ? await supabase.from('stores').update(payload).eq('id', editStore.id)
       : await supabase.from('stores').insert(payload);
@@ -258,16 +306,104 @@ export default function SettingsPage() {
             <input type="tel" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} placeholder="(555) 123-4567" />
           </Field>
 
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Open Time (CT)">
-              <input type="time" value={form.open_time} onChange={e => setForm({ ...form, open_time: e.target.value })} />
-            </Field>
-            <Field label="Close Time (CT)">
-              <input type="time" value={form.close_time} onChange={e => setForm({ ...form, close_time: e.target.value })} />
-            </Field>
-          </div>
-          <div className="text-[var(--text-muted)] text-[10px] -mt-1 mb-3">
-            Employee shift hours are clamped to this window. A late open or early close still counts as actual minutes worked; opening early or closing late doesn't add extra hours.
+          {/* Store Hours (CT) — per day of week, with a "same every day" shortcut */}
+          <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-lg p-3 mb-3">
+            <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+              <div className="text-[var(--text-primary)] text-[12px] font-bold uppercase tracking-wide">Store Hours (CT)</div>
+              <label className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] select-none cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.hours_same_for_all}
+                  onChange={e => {
+                    const same = e.target.checked;
+                    setForm(prev => {
+                      if (same) {
+                        return {
+                          ...prev,
+                          hours_same_for_all: true,
+                          hours_by_day: buildHoursByDay(prev.open_time, prev.close_time),
+                        };
+                      }
+                      // When switching off, seed each day from current single pair.
+                      return {
+                        ...prev,
+                        hours_same_for_all: false,
+                        hours_by_day: buildHoursByDay(prev.open_time, prev.close_time),
+                      };
+                    });
+                  }}
+                />
+                Same hours every day
+              </label>
+            </div>
+
+            {form.hours_same_for_all ? (
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Open">
+                  <input type="time" value={form.open_time} onChange={e => setForm({ ...form, open_time: e.target.value })} />
+                </Field>
+                <Field label="Close">
+                  <input type="time" value={form.close_time} onChange={e => setForm({ ...form, close_time: e.target.value })} />
+                </Field>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {DAY_KEYS.map(d => {
+                  const dh = form.hours_by_day?.[d];
+                  const closed = dh === null;
+                  return (
+                    <div key={d} className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                      <span className="w-9 text-[var(--text-secondary)] uppercase text-[11px] font-bold">{DAY_LABEL[d]}</span>
+                      <label className="flex items-center gap-1 text-[11px] text-[var(--text-secondary)] select-none cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={!closed}
+                          onChange={e => {
+                            const opening = e.target.checked;
+                            setForm(prev => ({
+                              ...prev,
+                              hours_by_day: {
+                                ...prev.hours_by_day,
+                                [d]: opening ? { open: prev.open_time, close: prev.close_time } : null,
+                              },
+                            }));
+                          }}
+                        />
+                        Open
+                      </label>
+                      {closed ? (
+                        <span className="text-[var(--text-muted)] text-[11px] italic ml-2">Closed</span>
+                      ) : (
+                        <>
+                          <input
+                            type="time"
+                            value={dh?.open || '11:00'}
+                            onChange={e => setForm(prev => ({
+                              ...prev,
+                              hours_by_day: { ...prev.hours_by_day, [d]: { ...prev.hours_by_day[d], open: e.target.value } },
+                            }))}
+                            className="!text-[12px] !py-1 !px-2 flex-1 min-w-[80px]"
+                          />
+                          <span className="text-[var(--text-muted)] text-[10px]">→</span>
+                          <input
+                            type="time"
+                            value={dh?.close || '22:00'}
+                            onChange={e => setForm(prev => ({
+                              ...prev,
+                              hours_by_day: { ...prev.hours_by_day, [d]: { ...prev.hours_by_day[d], close: e.target.value } },
+                            }))}
+                            className="!text-[12px] !py-1 !px-2 flex-1 min-w-[80px]"
+                          />
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="text-[var(--text-muted)] text-[10px] mt-2">
+              Employee shift hours are clamped to this window. A late open or early close still counts as actual minutes worked; opening early or closing late doesn't add extra hours. Days marked Closed contribute 0 hours.
+            </div>
           </div>
 
           <Field label="Telegram Group Chat ID">

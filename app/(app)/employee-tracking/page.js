@@ -21,7 +21,7 @@ export default function EmployeeTrackingPage() {
     (async () => {
       setLoading(true);
       const [{ data: st }, { data: sh }, { data: salesRows }, { data: profs }] = await Promise.all([
-        supabase.from('stores').select('id, name, color, open_time, close_time').order('created_at'),
+        supabase.from('stores').select('id, name, color, open_time, close_time, hours_by_day').order('created_at'),
         supabase.from('employee_shifts')
           .select('*, stores(name, color), daily_sales(total_sales, net_sales, r1_short_over, short_over)')
           .gte('shift_date', range.start)
@@ -75,6 +75,7 @@ export default function EmployeeTrackingPage() {
         openedAt: s.opened_at,
         closedAt: s.closed_at,
         shiftDate: s.shift_date,
+        hoursByDay: st?.hours_by_day,
         storeOpen: st?.open_time,
         storeClose: st?.close_time,
       });

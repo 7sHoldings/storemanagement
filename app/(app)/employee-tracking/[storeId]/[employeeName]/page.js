@@ -57,7 +57,7 @@ export default function EmployeeDetailPage() {
       ].filter(Boolean)));
 
       const [{ data: st }, { data: shAll }, { data: salesRows }] = await Promise.all([
-        supabase.from('stores').select('id, name, color, open_time, close_time').eq('id', storeId).single(),
+        supabase.from('stores').select('id, name, color, open_time, close_time, hours_by_day').eq('id', storeId).single(),
         supabase.from('employee_shifts')
           .select('*, daily_sales(total_sales, net_sales, r1_short_over, short_over)')
           .eq('store_id', storeId)
@@ -116,6 +116,7 @@ export default function EmployeeDetailPage() {
         openedAt: s.opened_at,
         closedAt: s.closed_at,
         shiftDate: s.shift_date,
+        hoursByDay: store?.hours_by_day,
         storeOpen: store?.open_time,
         storeClose: store?.close_time,
       });
