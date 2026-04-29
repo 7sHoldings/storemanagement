@@ -612,7 +612,7 @@ export default function SalesPage() {
     ? 0
     : r1Cash - (r1SafeDrop + r1HouseAmount);
   const r2ShortOverCalc = 0;
-  const basketR2Diff = currentUsesReg2 ? r1CancelBasket - r2Net : 0;
+  const basketR2Diff = currentUsesReg2 ? r2Net - r1CancelBasket : 0;
   const totalShortOverCalc = currentUsesReg2
     ? (r1Cash + r2Net - r1SafeDrop)
     : r1ShortOverCalc;
@@ -1027,7 +1027,7 @@ export default function SalesPage() {
                 <div className="text-sw-sub text-[10px] font-bold uppercase mb-1.5">Basket vs R2 Difference</div>
                 <div className="flex justify-between items-center text-[12px]">
                   <span className="text-sw-sub">
-                    Canceled Basket {fmt(r1CancelBasket)} − R2 Net {fmt(r2Net)}
+                    R2 Net {fmt(r2Net)} − Canceled Basket {fmt(r1CancelBasket)}
                   </span>
                   {(() => {
                     if (Math.abs(basketR2Diff) < 0.01) return <span className="text-sw-green font-mono font-bold">{fmt(0)} ✅</span>;
@@ -1332,20 +1332,20 @@ export default function SalesPage() {
             sortValue: r => {
               const st = stores.find(s => s.id === r.store_id);
               if (!st?.has_register2) return 2;
-              const diff = Number(r.r1_canceled_basket || 0) - Number(r.r2_net || 0);
+              const diff = Number(r.r2_net || 0) - Number(r.r1_canceled_basket || 0);
               return Math.abs(diff) < 0.01 ? 2 : 1;
             },
             render: (_, r) => {
               const rowStore = stores.find(s => s.id === r.store_id);
               const rowUsesR2 = !!rowStore?.has_register2;
               if (!rowUsesR2) return <span className="text-sw-green text-base" title="No Register 2">✅</span>;
-              const diff = Number(r.r1_canceled_basket || 0) - Number(r.r2_net || 0);
+              const diff = Number(r.r2_net || 0) - Number(r.r1_canceled_basket || 0);
               if (Math.abs(diff) < 0.01) {
-                return <span className="text-sw-green text-base" title="Canceled Basket matches R2 Net">✅</span>;
+                return <span className="text-sw-green text-base" title="R2 Net matches Canceled Basket">✅</span>;
               }
               return (
                 <span
-                  title={`Canceled Basket (${fmt(Number(r.r1_canceled_basket || 0))}) − R2 Net (${fmt(Number(r.r2_net || 0))}) = ${fmt(diff)}`}
+                  title={`R2 Net (${fmt(Number(r.r2_net || 0))}) − Canceled Basket (${fmt(Number(r.r1_canceled_basket || 0))}) = ${fmt(diff)}`}
                   className="text-sw-amber text-base"
                 >
                   ⚠️
@@ -1389,13 +1389,13 @@ export default function SalesPage() {
             sortValue: (r) => {
               const rowStore = stores.find(s => s.id === r.store_id);
               if (!rowStore?.has_register2) return null;
-              return Number(r.r1_canceled_basket || 0) - Number(r.r2_net || 0);
+              return Number(r.r2_net || 0) - Number(r.r1_canceled_basket || 0);
             },
             render: (_, r) => {
               const rowStore = stores.find(s => s.id === r.store_id);
               const rowUsesR2 = !!rowStore?.has_register2;
               if (!rowUsesR2) return <span className="text-sw-dim">—</span>;
-              const diff = Number(r.r1_canceled_basket || 0) - Number(r.r2_net || 0);
+              const diff = Number(r.r2_net || 0) - Number(r.r1_canceled_basket || 0);
               if (Math.abs(diff) < 0.01) return <span className="text-sw-green">{fmt(0)}</span>;
               if (diff < 0) return <span className="text-sw-red">-{fmt(Math.abs(diff))}</span>;
               return <span className="text-sw-amber">+{fmt(diff)}</span>;

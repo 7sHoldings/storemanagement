@@ -5,7 +5,7 @@
 --     registers is the single R1 Safe Drop number.
 --   • short_over (R2 stores) = R1 cash + R2 net − R1 safe drop
 --                              (positive = SHORT, negative = OVER)
---   • basket_r2_diff (R2 stores) = R1 canceled basket − R2 net
+--   • basket_r2_diff (R2 stores) = R2 net − R1 canceled basket
 --   • Single-register stores keep the old formula:
 --     short_over = R1 cash − R1 safe drop
 --   • total_sales now uses r2_net (R2 cash == R2 net at R2 stores).
@@ -29,8 +29,8 @@ BEGIN
                        - coalesce(new.r1_safe_drop, 0);
     new.r1_short_over  = 0;
     new.r2_short_over  = 0;
-    new.basket_r2_diff = coalesce(new.r1_canceled_basket, 0)
-                       - coalesce(new.r2_net, 0);
+    new.basket_r2_diff = coalesce(new.r2_net, 0)
+                       - coalesce(new.r1_canceled_basket, 0);
   ELSE
     new.r1_short_over  = coalesce(new.cash_sales, 0) - coalesce(new.r1_safe_drop, 0);
     new.r2_short_over  = 0;
