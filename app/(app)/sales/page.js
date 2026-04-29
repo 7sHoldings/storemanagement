@@ -237,12 +237,14 @@ export default function SalesPage() {
       if (usesReg2) {
         if (form.r2_net === '') errs.r2_net = true;
       }
-      houseAccounts.forEach((e, i) => {
-        if ((parseFloat(e.amount) || 0) > 0 && !resolveHAName(e)) {
-          errs[`ha_name_${i}`] = true;
-        }
-      });
     }
+    // House Account name is required whenever an amount > 0 is entered, on
+    // either the R1 tab (full form) or the R2 tab (simpleR2 employees).
+    houseAccounts.forEach((e, i) => {
+      if ((parseFloat(e.amount) || 0) > 0 && !resolveHAName(e)) {
+        errs[`ha_name_${i}`] = true;
+      }
+    });
 
     if (Object.keys(errs).length) {
       setFieldErrors(errs);
@@ -322,12 +324,12 @@ export default function SalesPage() {
       r1_canceled_basket: simpleR2Save ? 0 : num(form.r1_canceled_basket),
       r1_safe_drop: simpleR2Save ? 0 : num(form.r1_safe_drop),
       r1_sales_tax: simpleR2Save ? 0 : num(form.r1_sales_tax),
-      house_accounts: simpleR2Save ? [] : houseAccounts
+      house_accounts: houseAccounts
         .filter(e => (parseFloat(e.amount) || 0) > 0)
         .map(e => ({ name: resolveHAName(e) || 'Unnamed', amount: parseFloat(e.amount) || 0 })),
-      r1_house_account_name: simpleR2Save ? null : (houseAccounts.length ? (resolveHAName(houseAccounts[0]) || null) : null),
-      r1_house_account_amount: simpleR2Save ? 0 : haTotal,
-      credits: simpleR2Save ? 0 : haTotal,
+      r1_house_account_name: houseAccounts.length ? (resolveHAName(houseAccounts[0]) || null) : null,
+      r1_house_account_amount: haTotal,
+      credits: haTotal,
       // Register 2 (manual cash register at Bells/Kerens). The user enters
       // only R2 Net Sales — R2 is cash-only, no separate cash/safe-drop
       // input. Zeros for single-register stores (Reno/Denison/Troup).
@@ -601,10 +603,12 @@ export default function SalesPage() {
   const r2Net      = num(form.r2_net);
   const r2Cash     = currentUsesReg2 ? r2Net : 0;
 
-  // Short/Over and Basket vs R2 diff.
+  // Short/Over and Basket vs R2 diff. House Account / Employee Credit is
+  // money the cashier handed out as credit, so it counts as a draw against
+  // the cash that should be in safe drop.
   //   R2 stores (Bells/Kerens):
-  //     short_over = R1 cash + R2 net − R1 safe drop  (single number)
-  //     diff       = R1 canceled basket − R2 net
+  //     short_over = R1 cash + R2 net − (R1 safe drop + house account)
+  //     diff       = R2 net − R1 canceled basket
   //   Single-register stores (Reno/Denison/Troup):
   //     short_over = R1 cash − (R1 safe drop + house account)
   //     diff       = n/a
@@ -614,7 +618,7 @@ export default function SalesPage() {
   const r2ShortOverCalc = 0;
   const basketR2Diff = currentUsesReg2 ? r2Net - r1CancelBasket : 0;
   const totalShortOverCalc = currentUsesReg2
-    ? (r1Cash + r2Net - r1SafeDrop)
+    ? (r1Cash + r2Net - r1SafeDrop - r1HouseAmount)
     : r1ShortOverCalc;
 
   const totalGross = r1Gross + r2Net; // R2 has no gross, use net
@@ -666,6 +670,74 @@ export default function SalesPage() {
     const errHint = (name) => fieldErrors[name]
       ? <p className="text-sw-red text-[10px] mt-0.5">Required</p>
       : null;
+
+    // House Account / Employee Credit block, reused on the R1 tab (full
+    // form) and on the R2 tab (employee R2-only mode at Bells/Kerens).
+    const houseAccountSection = (
+      <div className="mt-3 bg-sw-card2 border border-sw-border rounded-lg p-3">
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="text-sw-sub text-[10px] font-bold uppercase">House Account</div>
+          {haTotal > 0 && <div className="text-sw-text text-[11px] font-mono font-bold">Total: {fmt(haTotal)}</div>}
+        </div>
+        {houseAccounts.length === 0 && (
+          <p className="text-sw-dim text-[11px] italic mb-2">No house accounts — add below if needed</p>
+        )}
+        <div className="space-y-2 mb-2">
+          {houseAccounts.map((entry, i) => (
+            <div key={i} className="flex gap-1.5 items-start flex-wrap sm:flex-nowrap">
+              <div className="flex-1 min-w-[120px]">
+                <select
+                  value={entry.choice}
+                  onChange={e => updateHA(i, { choice: e.target.value, customName: e.target.value === 'other' ? entry.customName : '' })}
+                  className={fieldErrors[`ha_name_${i}`] ? '!border-sw-red' : ''}
+                >
+                  <option value="">Select name…</option>
+                  <option value="billy">Billy</option>
+                  <option value="elias">Elias</option>
+                  <option value="other">Other…</option>
+                </select>
+                {fieldErrors[`ha_name_${i}`] && <p className="text-sw-red text-[10px] mt-0.5">Name required</p>}
+              </div>
+              {entry.choice === 'other' && (
+                <div className="flex-1 min-w-[100px]">
+                  <input
+                    type="text"
+                    placeholder="Name"
+                    value={entry.customName}
+                    onChange={e => updateHA(i, { customName: e.target.value })}
+                  />
+                </div>
+              )}
+              <div className="w-[100px] flex-shrink-0">
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={entry.amount}
+                  onChange={e => updateHA(i, { amount: e.target.value.replace(/^-/, '') })}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => removeHA(i)}
+                className="w-8 h-[44px] rounded-md bg-sw-redD text-sw-red border border-sw-red/30 flex items-center justify-center flex-shrink-0"
+                title="Remove"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={addHA}
+          className="text-sw-blue text-[11px] font-semibold border border-sw-blue/30 rounded px-2 py-1 bg-sw-blueD hover:bg-sw-blue/20"
+        >
+          + Add House Account
+        </button>
+      </div>
+    );
 
     return (
       <div>
@@ -721,69 +793,7 @@ export default function SalesPage() {
             </div>
 
             {/* House Account — multi-entry */}
-            <div className="mt-3 bg-sw-card2 border border-sw-border rounded-lg p-3">
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="text-sw-sub text-[10px] font-bold uppercase">House Account</div>
-                {haTotal > 0 && <div className="text-sw-text text-[11px] font-mono font-bold">Total: {fmt(haTotal)}</div>}
-              </div>
-              {houseAccounts.length === 0 && (
-                <p className="text-sw-dim text-[11px] italic mb-2">No house accounts — add below if needed</p>
-              )}
-              <div className="space-y-2 mb-2">
-                {houseAccounts.map((entry, i) => (
-                  <div key={i} className="flex gap-1.5 items-start flex-wrap sm:flex-nowrap">
-                    <div className="flex-1 min-w-[120px]">
-                      <select
-                        value={entry.choice}
-                        onChange={e => updateHA(i, { choice: e.target.value, customName: e.target.value === 'other' ? entry.customName : '' })}
-                        className={fieldErrors[`ha_name_${i}`] ? '!border-sw-red' : ''}
-                      >
-                        <option value="">Select name…</option>
-                        <option value="billy">Billy</option>
-                        <option value="elias">Elias</option>
-                        <option value="other">Other…</option>
-                      </select>
-                      {fieldErrors[`ha_name_${i}`] && <p className="text-sw-red text-[10px] mt-0.5">Name required</p>}
-                    </div>
-                    {entry.choice === 'other' && (
-                      <div className="flex-1 min-w-[100px]">
-                        <input
-                          type="text"
-                          placeholder="Name"
-                          value={entry.customName}
-                          onChange={e => updateHA(i, { customName: e.target.value })}
-                        />
-                      </div>
-                    )}
-                    <div className="w-[100px] flex-shrink-0">
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        placeholder="0.00"
-                        value={entry.amount}
-                        onChange={e => updateHA(i, { amount: e.target.value.replace(/^-/, '') })}
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeHA(i)}
-                      className="w-8 h-[44px] rounded-md bg-sw-redD text-sw-red border border-sw-red/30 flex items-center justify-center flex-shrink-0"
-                      title="Remove"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <button
-                type="button"
-                onClick={addHA}
-                className="text-sw-blue text-[11px] font-semibold border border-sw-blue/30 rounded px-2 py-1 bg-sw-blueD hover:bg-sw-blue/20"
-              >
-                + Add House Account
-              </button>
-            </div>
+            {houseAccountSection}
 
             {/* Live R1 short/over preview — Cash Sales − (Safe Drop + House Account). */}
             {(form.r1_safe_drop !== '' || form.cash_sales !== '') && (
@@ -872,6 +882,8 @@ export default function SalesPage() {
               </Field>
             </div>
 
+            {simpleR2Mode && houseAccountSection}
+
             {/* R2 receipt upload — multiple images */}
             <div className="mt-3 bg-sw-card2 border border-sw-border rounded-lg p-3">
               <div className="text-sw-sub text-[10px] font-bold uppercase mb-1.5 flex items-center gap-2">
@@ -937,6 +949,12 @@ export default function SalesPage() {
               <div className="grid grid-cols-2 gap-y-1 gap-x-2 text-[11px]">
                 <div className="text-sw-sub">Net Sales</div>
                 <div className="text-right font-mono text-sw-text">{fmt(r2Net)}</div>
+                <div className="text-sw-sub">House Account</div>
+                <div className="text-right font-mono">
+                  {haTotal > 0
+                    ? <span className="text-sw-text">{fmt(haTotal)} ({houseAccounts.filter(e => (parseFloat(e.amount)||0) > 0).length})</span>
+                    : <span className="text-sw-dim">None · {fmt(0)}</span>}
+                </div>
                 <div className="text-sw-sub">Receipt</div>
                 <div className="text-right font-mono">
                   {r2Images.length > 0
@@ -946,7 +964,7 @@ export default function SalesPage() {
               </div>
             </div>
             <p className="text-sw-dim text-[10px] italic">
-              R1 figures and the rest of R2 are filled in by the owner / NRS sync — you only need R2 Net Sales and a receipt photo.
+              R1 figures are filled in by the owner / NRS sync — you only need R2 Net Sales, House Account credits, and a receipt photo.
             </p>
             <Field label="Notes"><input placeholder="Optional" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></Field>
           </div>
@@ -1009,7 +1027,7 @@ export default function SalesPage() {
                   Total Short/Over
                   <span className="block text-sw-dim text-[10px] font-normal normal-case tracking-normal">
                     {usesReg2
-                      ? '(R1 Cash + R2 Net − R1 Safe Drop)'
+                      ? '(R1 Cash + R2 Net − R1 Safe Drop − House Account)'
                       : '(Cash − Safe Drop − House Account)'}
                   </span>
                 </span>
@@ -1109,6 +1127,16 @@ export default function SalesPage() {
                 <div className="text-sw-sub text-[10px] font-bold uppercase mb-1.5">Register 2</div>
                 <div className="grid grid-cols-2 gap-y-0.5 gap-x-2 text-[11px]">
                   <div className="text-sw-sub">Net Sales</div><div className="text-right font-mono">{fmt(todayEntry.r2_net || 0)}</div>
+                  <div className="text-sw-sub">House Account</div>
+                  <div className="text-right font-mono">
+                    {(() => {
+                      const entries = Array.isArray(todayEntry.house_accounts) ? todayEntry.house_accounts : [];
+                      const amt = entries.length ? entries.reduce((s,e) => s + (e.amount||0), 0) : Number(todayEntry.r1_house_account_amount ?? todayEntry.credits ?? 0);
+                      if (amt <= 0) return <span className="text-sw-dim">None · {fmt(0)}</span>;
+                      const label = entries.length > 1 ? `${entries.length} entries` : (entries[0]?.name || todayEntry.r1_house_account_name || 'Unnamed');
+                      return <span className="text-sw-text">{label} · {fmt(amt)}</span>;
+                    })()}
+                  </div>
                 </div>
               </div>
             )}
