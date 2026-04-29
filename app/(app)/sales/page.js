@@ -54,11 +54,14 @@ export default function SalesPage() {
   //   url is the preview URL (data: for new files, public URL for existing)
   const [r1Images, setR1Images] = useState([]);
   const [r2Images, setR2Images] = useState([]);
+  const [creditImages, setCreditImages] = useState([]);
   const [saving, setSaving] = useState(false);
   const r1CameraRef = useRef(null);
   const r1LibraryRef = useRef(null);
   const r2CameraRef = useRef(null);
   const r2LibraryRef = useRef(null);
+  const creditCameraRef = useRef(null);
+  const creditLibraryRef = useRef(null);
   // Receipt gallery modal (click 📷 in the owner table).
   const [viewReceipts, setViewReceipts] = useState(null); // { images: [urls], idx, storeName, date }
   const [viewReceipt, setViewReceipt] = useState(null); // { url, caption } for full-screen viewer
@@ -179,6 +182,7 @@ export default function SalesPage() {
   };
   const handleR1Pick = (e) => appendPickedFiles(e, setR1Images);
   const handleR2Pick = (e) => appendPickedFiles(e, setR2Images);
+  const handleCreditPick = (e) => appendPickedFiles(e, setCreditImages);
 
   const removeImage = (setter, idx) => setter(prev => prev.filter((_, i) => i !== idx));
 
@@ -276,12 +280,21 @@ export default function SalesPage() {
         return;
       }
     }
+    // Credit receipt is required for employees whenever a House Account
+    // amount has been entered. The credit upload lives on the R1 tab for
+    // single-register stores and on the R2 tab in simpleR2 mode.
+    if (isEmployee && haTotal > 0 && creditImages.length === 0) {
+      setModalError('Please upload at least one Credit receipt before submitting.');
+      setActiveTab(simpleR2Save ? 'r2' : 'r1');
+      return;
+    }
 
     // ── Upload any NEW images (pending files); existing URLs pass through ──
     const storeForPath = stores.find(s => s.id === storeIdToUse);
     setSaving(true);
     let r1Urls = [];
     let r2Urls = [];
+    let creditUrls = [];
     try {
       const uploadList = async (images, kind) => {
         const out = [];
@@ -304,6 +317,7 @@ export default function SalesPage() {
       // simpleR2Save employees only upload R2 receipts.
       r1Urls = simpleR2Save ? [] : await uploadList(r1Images, 'r1');
       r2Urls = await uploadList(r2Images, 'r2');
+      creditUrls = await uploadList(creditImages, 'credit');
     } catch (e) {
       setSaving(false);
       setModalError(`Failed to upload receipt: ${e.message || e}`);
@@ -312,9 +326,8 @@ export default function SalesPage() {
 
     const data = {
       store_id: storeIdToUse,
-      // TEMP: employees can submit for a back date during testing. Revert
-      // by restoring `date: isEmployee ? today() : form.date` below.
-      date: form.date || (isEmployee ? today() : ''),
+      // Employees can only enter for today.
+      date: isEmployee ? today() : form.date,
       // Register 1 — for simpleR2Save (R2-store employees), R1 stays at 0
       // and gets filled in later by the owner / NRS sync.
       r1_gross: simpleR2Save ? 0 : num(form.r1_gross),
@@ -343,6 +356,7 @@ export default function SalesPage() {
       // Multi-image arrays
       r1_receipt_urls: r1Urls,
       r2_receipt_urls: r2Urls,
+      credit_receipt_urls: creditUrls,
       // Legacy single-URL columns kept in sync with the first image so old
       // code that reads them still works.
       shift_report_url: r1Urls[0] || null,
@@ -465,7 +479,7 @@ export default function SalesPage() {
     setFieldErrors({});
     setModalError('');
     setFormStoreId(null);
-    setR1Images([]); setR2Images([]);
+    setR1Images([]); setR2Images([]); setCreditImages([]);
     load();
   };
 
@@ -554,6 +568,8 @@ export default function SalesPage() {
     const r2 = Array.isArray(r.r2_receipt_urls) && r.r2_receipt_urls.length
       ? r.r2_receipt_urls
       : (r.safe_drop_url ? [r.safe_drop_url] : []);
+    const credit = Array.isArray(r.credit_receipt_urls) ? r.credit_receipt_urls : [];
+    setCreditImages(credit.map(url => ({ url, existing: true })));
     setR1Images(r1.map(url => ({ url, existing: true })));
     setR2Images(r2.map(url => ({ url, existing: true })));
 
@@ -737,6 +753,63 @@ export default function SalesPage() {
         >
           + Add House Account
         </button>
+
+        {/* Credit / House Account receipt — required when an employee enters
+            a credit so we have proof of the IOU. Optional for owners. */}
+        <div className="mt-3 pt-3 border-t border-sw-border">
+          <div className="text-sw-sub text-[10px] font-bold uppercase mb-1.5 flex items-center gap-2">
+            <span>📷 Credit Receipts</span>
+            {creditImages.length > 0 && (
+              <span className="text-sw-dim text-[10px]">({creditImages.length})</span>
+            )}
+            <span className={`text-[9px] px-1.5 py-0.5 rounded ${(isEmployee && haTotal > 0) ? 'bg-sw-red/20 text-sw-red' : 'bg-sw-card text-sw-dim'}`}>
+              {(isEmployee && haTotal > 0) ? 'Required' : 'Optional'}
+            </span>
+          </div>
+
+          {creditImages.length > 0 && (
+            <div className="grid grid-cols-3 md:grid-cols-4 gap-2 mb-3">
+              {creditImages.map((img, idx) => (
+                <div key={idx} className="relative group">
+                  <button
+                    type="button"
+                    onClick={() => setViewReceipts({ images: creditImages.map(i => i.url), idx, storeName: '', date: form.date })}
+                    className="block w-full aspect-square rounded-lg overflow-hidden border border-sw-border bg-black/20"
+                  >
+                    <img src={img.url} alt={`Credit ${idx + 1}`} className="w-full h-full object-cover" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeImage(setCreditImages, idx)}
+                    className="absolute top-0.5 right-0.5 w-6 h-6 rounded-full bg-sw-red text-white text-[11px] font-bold flex items-center justify-center shadow"
+                    title="Remove"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="flex gap-2 flex-col sm:flex-row">
+            <button
+              type="button"
+              onClick={() => creditCameraRef.current?.click()}
+              className="flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg border-2 border-dashed border-sw-blue/40 bg-sw-blueD text-sw-blue text-[12px] font-semibold min-h-[44px]"
+            >
+              <span className="text-lg">📷</span><span>Take Photo</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => creditLibraryRef.current?.click()}
+              className="flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg border-2 border-dashed border-sw-blue/40 bg-sw-blueD text-sw-blue text-[12px] font-semibold min-h-[44px]"
+            >
+              <span className="text-lg">📁</span><span>From Library</span>
+            </button>
+            <input ref={creditCameraRef} type="file" accept="image/*" capture="environment" multiple onChange={handleCreditPick} className="hidden" />
+            <input ref={creditLibraryRef} type="file" accept="image/*" multiple onChange={handleCreditPick} className="hidden" />
+          </div>
+        </div>
       </div>
     );
 
@@ -1165,17 +1238,7 @@ export default function SalesPage() {
               </div>
             )}
             {renderTabbedForm(empUsesReg2, /*allowShortOver*/ false, (
-              // TEMP: employees can pick a back date for testing — revert by
-              // restoring the read-only input below.
-              // <Field label="Date"><input type="date" value={todayStr} readOnly disabled /></Field>
-              <Field label="Date">
-                <input
-                  type="date"
-                  value={form.date || todayStr}
-                  max={todayStr}
-                  onChange={e => setForm({ ...form, date: e.target.value })}
-                />
-              </Field>
+              <Field label="Date"><input type="date" value={todayStr} readOnly disabled /></Field>
             ), /*simpleR2Mode*/ empUsesReg2)}
             {isOnSummaryTab ? (
               <Button onClick={handleSave} disabled={saving} className="w-full !py-3 !text-sm !rounded-xl mt-4">
@@ -1207,6 +1270,7 @@ export default function SalesPage() {
   const resetReceipts = () => {
     setR1Images([]);
     setR2Images([]);
+    setCreditImages([]);
   };
 
   // Unique employees from loaded data for the filter dropdown
@@ -1442,7 +1506,8 @@ export default function SalesPage() {
           { key: '_receipt', label: '📷', align: 'center', sortable: false, render: (_, r) => {
             const r1 = Array.isArray(r.r1_receipt_urls) ? r.r1_receipt_urls : (r.shift_report_url ? [r.shift_report_url] : []);
             const r2 = Array.isArray(r.r2_receipt_urls) ? r.r2_receipt_urls : (r.safe_drop_url ? [r.safe_drop_url] : []);
-            const all = [...r1, ...r2];
+            const credit = Array.isArray(r.credit_receipt_urls) ? r.credit_receipt_urls : [];
+            const all = [...r1, ...r2, ...credit];
             if (all.length === 0) return <span className="text-sw-dim">—</span>;
             return (
               <button
