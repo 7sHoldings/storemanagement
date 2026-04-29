@@ -312,8 +312,9 @@ export default function SalesPage() {
 
     const data = {
       store_id: storeIdToUse,
-      // Employees can only enter for today.
-      date: isEmployee ? today() : form.date,
+      // TEMP: employees can submit for a back date during testing. Revert
+      // by restoring `date: isEmployee ? today() : form.date` below.
+      date: form.date || (isEmployee ? today() : ''),
       // Register 1 — for simpleR2Save (R2-store employees), R1 stays at 0
       // and gets filled in later by the owner / NRS sync.
       r1_gross: simpleR2Save ? 0 : num(form.r1_gross),
@@ -1164,7 +1165,17 @@ export default function SalesPage() {
               </div>
             )}
             {renderTabbedForm(empUsesReg2, /*allowShortOver*/ false, (
-              <Field label="Date"><input type="date" value={todayStr} readOnly disabled /></Field>
+              // TEMP: employees can pick a back date for testing — revert by
+              // restoring the read-only input below.
+              // <Field label="Date"><input type="date" value={todayStr} readOnly disabled /></Field>
+              <Field label="Date">
+                <input
+                  type="date"
+                  value={form.date || todayStr}
+                  max={todayStr}
+                  onChange={e => setForm({ ...form, date: e.target.value })}
+                />
+              </Field>
             ), /*simpleR2Mode*/ empUsesReg2)}
             {isOnSummaryTab ? (
               <Button onClick={handleSave} disabled={saving} className="w-full !py-3 !text-sm !rounded-xl mt-4">
