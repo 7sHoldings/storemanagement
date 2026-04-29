@@ -299,11 +299,11 @@ export default function CashPage() {
       const netValue = Math.abs(netShortOver) < 0.01 ? fmt(0) : netShortOver > 0 ? `+${fmt(netShortOver)}` : fmt(netShortOver);
       return (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
-          <V2StatCard label="Expected Cash" value={fK(totalExpected)} sub="Total expected" icon="💵" variant="warning" />
-          <V2StatCard label="Cash in Hand" value={fK(totalCashInHand)} sub="Collected so far" icon="💰" variant="info" />
+          <V2StatCard label="Expected Cash" value={fmt(totalExpected)} sub="Total expected" icon="💵" variant="warning" />
+          <V2StatCard label="Cash in Hand" value={fmt(totalCashInHand)} sub="Collected so far" icon="💰" variant="info" />
           <V2StatCard label="Net Short/Over" value={netValue} sub={`${shortRows.length} short · ${overRows.length} over`} icon="📊" variant={netVariant} />
-          <V2StatCard label="Pending" value={`${pendingRows.length} / ${fK(pendingExpected)}`} sub={`${pendingRows.length} pending`} icon="⏳" variant="warning" />
-          <V2StatCard label="Matched" value={`${matchedRows.length} / ${fK(matchedCollected)}`} sub={`${matchedRows.length} reconciled`} icon="✅" variant="success" />
+          <V2StatCard label="Pending" value={`${pendingRows.length} / ${fmt(pendingExpected)}`} sub={`${pendingRows.length} pending`} icon="⏳" variant="warning" />
+          <V2StatCard label="Matched" value={`${matchedRows.length} / ${fmt(matchedCollected)}`} sub={`${matchedRows.length} reconciled`} icon="✅" variant="success" />
         </div>
       );
     })()}
