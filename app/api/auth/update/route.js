@@ -17,7 +17,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Owner access required' }, { status: 403 });
     }
 
-    const { userId, name, store_id, is_active, password } = await request.json();
+    const { userId, name, store_id, is_active, password, nrs_employee_name } = await request.json();
     if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
 
     const admin = createAdminClient();
@@ -27,6 +27,11 @@ export async function POST(request) {
     if (typeof name === 'string' && name.trim()) profileUpdate.name = name.trim();
     if (store_id !== undefined) profileUpdate.store_id = store_id || null;
     if (typeof is_active === 'boolean') profileUpdate.is_active = is_active;
+    if (nrs_employee_name !== undefined) {
+      profileUpdate.nrs_employee_name = (typeof nrs_employee_name === 'string' && nrs_employee_name.trim())
+        ? nrs_employee_name.trim()
+        : null;
+    }
 
     if (Object.keys(profileUpdate).length > 0) {
       const { error: profileErr } = await admin

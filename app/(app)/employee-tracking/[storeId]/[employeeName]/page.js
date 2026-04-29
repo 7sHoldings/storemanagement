@@ -30,12 +30,36 @@ export default function EmployeeDetailPage() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [{ data: st }, { data: sh }, { data: salesRows }] = await Promise.all([
+      // Look up the matching profile (if any) so we know the NRS alias and
+      // employee_id for shift / credit attribution.
+      const { data: profMatches } = await supabase
+        .from('profiles')
+        .select('id, name, nrs_employee_name, store_id')
+        .eq('store_id', storeId)
+        .eq('role', 'employee')
+        .neq('is_active', false);
+      const lcUrl = employeeName.toLowerCase();
+      const profile = (profMatches || []).find(p =>
+        (p.name || '').trim().toLowerCase() === lcUrl ||
+        (p.nrs_employee_name || '').trim().toLowerCase() === lcUrl
+      ) || null;
+
+      // The aliases this employee can be referenced by in the data:
+      //   • profile name + nrs_employee_name (when there's a matching profile)
+      //   • the URL name itself (fallback when there's no profile mapping)
+      const aliases = Array.from(new Set([
+        lcUrl,
+        ...(profile ? [
+          (profile.name || '').trim().toLowerCase(),
+          (profile.nrs_employee_name || '').trim().toLowerCase(),
+        ] : []),
+      ].filter(Boolean)));
+
+      const [{ data: st }, { data: shAll }, { data: salesRows }] = await Promise.all([
         supabase.from('stores').select('id, name, color').eq('id', storeId).single(),
         supabase.from('employee_shifts')
           .select('*, daily_sales(total_sales, net_sales, r1_short_over, short_over)')
           .eq('store_id', storeId)
-          .eq('employee_name', employeeName)
           .gte('shift_date', range.start)
           .lte('shift_date', range.end)
           .order('shift_date', { ascending: false }),
@@ -45,15 +69,20 @@ export default function EmployeeDetailPage() {
           .gte('date', range.start)
           .lte('date', range.end),
       ]);
+      // Case-insensitive client-side filter so aliases like "Dylan" match
+      // a profile named "Bobby" with nrs_employee_name = "Dylan".
+      const sh = (shAll || []).filter(s =>
+        aliases.includes((s.employee_name || '').trim().toLowerCase())
+      );
       // Pull this employee's House Account credits — match by employee_id
-      // when present, otherwise by case-insensitive name.
-      const lcName = employeeName.toLowerCase();
+      // when present (preferred), otherwise by alias name match.
       const flat = [];
       (salesRows || []).forEach(r => {
         if (!Array.isArray(r.house_accounts)) return;
         r.house_accounts.forEach(e => {
-          const matchesName = (e?.name || '').trim().toLowerCase() === lcName;
-          if (matchesName || (e?.employee_id && e.employee_id === employeeName)) {
+          const byId = profile?.id && e?.employee_id === profile.id;
+          const byName = aliases.includes((e?.name || '').trim().toLowerCase());
+          if (byId || byName) {
             flat.push({ date: r.date, name: (e.name || '').trim(), amount: Number(e.amount || 0) });
           }
         });

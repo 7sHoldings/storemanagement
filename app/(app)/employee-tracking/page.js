@@ -12,13 +12,14 @@ export default function EmployeeTrackingPage() {
   const { range, preset, selectPreset, setStart, setEnd } = useDateRange('thisweek');
   const [shifts, setShifts] = useState([]);
   const [stores, setStores] = useState([]);
+  const [profiles, setProfiles] = useState([]); // active employee profiles
   const [credits, setCredits] = useState([]);   // [{ store_id, employee_id, name, amount }]
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [{ data: st }, { data: sh }, { data: salesRows }] = await Promise.all([
+      const [{ data: st }, { data: sh }, { data: salesRows }, { data: profs }] = await Promise.all([
         supabase.from('stores').select('id, name, color').order('created_at'),
         supabase.from('employee_shifts')
           .select('*, stores(name, color), daily_sales(total_sales, net_sales, r1_short_over, short_over)')
@@ -29,6 +30,10 @@ export default function EmployeeTrackingPage() {
           .select('store_id, date, house_accounts')
           .gte('date', range.start)
           .lte('date', range.end),
+        supabase.from('profiles')
+          .select('id, name, store_id, role, is_active, nrs_employee_name')
+          .eq('role', 'employee')
+          .neq('is_active', false),
       ]);
       // Flatten house_accounts JSON arrays into one row per credit entry.
       const flat = [];
@@ -45,6 +50,7 @@ export default function EmployeeTrackingPage() {
       });
       setStores(st || []);
       setShifts(sh || []);
+      setProfiles(profs || []);
       setCredits(flat);
       setLoading(false);
     })();
@@ -73,59 +79,113 @@ export default function EmployeeTrackingPage() {
   }, [shifts]);
 
   const grouped = useMemo(() => {
+    // 1. Seed the store map from `stores` so empty stores still appear.
     const storeMap = {};
-    for (const s of shiftsWithSO) {
+    stores.forEach(st => {
+      storeMap[st.id] = { store: st, employees: {}, unmatched: {} };
+    });
+
+    // 2. Seed each store with its assigned employee profiles. The profile
+    //    name is canonical; profile.nrs_employee_name is an alias used to
+    //    match what NRS reports (e.g. "Dylan" → "Bobby").
+    profiles.forEach(p => {
+      if (!p.store_id) return;
+      const store = storeMap[p.store_id] = storeMap[p.store_id]
+        || { store: stores.find(s => s.id === p.store_id) || {}, employees: {}, unmatched: {} };
+      store.employees[p.id] = {
+        profileId: p.id,
+        name: p.name || 'Unnamed',
+        nrsAliases: [
+          (p.name || '').trim().toLowerCase(),
+          (p.nrs_employee_name || '').trim().toLowerCase(),
+        ].filter(Boolean),
+        shifts: [],
+        totalHours: 0,
+        totalSO: 0,
+        totalSales: 0,
+        totalCredit: 0,
+      };
+    });
+
+    // 3. Distribute shifts: try to match the NRS-reported employee_name
+    //    against any profile alias for the same store. Unmatched shift
+    //    names are bucketed separately so the owner can see which POS
+    //    logins still need a profile mapping.
+    shiftsWithSO.forEach(s => {
       const sid = s.store_id;
-      if (!storeMap[sid]) storeMap[sid] = { store: s.stores || {}, employees: {} };
-      const eName = s.employee_name || 'Unknown';
-      if (!storeMap[sid].employees[eName]) storeMap[sid].employees[eName] = { shifts: [], totalHours: 0, totalSO: 0, totalSales: 0, totalCredit: 0 };
-      const b = storeMap[sid].employees[eName];
-      b.shifts.push(s);
-      b.totalHours += Number(s.total_hours) || 0;
-      b.totalSO += s._so;
-      b.totalSales += s._sales;
-    }
-    // Layer in House Account credits, matched by employee_id (preferred) or
-    // case-insensitive name. Surface employees with credits but no shifts so
-    // their payroll deductions still appear.
-    const creditByStore = {};
+      const store = storeMap[sid] = storeMap[sid] || { store: s.stores || {}, employees: {}, unmatched: {} };
+      const nrsName = (s.employee_name || '').trim();
+      const lc = nrsName.toLowerCase();
+      const match = Object.values(store.employees).find(e => e.nrsAliases.includes(lc));
+      if (match) {
+        match.shifts.push(s);
+        match.totalHours += Number(s.total_hours) || 0;
+        match.totalSO += s._so;
+        match.totalSales += s._sales;
+      } else {
+        const key = nrsName || 'Unknown';
+        const bucket = store.unmatched[key] = store.unmatched[key] || {
+          name: key,
+          shifts: [],
+          totalHours: 0,
+          totalSO: 0,
+          totalSales: 0,
+          totalCredit: 0,
+          unmatched: true,
+        };
+        bucket.shifts.push(s);
+        bucket.totalHours += Number(s.total_hours) || 0;
+        bucket.totalSO += s._so;
+        bucket.totalSales += s._sales;
+      }
+    });
+
+    // 4. Distribute credits: prefer employee_id, fall back to name match.
     credits.forEach(c => {
-      (creditByStore[c.store_id] = creditByStore[c.store_id] || []).push(c);
+      const sid = c.store_id;
+      const store = storeMap[sid] = storeMap[sid] || { store: stores.find(s => s.id === sid) || {}, employees: {}, unmatched: {} };
+      const byId = c.employee_id ? store.employees[c.employee_id] : null;
+      if (byId) { byId.totalCredit += c.amount; return; }
+      const lc = c.name.toLowerCase();
+      const byName = Object.values(store.employees).find(e => e.nrsAliases.includes(lc));
+      if (byName) { byName.totalCredit += c.amount; return; }
+      const key = c.name || 'Unknown';
+      const bucket = store.unmatched[key] = store.unmatched[key] || {
+        name: key, shifts: [], totalHours: 0, totalSO: 0, totalSales: 0, totalCredit: 0, unmatched: true,
+      };
+      bucket.totalCredit += c.amount;
     });
-    Object.keys(creditByStore).forEach(sid => {
-      const store = storeMap[sid] || { store: stores.find(s => s.id === sid) || {}, employees: {} };
-      storeMap[sid] = store;
-      creditByStore[sid].forEach(c => {
-        const lcName = c.name.toLowerCase();
-        // Try to fold into an existing tracked employee first.
-        const matchKey = Object.keys(store.employees).find(k => k.toLowerCase() === lcName);
-        if (matchKey) {
-          store.employees[matchKey].totalCredit += c.amount;
-        } else {
-          const key = c.name || 'Unknown';
-          if (!store.employees[key]) store.employees[key] = { shifts: [], totalHours: 0, totalSO: 0, totalSales: 0, totalCredit: 0 };
-          store.employees[key].totalCredit += c.amount;
-        }
-      });
+
+    const toCard = (d) => ({
+      profileId: d.profileId,
+      name: d.name,
+      shiftCount: d.shifts.length,
+      totalHours: parseFloat(d.totalHours.toFixed(1)),
+      avgHours: d.shifts.length ? parseFloat((d.totalHours / d.shifts.length).toFixed(1)) : 0,
+      totalSO: parseFloat(d.totalSO.toFixed(2)),
+      totalSales: parseFloat(d.totalSales.toFixed(2)),
+      totalCredit: parseFloat((d.totalCredit || 0).toFixed(2)),
+      unmatched: !!d.unmatched,
     });
-    return Object.entries(storeMap).map(([sid, { store, employees }]) => ({
-      storeId: sid, storeName: store.name || '—', storeColor: store.color,
-      employees: Object.entries(employees).map(([name, d]) => ({
-        name,
-        shiftCount: d.shifts.length,
-        totalHours: parseFloat(d.totalHours.toFixed(1)),
-        avgHours: d.shifts.length ? parseFloat((d.totalHours / d.shifts.length).toFixed(1)) : 0,
-        totalSO: parseFloat(d.totalSO.toFixed(2)),
-        totalSales: parseFloat(d.totalSales.toFixed(2)),
-        totalCredit: parseFloat((d.totalCredit || 0).toFixed(2)),
-      })).sort((a, b) => b.totalHours - a.totalHours),
-      totalShifts: Object.values(employees).reduce((s, e) => s + e.shifts.length, 0),
-      totalHours: parseFloat(Object.values(employees).reduce((s, e) => s + e.totalHours, 0).toFixed(1)),
-      totalSO: parseFloat(Object.values(employees).reduce((s, e) => s + e.totalSO, 0).toFixed(2)),
-      totalCredit: parseFloat(Object.values(employees).reduce((s, e) => s + (e.totalCredit || 0), 0).toFixed(2)),
-      employeeCount: Object.keys(employees).length,
-    }));
-  }, [shiftsWithSO, credits, stores]);
+
+    return Object.entries(storeMap)
+      .map(([sid, { store, employees, unmatched }]) => {
+        const all = [...Object.values(employees).map(toCard), ...Object.values(unmatched).map(toCard)];
+        return {
+          storeId: sid,
+          storeName: store.name || '—',
+          storeColor: store.color,
+          employees: all.sort((a, b) => Number(a.unmatched) - Number(b.unmatched) || b.totalHours - a.totalHours),
+          totalShifts: all.reduce((s, e) => s + e.shiftCount, 0),
+          totalHours: parseFloat(all.reduce((s, e) => s + e.totalHours, 0).toFixed(1)),
+          totalSO: parseFloat(all.reduce((s, e) => s + e.totalSO, 0).toFixed(2)),
+          totalCredit: parseFloat(all.reduce((s, e) => s + (e.totalCredit || 0), 0).toFixed(2)),
+          employeeCount: all.filter(e => !e.unmatched).length,
+        };
+      })
+      // Skip stores with neither tracked employees nor any activity.
+      .filter(g => g.employees.length > 0);
+  }, [shiftsWithSO, credits, stores, profiles]);
 
   const totals = useMemo(() => {
     const h = shiftsWithSO.reduce((s, r) => s + (Number(r.total_hours) || 0), 0);
@@ -202,9 +262,17 @@ export default function EmployeeTrackingPage() {
                     onClick={() => goDetail(g.storeId, emp.name)}
                     className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-lg p-4 text-left hover:border-sw-blue/40 transition-colors group"
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[var(--text-primary)] text-[14px] font-bold group-hover:text-[var(--color-info)] transition-colors">{emp.name}</span>
-                      {emp.name === 'User1' && <span className="text-[var(--text-muted)] text-[9px]">Generic</span>}
+                    <div className="flex items-center justify-between mb-2 gap-2">
+                      <span className="text-[var(--text-primary)] text-[14px] font-bold group-hover:text-[var(--color-info)] transition-colors truncate">{emp.name}</span>
+                      {emp.unmatched && (
+                        <span
+                          className="text-[var(--color-warning)] text-[9px] font-bold rounded px-1.5 py-0.5 bg-[var(--color-warning-bg)] whitespace-nowrap"
+                          title="No matching profile — set this name as 'NRS POS name' on the right teammate's Admin → Edit form to attribute these shifts."
+                        >
+                          UNMAPPED
+                        </span>
+                      )}
+                      {emp.name === 'User1' && !emp.unmatched && <span className="text-[var(--text-muted)] text-[9px]">Generic</span>}
                     </div>
                     <div className="grid grid-cols-2 gap-y-1.5 text-[11px] mb-3">
                       <div className="text-[var(--text-secondary)]">Shifts</div>

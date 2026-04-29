@@ -62,6 +62,8 @@ export default function SalesPage() {
   // dropdown so the cashier picks a real teammate (and we can roll the
   // credit up on the Employee Tracking page later).
   const [employeesByStore, setEmployeesByStore] = useState({});
+  // Personal-stats fetch for the employee "My Week" card.
+  const [myShifts, setMyShifts] = useState([]);
   const [saving, setSaving] = useState(false);
   const r1CameraRef = useRef(null);
   const r1LibraryRef = useRef(null);
@@ -198,6 +200,34 @@ export default function SalesPage() {
   }, [range.start, range.end, storeId, pageStoreIds.join(',')]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Fetch this employee's last-7-days shifts for the My Week card.
+  useEffect(() => {
+    if (!isEmployee || !profile?.store_id) return;
+    let cancelled = false;
+    const aliases = [
+      (profile?.name || '').trim().toLowerCase(),
+      (profile?.nrs_employee_name || '').trim().toLowerCase(),
+    ].filter(Boolean);
+    const sevenDaysAgo = (() => {
+      const d = new Date(); d.setDate(d.getDate() - 6);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    })();
+    supabase
+      .from('employee_shifts')
+      .select('shift_date, total_hours, employee_name, daily_sales(short_over, total_sales)')
+      .eq('store_id', profile.store_id)
+      .gte('shift_date', sevenDaysAgo)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const mine = (data || []).filter(s => aliases.includes((s.employee_name || '').trim().toLowerCase()));
+        setMyShifts(mine);
+      });
+    return () => { cancelled = true; };
+  }, [isEmployee, profile?.store_id, profile?.name, profile?.nrs_employee_name, supabase]);
 
   // Deep link from Cash Collection: /sales?date=YYYY-MM-DD&store=<id>
   // scrolls to and highlights the matching daily_sales row in the table
@@ -1310,11 +1340,88 @@ export default function SalesPage() {
     const empStoreObj = stores.find(s => s.id === profile?.store_id);
     const empUsesReg2 = !!empStoreObj?.has_register2;
 
+    // ── My Week — personal stats card ─────────────────────────────
+    // Compute hours/sales/S-O from the sales rows + a separate shifts
+    // fetch (kept lightweight, last 7 days only). Credits are matched by
+    // employee_id (preferred) or by case-insensitive name + nrs alias.
+    const sevenDaysAgo = (() => {
+      const d = new Date(); d.setDate(d.getDate() - 6);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    })();
+    const myAliases = [
+      (profile?.name || '').trim().toLowerCase(),
+      (profile?.nrs_employee_name || '').trim().toLowerCase(),
+    ].filter(Boolean);
+    const myCreditTotal = sales.reduce((sum, s) => {
+      if (s.date < sevenDaysAgo) return sum;
+      if (!Array.isArray(s.house_accounts)) return sum;
+      return sum + s.house_accounts.reduce((acc, e) => {
+        const byId = profile?.id && e?.employee_id === profile.id;
+        const byName = myAliases.includes((e?.name || '').trim().toLowerCase());
+        return acc + ((byId || byName) ? Number(e?.amount || 0) : 0);
+      }, 0);
+    }, 0);
+    const mySubmittedDays = sales.filter(s => s.date >= sevenDaysAgo).length;
+
+    const myHours = myShifts.reduce((s, x) => s + Number(x.total_hours || 0), 0);
+    const myShiftCount = myShifts.length;
+    // Attribute short/over to the last closer per daily_sales row to avoid
+    // double-counting when two cashiers shared a register.
+    const dsLastCloser = {};
+    myShifts.forEach(s => {
+      const id = s.daily_sales_id;
+      if (!id) return;
+      const prev = dsLastCloser[id];
+      if (!prev || (s.closed_at && (!prev.closed_at || s.closed_at > prev.closed_at))) dsLastCloser[id] = s;
+    });
+    const mySO = Object.values(dsLastCloser).reduce((s, x) => s + Number(x.daily_sales?.short_over || 0), 0);
+    const mySalesHandled = Object.values(dsLastCloser).reduce((s, x) => s + Number(x.daily_sales?.total_sales || 0), 0);
+    const soColor = mySO > 0 ? 'text-sw-red' : mySO < 0 ? 'text-sw-green' : 'text-sw-dim';
+    const soLabel = Math.abs(mySO) < 0.01 ? `Matched ${fmt(0)}` : mySO > 0 ? `Short -${fmt(mySO)}` : `Over +${fmt(Math.abs(mySO))}`;
+
     return (
       <div className="max-w-xl mx-auto">
         <PageHeader title="Enter Daily Sales" subtitle={storeName} />
         {msg === 'success' && <Alert type="success">Sales recorded!</Alert>}
         {msg && msg !== 'success' && <Alert type="error">{msg}</Alert>}
+
+        {/* My Week — personal stats card */}
+        <div className="bg-sw-card rounded-xl p-4 border border-sw-border mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <div className="text-sw-text text-[13px] font-bold">My Week</div>
+              <div className="text-sw-dim text-[10px]">Last 7 days · {profile?.name}</div>
+            </div>
+            {(myShiftCount === 0 && mySubmittedDays === 0 && myCreditTotal === 0) && (
+              <span className="text-sw-dim text-[10px] italic">No activity yet</span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+            <div className="bg-sw-card2 rounded-lg p-2.5 border border-sw-border">
+              <div className="text-sw-sub text-[10px] font-bold uppercase">Hours</div>
+              <div className="text-sw-text text-[16px] font-extrabold mt-0.5 font-mono">{myHours.toFixed(1)}h</div>
+              <div className="text-sw-dim text-[10px]">{myShiftCount} shift{myShiftCount === 1 ? '' : 's'}</div>
+            </div>
+            <div className="bg-sw-card2 rounded-lg p-2.5 border border-sw-border">
+              <div className="text-sw-sub text-[10px] font-bold uppercase">Sales Handled</div>
+              <div className="text-sw-text text-[16px] font-extrabold mt-0.5 font-mono">{fmt(mySalesHandled)}</div>
+              <div className="text-sw-dim text-[10px]">{mySubmittedDays} day{mySubmittedDays === 1 ? '' : 's'} submitted</div>
+            </div>
+            <div className="bg-sw-card2 rounded-lg p-2.5 border border-sw-border">
+              <div className="text-sw-sub text-[10px] font-bold uppercase">Short / Over</div>
+              <div className={`text-[16px] font-extrabold mt-0.5 font-mono ${soColor}`}>{soLabel}</div>
+              <div className="text-sw-dim text-[10px]">positive = short</div>
+            </div>
+            <div className="bg-sw-card2 rounded-lg p-2.5 border border-sw-border">
+              <div className="text-sw-sub text-[10px] font-bold uppercase">House Credit</div>
+              <div className={`text-[16px] font-extrabold mt-0.5 font-mono ${myCreditTotal > 0 ? 'text-sw-amber' : 'text-sw-dim'}`}>{fmt(myCreditTotal)}</div>
+              <div className="text-sw-dim text-[10px]">deducted at payroll</div>
+            </div>
+          </div>
+        </div>
 
         {todayEntry ? (
           <div className="bg-sw-greenD rounded-xl p-5 border border-sw-green/30 mb-4">

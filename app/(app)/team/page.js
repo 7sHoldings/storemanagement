@@ -73,7 +73,12 @@ export default function TeamPage() {
   // ── Edit ────────────────────────────────────────
   const openEdit = (u) => {
     setEditUser(u);
-    setEditForm({ name: u.name || '', store_id: u.store_id || '', password: '' });
+    setEditForm({
+      name: u.name || '',
+      store_id: u.store_id || '',
+      password: '',
+      nrs_employee_name: u.nrs_employee_name || '',
+    });
     setShowPassword(false);
   };
 
@@ -90,6 +95,7 @@ export default function TeamPage() {
         userId: editUser.id,
         name: editForm.name,
         store_id: editUser.role === 'owner' ? null : editForm.store_id || null,
+        nrs_employee_name: (editForm.nrs_employee_name || '').trim() || null,
       };
       if (editForm.password) body.password = editForm.password;
       const res = await fetch('/api/auth/update', {
@@ -273,12 +279,25 @@ export default function TeamPage() {
           <Field label="Name"><input value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} /></Field>
           <Field label="Email (read-only)"><input value={editUser.username || ''} readOnly disabled /></Field>
           {editUser.role === 'employee' && (
-            <Field label="Assigned Store">
-              <select value={editForm.store_id} onChange={e => setEditForm({ ...editForm, store_id: e.target.value })}>
-                <option value="">None</option>
-                {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </Field>
+            <>
+              <Field label="Assigned Store">
+                <select value={editForm.store_id} onChange={e => setEditForm({ ...editForm, store_id: e.target.value })}>
+                  <option value="">None</option>
+                  {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </Field>
+              <Field label="NRS POS name (optional)">
+                <input
+                  type="text"
+                  placeholder="Name as it appears in NRS shift logs (e.g. Dylan)"
+                  value={editForm.nrs_employee_name}
+                  onChange={e => setEditForm({ ...editForm, nrs_employee_name: e.target.value })}
+                />
+                <div className="text-[10px] text-[var(--text-muted)] mt-1">
+                  Leave blank if NRS uses the same name as above. Used to attribute shifts and short/over to this employee on the Tracking page.
+                </div>
+              </Field>
+            </>
           )}
           <div className="mb-3">
             {!showPassword ? (
