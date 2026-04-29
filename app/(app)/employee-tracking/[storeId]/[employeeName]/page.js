@@ -20,6 +20,7 @@ export default function EmployeeDetailPage() {
   const { range, preset, selectPreset, setStart, setEnd } = useDateRange('thismonth');
   const [shifts, setShifts] = useState([]);
   const [store, setStore] = useState(null);
+  const [creditEntries, setCreditEntries] = useState([]); // [{ date, name, amount }]
   const [loading, setLoading] = useState(true);
   const [sortState, setSortState] = useState({ key: 'shift_date', dir: 'desc' });
 
@@ -29,7 +30,7 @@ export default function EmployeeDetailPage() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [{ data: st }, { data: sh }] = await Promise.all([
+      const [{ data: st }, { data: sh }, { data: salesRows }] = await Promise.all([
         supabase.from('stores').select('id, name, color').eq('id', storeId).single(),
         supabase.from('employee_shifts')
           .select('*, daily_sales(total_sales, net_sales, r1_short_over, short_over)')
@@ -38,12 +39,36 @@ export default function EmployeeDetailPage() {
           .gte('shift_date', range.start)
           .lte('shift_date', range.end)
           .order('shift_date', { ascending: false }),
+        supabase.from('daily_sales')
+          .select('date, store_id, house_accounts')
+          .eq('store_id', storeId)
+          .gte('date', range.start)
+          .lte('date', range.end),
       ]);
+      // Pull this employee's House Account credits — match by employee_id
+      // when present, otherwise by case-insensitive name.
+      const lcName = employeeName.toLowerCase();
+      const flat = [];
+      (salesRows || []).forEach(r => {
+        if (!Array.isArray(r.house_accounts)) return;
+        r.house_accounts.forEach(e => {
+          const matchesName = (e?.name || '').trim().toLowerCase() === lcName;
+          if (matchesName || (e?.employee_id && e.employee_id === employeeName)) {
+            flat.push({ date: r.date, name: (e.name || '').trim(), amount: Number(e.amount || 0) });
+          }
+        });
+      });
       setStore(st);
       setShifts(sh || []);
+      setCreditEntries(flat);
       setLoading(false);
     })();
   }, [range.start, range.end, storeId, employeeName]);
+
+  const totalCredit = useMemo(
+    () => creditEntries.reduce((s, e) => s + e.amount, 0),
+    [creditEntries]
+  );
 
   // Deduplicate S/O per daily_sales_id — attribute to last closer
   const enriched = useMemo(() => {
@@ -132,11 +157,12 @@ export default function EmployeeDetailPage() {
         <Button variant="secondary" onClick={exportCSV} className="!text-[11px]">CSV</Button>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
         <V2StatCard label="Shifts" value={stats.totalShifts} icon="📋" variant="info" />
         <V2StatCard label="Hours" value={`${stats.totalHours}h`} icon="🕐" variant={Number(stats.totalHours) >= 40 ? 'success' : 'default'} />
         <V2StatCard label="Sales Handled" value={fK(Number(stats.totalSales))} icon="💵" variant="success" />
         <V2StatCard label="Net Short/Over" value={`${Number(stats.totalSO) >= 0 ? '+' : ''}${fmt(Number(stats.totalSO))}`} icon="💰" variant={Number(stats.totalSO) < 0 ? 'danger' : 'success'} />
+        <V2StatCard label="House Credit" value={fmt(totalCredit)} icon="🪙" variant={totalCredit > 0 ? 'warning' : 'default'} />
         <V2StatCard label="Longest Shift" value={stats.longest ? `${stats.longest.hours}h` : '—'} sub={stats.longest ? dayLabel(stats.longest.date) : ''} icon="🏆" />
       </div>
 
@@ -193,10 +219,28 @@ export default function EmployeeDetailPage() {
             <div className="text-right font-mono font-bold" style={{ color: soColor(Number(stats.totalSO)) }}>
               {Number(stats.totalSO) >= 0 ? '+' : ''}{fmt(Number(stats.totalSO))}
             </div>
+            <div className="text-[var(--text-secondary)] font-semibold">House Account Credit</div>
+            <div className="text-right font-mono font-bold" style={{ color: totalCredit > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>
+              {fmt(totalCredit)}
+            </div>
           </div>
+          {creditEntries.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-[var(--border-subtle)]">
+              <div className="text-[var(--text-secondary)] text-[10px] font-semibold uppercase mb-1.5">Credit Breakdown</div>
+              <div className="space-y-1 text-[11px] max-w-sm">
+                {creditEntries.map((c, i) => (
+                  <div key={i} className="flex justify-between">
+                    <span className="text-[var(--text-secondary)]">{dayLabel(c.date)}</span>
+                    <span className="font-mono text-[var(--color-warning)]">{fmt(c.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="text-[var(--text-muted)] text-[10px] mt-3 space-y-0.5">
-            <div>If negative: deduct from paycheck</div>
-            <div>If positive: employee overage — goes to store</div>
+            <div>House Account Credit: deduct from paycheck (employee took cash as credit)</div>
+            <div>If S/O negative: deduct from paycheck</div>
+            <div>If S/O positive: employee overage — goes to store</div>
           </div>
         </Card>
       )}

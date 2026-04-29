@@ -55,6 +55,10 @@ export default function SalesPage() {
   const [r1Images, setR1Images] = useState([]);
   const [r2Images, setR2Images] = useState([]);
   const [creditImages, setCreditImages] = useState([]);
+  // Active employees keyed by store_id, used to populate the House Account
+  // dropdown so the cashier picks a real teammate (and we can roll the
+  // credit up on the Employee Tracking page later).
+  const [employeesByStore, setEmployeesByStore] = useState({});
   const [saving, setSaving] = useState(false);
   const r1CameraRef = useRef(null);
   const r1LibraryRef = useRef(null);
@@ -91,14 +95,23 @@ export default function SalesPage() {
     notes: '',
   });
 
-  const resolveHAName = (entry) => {
-    if (entry.choice === 'billy') return 'Billy';
-    if (entry.choice === 'elias') return 'Elias';
-    if (entry.choice === 'other') return (entry.customName || '').trim() || null;
+  // House Account entry shape:
+  //   { employeeId: <profile uuid> | 'other' | '',
+  //     customName: <string, only when 'other'>,
+  //     amount: <string number> }
+  const resolveHAEmployee = (entry, storeIdForLookup) => {
+    if (!entry.employeeId || entry.employeeId === 'other') return null;
+    const list = employeesByStore[storeIdForLookup] || [];
+    return list.find(p => p.id === entry.employeeId) || null;
+  };
+  const resolveHAName = (entry, storeIdForLookup) => {
+    if (entry.employeeId === 'other') return (entry.customName || '').trim() || null;
+    const emp = resolveHAEmployee(entry, storeIdForLookup);
+    if (emp) return emp.name || emp.username || null;
     return null;
   };
   const haTotal = houseAccounts.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0);
-  const addHA = () => setHouseAccounts(prev => [...prev, { choice: '', customName: '', amount: '' }]);
+  const addHA = () => setHouseAccounts(prev => [...prev, { employeeId: '', customName: '', amount: '' }]);
   const updateHA = (i, patch) => setHouseAccounts(prev => prev.map((e, j) => j === i ? { ...e, ...patch } : e));
   const removeHA = (i) => setHouseAccounts(prev => prev.filter((_, j) => j !== i));
 
@@ -112,6 +125,24 @@ export default function SalesPage() {
         .from('stores').select('*').order('created_at');
       if (storeErr) console.error('[sales] stores query error:', storeErr);
       setStores(storeData || []);
+
+      // Active employees per store, used by the House Account dropdown.
+      const { data: empProfs, error: empErr } = await supabase
+        .from('profiles')
+        .select('id, name, username, store_id, role, is_active')
+        .eq('role', 'employee')
+        .neq('is_active', false);
+      if (empErr) {
+        console.warn('[sales] employee profiles query failed (non-fatal):', empErr);
+      } else {
+        const byStore = {};
+        (empProfs || []).forEach(p => {
+          if (!p.store_id) return;
+          (byStore[p.store_id] = byStore[p.store_id] || []).push(p);
+        });
+        Object.values(byStore).forEach(arr => arr.sort((a, b) => (a.name || a.username || '').localeCompare(b.name || b.username || '')));
+        setEmployeesByStore(byStore);
+      }
 
       // Drop the profiles!fkey embed — that join was failing silently when
       // the FK constraint name didn't match. Fetch profiles separately and
@@ -249,7 +280,7 @@ export default function SalesPage() {
     // House Account name is required whenever an amount > 0 is entered, on
     // either the R1 tab (full form) or the R2 tab (simpleR2 employees).
     houseAccounts.forEach((e, i) => {
-      if ((parseFloat(e.amount) || 0) > 0 && !resolveHAName(e)) {
+      if ((parseFloat(e.amount) || 0) > 0 && !resolveHAName(e, storeIdToUse)) {
         errs[`ha_name_${i}`] = true;
       }
     });
@@ -350,8 +381,15 @@ export default function SalesPage() {
       r1_sales_tax: simpleSave ? 0 : num(form.r1_sales_tax),
       house_accounts: houseAccounts
         .filter(e => (parseFloat(e.amount) || 0) > 0)
-        .map(e => ({ name: resolveHAName(e) || 'Unnamed', amount: parseFloat(e.amount) || 0 })),
-      r1_house_account_name: houseAccounts.length ? (resolveHAName(houseAccounts[0]) || null) : null,
+        .map(e => {
+          const emp = resolveHAEmployee(e, storeIdToUse);
+          return {
+            name: resolveHAName(e, storeIdToUse) || 'Unnamed',
+            amount: parseFloat(e.amount) || 0,
+            employee_id: emp?.id || null,
+          };
+        }),
+      r1_house_account_name: houseAccounts.length ? (resolveHAName(houseAccounts[0], storeIdToUse) || null) : null,
       r1_house_account_amount: haTotal,
       credits: haTotal,
       // Register 2 (manual cash register at Bells/Kerens). The user enters
@@ -543,25 +581,40 @@ export default function SalesPage() {
       r2_safe_drop: r.r2_safe_drop ?? '',
       notes: r.notes || '',
     });
-    // Populate house accounts from JSON array or legacy single fields
+    // Populate house accounts from JSON array or legacy single fields. Try
+    // to map saved entries back to a real employee profile (preferred via
+    // employee_id, fallback to case-insensitive name match) so the dropdown
+    // shows the correct teammate when reopening.
+    const rowEmployees = employeesByStore[r.store_id] || [];
+    const matchEmployee = (entry) => {
+      if (entry?.employee_id) {
+        const byId = rowEmployees.find(p => p.id === entry.employee_id);
+        if (byId) return byId;
+      }
+      const nm = (entry?.name || '').trim().toLowerCase();
+      if (!nm) return null;
+      return rowEmployees.find(p => (p.name || p.username || '').toLowerCase() === nm) || null;
+    };
     if (Array.isArray(r.house_accounts) && r.house_accounts.length) {
       setHouseAccounts(r.house_accounts.map(e => {
+        const emp = matchEmployee(e);
+        if (emp) return { employeeId: emp.id, customName: '', amount: String(e.amount ?? '') };
         const nm = (e.name || '').trim();
-        let choice = '';
-        let customName = '';
-        if (nm.toLowerCase() === 'billy') choice = 'billy';
-        else if (nm.toLowerCase() === 'elias') choice = 'elias';
-        else if (nm) { choice = 'other'; customName = nm; }
-        return { choice, customName, amount: String(e.amount ?? '') };
+        return nm
+          ? { employeeId: 'other', customName: nm, amount: String(e.amount ?? '') }
+          : { employeeId: '', customName: '', amount: String(e.amount ?? '') };
       }));
     } else if ((r.r1_house_account_amount ?? r.credits ?? 0) > 0) {
       const nm = (r.r1_house_account_name || '').trim();
-      let choice = '';
-      let customName = '';
-      if (nm.toLowerCase() === 'billy') choice = 'billy';
-      else if (nm.toLowerCase() === 'elias') choice = 'elias';
-      else if (nm) { choice = 'other'; customName = nm; }
-      setHouseAccounts([{ choice, customName, amount: String(r.r1_house_account_amount ?? r.credits ?? '') }]);
+      const emp = matchEmployee({ name: nm });
+      const amount = String(r.r1_house_account_amount ?? r.credits ?? '');
+      setHouseAccounts([
+        emp
+          ? { employeeId: emp.id, customName: '', amount }
+          : nm
+            ? { employeeId: 'other', customName: nm, amount }
+            : { employeeId: '', customName: '', amount }
+      ]);
     } else {
       setHouseAccounts([]);
     }
@@ -724,22 +777,25 @@ export default function SalesPage() {
           <p className="text-sw-dim text-[11px] italic mb-2">No house accounts — add below if needed</p>
         )}
         <div className="space-y-2 mb-2">
-          {houseAccounts.map((entry, i) => (
+          {houseAccounts.map((entry, i) => {
+            const storeEmps = employeesByStore[currentStoreId] || [];
+            return (
             <div key={i} className="flex gap-1.5 items-start flex-wrap sm:flex-nowrap">
               <div className="flex-1 min-w-[120px]">
                 <select
-                  value={entry.choice}
-                  onChange={e => updateHA(i, { choice: e.target.value, customName: e.target.value === 'other' ? entry.customName : '' })}
+                  value={entry.employeeId}
+                  onChange={e => updateHA(i, { employeeId: e.target.value, customName: e.target.value === 'other' ? entry.customName : '' })}
                   className={fieldErrors[`ha_name_${i}`] ? '!border-sw-red' : ''}
                 >
                   <option value="">Select name…</option>
-                  <option value="billy">Billy</option>
-                  <option value="elias">Elias</option>
+                  {storeEmps.map(p => (
+                    <option key={p.id} value={p.id}>{p.name || p.username}</option>
+                  ))}
                   <option value="other">Other…</option>
                 </select>
                 {fieldErrors[`ha_name_${i}`] && <p className="text-sw-red text-[10px] mt-0.5">Name required</p>}
               </div>
-              {entry.choice === 'other' && (
+              {entry.employeeId === 'other' && (
                 <div className="flex-1 min-w-[100px]">
                   <input
                     type="text"
@@ -768,7 +824,8 @@ export default function SalesPage() {
                 ✕
               </button>
             </div>
-          ))}
+            );
+          })}
         </div>
         <button
           type="button"

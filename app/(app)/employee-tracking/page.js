@@ -12,21 +12,40 @@ export default function EmployeeTrackingPage() {
   const { range, preset, selectPreset, setStart, setEnd } = useDateRange('thisweek');
   const [shifts, setShifts] = useState([]);
   const [stores, setStores] = useState([]);
+  const [credits, setCredits] = useState([]);   // [{ store_id, employee_id, name, amount }]
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [{ data: st }, { data: sh }] = await Promise.all([
+      const [{ data: st }, { data: sh }, { data: salesRows }] = await Promise.all([
         supabase.from('stores').select('id, name, color').order('created_at'),
         supabase.from('employee_shifts')
           .select('*, stores(name, color), daily_sales(total_sales, net_sales, r1_short_over, short_over)')
           .gte('shift_date', range.start)
           .lte('shift_date', range.end)
           .order('opened_at', { ascending: true }),
+        supabase.from('daily_sales')
+          .select('store_id, date, house_accounts')
+          .gte('date', range.start)
+          .lte('date', range.end),
       ]);
+      // Flatten house_accounts JSON arrays into one row per credit entry.
+      const flat = [];
+      (salesRows || []).forEach(r => {
+        if (!Array.isArray(r.house_accounts)) return;
+        r.house_accounts.forEach(e => {
+          flat.push({
+            store_id: r.store_id,
+            employee_id: e?.employee_id || null,
+            name: (e?.name || '').trim(),
+            amount: Number(e?.amount || 0),
+          });
+        });
+      });
       setStores(st || []);
       setShifts(sh || []);
+      setCredits(flat);
       setLoading(false);
     })();
   }, [range.start, range.end]);
@@ -56,13 +75,36 @@ export default function EmployeeTrackingPage() {
       const sid = s.store_id;
       if (!storeMap[sid]) storeMap[sid] = { store: s.stores || {}, employees: {} };
       const eName = s.employee_name || 'Unknown';
-      if (!storeMap[sid].employees[eName]) storeMap[sid].employees[eName] = { shifts: [], totalHours: 0, totalSO: 0, totalSales: 0 };
+      if (!storeMap[sid].employees[eName]) storeMap[sid].employees[eName] = { shifts: [], totalHours: 0, totalSO: 0, totalSales: 0, totalCredit: 0 };
       const b = storeMap[sid].employees[eName];
       b.shifts.push(s);
       b.totalHours += Number(s.total_hours) || 0;
       b.totalSO += s._so;
       b.totalSales += s._sales;
     }
+    // Layer in House Account credits, matched by employee_id (preferred) or
+    // case-insensitive name. Surface employees with credits but no shifts so
+    // their payroll deductions still appear.
+    const creditByStore = {};
+    credits.forEach(c => {
+      (creditByStore[c.store_id] = creditByStore[c.store_id] || []).push(c);
+    });
+    Object.keys(creditByStore).forEach(sid => {
+      const store = storeMap[sid] || { store: stores.find(s => s.id === sid) || {}, employees: {} };
+      storeMap[sid] = store;
+      creditByStore[sid].forEach(c => {
+        const lcName = c.name.toLowerCase();
+        // Try to fold into an existing tracked employee first.
+        const matchKey = Object.keys(store.employees).find(k => k.toLowerCase() === lcName);
+        if (matchKey) {
+          store.employees[matchKey].totalCredit += c.amount;
+        } else {
+          const key = c.name || 'Unknown';
+          if (!store.employees[key]) store.employees[key] = { shifts: [], totalHours: 0, totalSO: 0, totalSales: 0, totalCredit: 0 };
+          store.employees[key].totalCredit += c.amount;
+        }
+      });
+    });
     return Object.entries(storeMap).map(([sid, { store, employees }]) => ({
       storeId: sid, storeName: store.name || '—', storeColor: store.color,
       employees: Object.entries(employees).map(([name, d]) => ({
@@ -72,13 +114,15 @@ export default function EmployeeTrackingPage() {
         avgHours: d.shifts.length ? parseFloat((d.totalHours / d.shifts.length).toFixed(1)) : 0,
         totalSO: parseFloat(d.totalSO.toFixed(2)),
         totalSales: parseFloat(d.totalSales.toFixed(2)),
+        totalCredit: parseFloat((d.totalCredit || 0).toFixed(2)),
       })).sort((a, b) => b.totalHours - a.totalHours),
       totalShifts: Object.values(employees).reduce((s, e) => s + e.shifts.length, 0),
       totalHours: parseFloat(Object.values(employees).reduce((s, e) => s + e.totalHours, 0).toFixed(1)),
       totalSO: parseFloat(Object.values(employees).reduce((s, e) => s + e.totalSO, 0).toFixed(2)),
+      totalCredit: parseFloat(Object.values(employees).reduce((s, e) => s + (e.totalCredit || 0), 0).toFixed(2)),
       employeeCount: Object.keys(employees).length,
     }));
-  }, [shiftsWithSO]);
+  }, [shiftsWithSO, credits, stores]);
 
   const totals = useMemo(() => {
     const h = shiftsWithSO.reduce((s, r) => s + (Number(r.total_hours) || 0), 0);
@@ -93,9 +137,9 @@ export default function EmployeeTrackingPage() {
   const exportCSV = () => {
     const rows = [];
     grouped.forEach(g => g.employees.forEach(e => {
-      rows.push([g.storeName, e.name, e.shiftCount, e.totalHours, e.avgHours, e.totalSales, e.totalSO]);
+      rows.push([g.storeName, e.name, e.shiftCount, e.totalHours, e.avgHours, e.totalSales, e.totalSO, e.totalCredit]);
     }));
-    downloadCSV('employee-summary.csv', ['Store', 'Employee', 'Shifts', 'Hours', 'Avg Hrs', 'Sales', 'Short/Over'], rows);
+    downloadCSV('employee-summary.csv', ['Store', 'Employee', 'Shifts', 'Hours', 'Avg Hrs', 'Sales', 'Short/Over', 'Credit'], rows);
   };
 
   const goDetail = (storeId, name) => router.push(`/employee-tracking/${storeId}/${encodeURIComponent(name)}`);
@@ -134,13 +178,18 @@ export default function EmployeeTrackingPage() {
                   <div className="w-3 h-3 rounded" style={{ background: g.storeColor || '#64748B' }} />
                   <span className="text-[var(--text-primary)] text-[14px] font-bold">{g.storeName}</span>
                 </div>
-                <div className="text-[var(--text-secondary)] text-[11px] flex gap-3">
+                <div className="text-[var(--text-secondary)] text-[11px] flex gap-3 flex-wrap">
                   <span>{g.totalShifts} shifts</span>
                   <span>{g.totalHours}h</span>
                   <span>{g.employeeCount} emp</span>
                   <span style={{ color: soColor(g.totalSO) }} className="font-mono font-bold">
                     S/O: {g.totalSO >= 0 ? '+' : ''}{fmt(g.totalSO)}
                   </span>
+                  {g.totalCredit > 0 && (
+                    <span className="font-mono font-bold text-[var(--color-warning)]">
+                      Credit: {fmt(g.totalCredit)}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="p-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -166,6 +215,10 @@ export default function EmployeeTrackingPage() {
                       <div className="text-[var(--text-secondary)] font-semibold">Short/Over</div>
                       <div className="text-right font-mono font-bold" style={{ color: soColor(emp.totalSO) }}>
                         {emp.totalSO >= 0 ? '+' : ''}{fmt(emp.totalSO)}
+                      </div>
+                      <div className="text-[var(--text-secondary)] font-semibold">Credit</div>
+                      <div className="text-right font-mono font-bold" style={{ color: emp.totalCredit > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>
+                        {emp.totalCredit > 0 ? fmt(emp.totalCredit) : fmt(0)}
                       </div>
                     </div>
                     <div className="text-[var(--color-info)] text-[11px] font-semibold group-hover:underline">View Details →</div>
