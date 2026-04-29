@@ -1196,7 +1196,7 @@ export default function SalesPage() {
               <Field label="Date"><input type="date" value={todayStr} readOnly disabled /></Field>
             ), /*simpleR2Mode*/ empUsesReg2)}
             {isOnSummaryTab ? (
-              <Button onClick={handleSave} disabled={saving || !!modalError} className="w-full !py-3 !text-sm !rounded-xl mt-4">
+              <Button onClick={handleSave} disabled={saving} className="w-full !py-3 !text-sm !rounded-xl mt-4">
                 {saving ? 'Saving…' : 'Submit Sales'}
               </Button>
             ) : (
@@ -1544,7 +1544,7 @@ export default function SalesPage() {
           ))}
           <div className="flex gap-2 justify-end mt-4">
             <Button variant="secondary" onClick={closeModal}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving || (modal !== 'edit' && !!modalError)}>
+            <Button onClick={handleSave} disabled={saving}>
               {saving ? 'Saving…' : (modal === 'edit' ? 'Update' : 'Save')}
             </Button>
           </div>
