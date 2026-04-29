@@ -1532,6 +1532,13 @@ export default function SalesPage() {
               ⚠️ {modalError}
             </div>
           )}
+          {modal === 'edit' && editItem && ownerUsesReg2
+            && Number(editItem.r2_net || 0) > 0
+            && Number(editItem.r1_net || editItem.net_sales || 0) === 0 && (
+            <div className="mb-3 rounded-lg border border-sw-blue/30 bg-sw-blueD text-sw-blue text-[12px] p-2.5">
+              ℹ️ Employee submitted R2 Net only — please complete the R1 fields and the rest of R2 from the NRS shift report (or run NRS Sync).
+            </div>
+          )}
           <Field label="Store">
             <select
               value={editItem?.store_id || formStoreId || ''}
