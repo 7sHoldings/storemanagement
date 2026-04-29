@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import { DataTable, DateBar, useDateRange, Modal, Field, Button, Loading, StoreBadge, Alert, MultiSelect, SmartDatePicker, SortDropdown, StorePills } from '@/components/UI';
 import { V2StatCard } from '@/components/ui';
@@ -32,6 +33,7 @@ const statusBadge = v => {
 
 export default function CashPage() {
   const { supabase, isOwner, profile, effectiveStoreId } = useAuth();
+  const router = useRouter();
   const { range, preset, selectPreset, setStart, setEnd } = useDateRange('last30');
   const [recon, setRecon] = useState([]);
   const [stores, setStores] = useState([]);
@@ -325,23 +327,33 @@ export default function CashPage() {
           { key: 'short_over', label: 'Short/Over', align: 'right', mono: true, render: (v,r) => r.status === 'pending' ? <span className="text-[var(--color-warning)] text-[10px]">PENDING</span> : <span className={v >= 0 ? 'text-[var(--color-success)] font-bold' : 'text-[var(--color-danger)] font-bold'}>{v >= 0 ? '+' : ''}{fmt(v)}</span>, sortValue: r => Number(r.short_over || 0) },
           { key: 'status', label: 'Status', align: 'center', render: v => statusBadge(v), sortValue: r => ({ pending: 1, short: 2, over: 3, matched: 4 })[r.status] || 99 },
           ...(isOwner ? [{ key: '_action', label: '', align: 'right', sortable: false, render: (_, r) => (
-            r.status === 'pending' ? (
+            <div className="flex items-center justify-end gap-1.5 flex-wrap">
               <button
-                onClick={() => openEdit(r)}
-                className="inline-flex items-center gap-1 px-3 rounded-md bg-sw-greenD border border-sw-green/30 text-[var(--color-success)] text-[12px] font-semibold"
+                onClick={() => router.push(`/sales?date=${r.date}&store=${r.store_id}`)}
+                className="inline-flex items-center gap-1 px-2.5 rounded-md bg-sw-card2 border border-sw-border text-[var(--text-secondary)] text-[12px] font-semibold hover:bg-sw-card hover:text-[var(--color-info)]"
                 style={{ minHeight: 32 }}
+                title="Open the matching daily sales entry"
               >
-                💰 Collect
+                📊 Daily Sales
               </button>
-            ) : (
-              <button
-                onClick={() => openEdit(r)}
-                className="inline-flex items-center gap-1 px-3 rounded-md bg-sw-blueD border border-sw-blue/30 text-[var(--color-info)] text-[12px] font-semibold"
-                style={{ minHeight: 32 }}
-              >
-                ✏️ Edit
-              </button>
-            )
+              {r.status === 'pending' ? (
+                <button
+                  onClick={() => openEdit(r)}
+                  className="inline-flex items-center gap-1 px-3 rounded-md bg-sw-greenD border border-sw-green/30 text-[var(--color-success)] text-[12px] font-semibold"
+                  style={{ minHeight: 32 }}
+                >
+                  💰 Collect
+                </button>
+              ) : (
+                <button
+                  onClick={() => openEdit(r)}
+                  className="inline-flex items-center gap-1 px-3 rounded-md bg-sw-blueD border border-sw-blue/30 text-[var(--color-info)] text-[12px] font-semibold"
+                  style={{ minHeight: 32 }}
+                >
+                  ✏️ Edit
+                </button>
+              )}
+            </div>
           ) }] : []),
         ]}
         rows={visibleRows}

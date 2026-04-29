@@ -83,7 +83,9 @@ export default function EmployeeDetailPage() {
     const primaryIds = new Set(Object.values(dsMap).map(s => s.id));
     return shifts.map(s => ({
       ...s,
-      _so: primaryIds.has(s.id) ? Number(s.daily_sales?.r1_short_over ?? s.daily_sales?.short_over ?? 0) : 0,
+      // short_over is the canonical day total (driven by cash collection
+      // when present, sales math otherwise).
+      _so: primaryIds.has(s.id) ? Number(s.daily_sales?.short_over ?? s.daily_sales?.r1_short_over ?? 0) : 0,
       _sales: primaryIds.has(s.id) ? Number(s.daily_sales?.total_sales ?? s.daily_sales?.net_sales ?? 0) : 0,
       _isPrimary: primaryIds.has(s.id),
     }));

@@ -64,8 +64,11 @@ export default function EmployeeTrackingPage() {
     return shifts.map(s => ({
       ...s,
       _isPrimary: primaryIds.has(s.id),
-      _so: primaryIds.has(s.id) ? (Number(s.daily_sales?.r1_short_over ?? s.daily_sales?.short_over ?? 0)) : 0,
-      _sales: primaryIds.has(s.id) ? (Number(s.daily_sales?.total_sales ?? s.daily_sales?.net_sales ?? 0)) : 0,
+      // short_over is the canonical day total (driven by cash collection
+      // when present, sales math otherwise). r1_short_over is always 0 on
+      // R2 stores, so we read short_over first.
+      _so: primaryIds.has(s.id) ? Number(s.daily_sales?.short_over ?? s.daily_sales?.r1_short_over ?? 0) : 0,
+      _sales: primaryIds.has(s.id) ? Number(s.daily_sales?.total_sales ?? s.daily_sales?.net_sales ?? 0) : 0,
     }));
   }, [shifts]);
 

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import { DataTable, DateBar, useDateRange, PageHeader, Modal, Field, Button, Alert, Loading, StoreBadge, ConfirmModal, SmartDatePicker, SortDropdown, MultiSelect, StorePills } from '@/components/UI';
 import { Card, V2StatCard, Badge } from '@/components/ui';
@@ -10,6 +11,8 @@ import NRSSyncModal from '@/components/NRSSyncModal';
 
 export default function SalesPage() {
   const { supabase, isOwner, isEmployee, profile, effectiveStoreId } = useAuth();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const { range, preset, selectPreset, setStart, setEnd } = useDateRange('last30');
   const [sales, setSales] = useState([]);
   const [stores, setStores] = useState([]);
@@ -195,6 +198,25 @@ export default function SalesPage() {
   }, [range.start, range.end, storeId, pageStoreIds.join(',')]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Deep link from Cash Collection: /sales?date=YYYY-MM-DD&store=<id>
+  // opens the matching daily_sales row in the edit modal once loaded.
+  const editParamHandled = useRef(false);
+  useEffect(() => {
+    if (editParamHandled.current) return;
+    if (loading || !sales.length || !isOwner) return;
+    const date = searchParams.get('date');
+    const store = searchParams.get('store');
+    if (!date || !store) return;
+    const row = sales.find(r => r.date === date && r.store_id === store);
+    if (row) {
+      openEditRow(row);
+      editParamHandled.current = true;
+      // Strip the params so refreshing the page doesn't re-open the modal.
+      router.replace('/sales', { scroll: false });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, sales, searchParams, isOwner]);
 
   // Append picked files to the register's image list. Reads each file as a
   // data URL so the preview shows immediately; actual storage upload happens
