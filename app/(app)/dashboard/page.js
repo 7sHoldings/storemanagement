@@ -54,7 +54,7 @@ export default function DashboardPage() {
           });
 
         let salesQ = supabase.from('daily_sales')
-          .select('cash_sales, card_sales, register2_cash, register2_card, total_sales, gross_sales, net_sales, short_over, credits, tax_collected, date, store_id')
+          .select('cash_sales, card_sales, register2_cash, register2_card, r1_safe_drop, r2_safe_drop, r2_net, total_sales, gross_sales, net_sales, short_over, credits, tax_collected, date, store_id')
           .gte('date', range.start).lte('date', range.end);
         if (storeId) salesQ = salesQ.eq('store_id', storeId);
         const { data: sales } = await salesQ;
@@ -74,7 +74,14 @@ export default function DashboardPage() {
         const { data: cashRows } = await cashQ;
 
         const totalGross = sales?.reduce((s, r) => s + (r.gross_sales ?? r.total_sales ?? 0), 0) || 0;
-        const totalCash = sales?.reduce((s, r) => s + (r.cash_sales || 0) + (r.register2_cash || 0), 0) || 0;
+        // Cash counted = what was actually dropped in the safe across both
+        // registers. Falls back to cash_sales + register2_cash for legacy
+        // rows where neither safe drop column was filled.
+        const totalCash = sales?.reduce((s, r) => {
+          const dropped = (r.r1_safe_drop || 0) + (r.r2_safe_drop || 0);
+          if (dropped > 0) return s + dropped;
+          return s + (r.cash_sales || 0) + (r.register2_cash || 0);
+        }, 0) || 0;
         const totalCard = sales?.reduce((s, r) => s + (r.card_sales || 0) + (r.register2_card || 0), 0) || 0;
         const totalNet = sales?.reduce((s, r) => s + (r.total_sales ?? r.net_sales ?? 0), 0) || 0;
         const totalShortOver = sales?.reduce((s, r) => s + (r.short_over || 0), 0) || 0;

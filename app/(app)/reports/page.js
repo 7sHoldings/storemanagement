@@ -63,7 +63,7 @@ export default function ReportsPage() {
           { data: cashPrev },
         ] = await Promise.all([
           scope(supabase.from('daily_sales').select('*').gte('date', range.start).lte('date', range.end)),
-          scope(supabase.from('daily_sales').select('date, store_id, total_sales, cash_sales, card_sales').gte('date', prev.start).lte('date', prev.end)),
+          scope(supabase.from('daily_sales').select('date, store_id, total_sales, cash_sales, card_sales, r1_safe_drop, r2_safe_drop').gte('date', prev.start).lte('date', prev.end)),
           scope(supabase.from('purchases').select('*').gte('week_of', range.start).lte('week_of', range.end)),
           scope(supabase.from('purchases').select('total_cost, unit_cost, supplier').gte('week_of', prev.start).lte('week_of', prev.end)),
           scope(supabase.from('expenses').select('*').gte('month', range.start.slice(0, 7)).lte('month', range.end.slice(0, 7))),
@@ -193,11 +193,17 @@ export default function ReportsPage() {
         setTrendStatsPrev(statsFor(daysPrev));
 
         // ── Section 6 — Cash reconciliation (current + previous) ──
+        // "Expected" matches the Cash Collection page: total cash dropped in
+        // the safe (R1 safe drop + R2 safe drop), which captures both R1 cash
+        // and R2 cash flows for Bells/Kerens. Falling back to cash_sales for
+        // legacy rows where neither safe drop column was filled.
         const buildRecon = (salesRows, cashRows) => {
           const cashByKey = {};
           (salesRows || []).forEach(r => {
             const k = `${r.store_id}|${r.date}`;
-            cashByKey[k] = { expected: (cashByKey[k]?.expected || 0) + (r.cash_sales || 0), collected: cashByKey[k]?.collected || 0 };
+            const dropped = (r.r1_safe_drop || 0) + (r.r2_safe_drop || 0);
+            const expected = dropped > 0 ? dropped : (r.cash_sales || 0);
+            cashByKey[k] = { expected: (cashByKey[k]?.expected || 0) + expected, collected: cashByKey[k]?.collected || 0 };
           });
           (cashRows || []).forEach(r => {
             const k = `${r.store_id}|${r.date}`;
@@ -374,10 +380,13 @@ export default function ReportsPage() {
 
     // ── Cash reconciliation
     rows.push(['=== CASH RECONCILIATION ===']);
-    rows.push(['Store', 'Cash Sales (Expected)', 'Cash Collected', 'Short/Over', 'Status']);
+    rows.push(['Store', 'Expected (Safe Drop)', 'Cash Collected', 'Short/Over', 'Status']);
     let reconExp = 0, reconCol = 0;
     storeRows.forEach(s => {
-      const expected = rawSales.filter(r => r.store_id === s.id).reduce((sum, r) => sum + (r.cash_sales || 0), 0);
+      const expected = rawSales.filter(r => r.store_id === s.id).reduce((sum, r) => {
+        const dropped = (r.r1_safe_drop || 0) + (r.r2_safe_drop || 0);
+        return sum + (dropped > 0 ? dropped : (r.cash_sales || 0));
+      }, 0);
       const collected = rawCash.filter(r => r.store_id === s.id).reduce((sum, r) => sum + (r.cash_collected || 0), 0);
       const diff = collected - expected;
       let status = 'pending';
