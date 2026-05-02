@@ -83,14 +83,19 @@ export default function DashboardPage() {
           return s + (r.cash_sales || 0) + (r.register2_cash || 0);
         }, 0) || 0;
         const totalCard = sales?.reduce((s, r) => s + (r.card_sales || 0) + (r.register2_card || 0), 0) || 0;
-        const totalNet = sales?.reduce((s, r) => s + (r.total_sales ?? r.net_sales ?? 0), 0) || 0;
+        // Real net (tax stripped). Falls back to total_sales for legacy rows
+        // that pre-date the net_sales column being populated.
+        const totalNet = sales?.reduce((s, r) => s + (r.net_sales ?? r.total_sales ?? 0), 0) || 0;
+        const totalRevenue = sales?.reduce((s, r) => s + (r.total_sales ?? r.net_sales ?? 0), 0) || 0;
         const totalShortOver = sales?.reduce((s, r) => s + (r.short_over || 0), 0) || 0;
         const totalTax = sales?.reduce((s, r) => s + (r.tax_collected || 0), 0) || 0;
         const totalPurch = purch?.reduce((s, r) => s + (r.total_cost || r.unit_cost || 0), 0) || 0;
         const totalExp = exps?.reduce((s, r) => s + (r.amount || 0), 0) || 0;
         const cashInHand = cashRows?.reduce((s, r) => s + (r.cash_collected || 0), 0) || 0;
-        const netProfit = totalNet - totalPurch - totalExp;
-        const margin = totalNet > 0 ? (netProfit / totalNet * 100) : 0;
+        // P&L still uses revenue (cash flow = total_sales) so margin lines
+        // up with how the P&L Report and ledger compute things.
+        const netProfit = totalRevenue - totalPurch - totalExp;
+        const margin = totalRevenue > 0 ? (netProfit / totalRevenue * 100) : 0;
 
         setStats({ totalGross, totalNet, totalCash, totalCard, totalShortOver, totalTax, totalPurch, totalExp, cashInHand, netProfit, margin });
 
@@ -375,12 +380,12 @@ export default function DashboardPage() {
           />
           <V2StatCard
             className="h-full"
-            label="Total Sales"
+            label="Net Sales"
             value={fmt(stats.totalNet)}
             variant="success"
             icon="📊"
             sub={<TwoLineSub lines={[
-              { label: 'Daily avg', value: fmt(dailyAvg) },
+              { label: 'Tax stripped', value: fmt(stats.totalGross - stats.totalNet), color: 'text-[var(--text-muted)]' },
               { label: 'Days tracked', value: String(rangeDays) },
             ]} />}
           />
