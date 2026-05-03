@@ -54,7 +54,7 @@ export default function DashboardPage() {
           });
 
         let salesQ = supabase.from('daily_sales')
-          .select('cash_sales, card_sales, register2_cash, register2_card, r1_safe_drop, r2_safe_drop, r2_net, total_sales, gross_sales, net_sales, short_over, credits, tax_collected, date, store_id')
+          .select('cash_sales, card_sales, register2_cash, register2_card, r1_safe_drop, r2_safe_drop, r2_net, total_sales, gross_sales, net_sales, non_tax_sales, short_over, credits, tax_collected, date, store_id')
           .gte('date', range.start).lte('date', range.end);
         if (storeId) salesQ = salesQ.eq('store_id', storeId);
         const { data: sales } = await salesQ;
@@ -91,8 +91,9 @@ export default function DashboardPage() {
         const totalCard = sales?.reduce((s, r) => s + (r.card_sales || 0) + (r.register2_card || 0), 0) || 0;
         // Real net (tax stripped). Falls back to total_sales for legacy rows
         // that pre-date the net_sales column being populated.
-        const totalNet = sales?.reduce((s, r) => s + (r.net_sales ?? r.total_sales ?? 0), 0) || 0;
-        const totalRevenue = sales?.reduce((s, r) => s + (r.total_sales ?? r.net_sales ?? 0), 0) || 0;
+        const totalNet = sales?.reduce((s, r) => s + (r.total_sales ?? r.net_sales ?? 0), 0) || 0;
+        const totalRevenue = totalNet;
+        const totalNonTax = sales?.reduce((s, r) => s + (r.non_tax_sales || 0), 0) || 0;
         const totalShortOver = sales?.reduce((s, r) => s + (r.short_over || 0), 0) || 0;
         const totalTax = sales?.reduce((s, r) => s + (r.tax_collected || 0), 0) || 0;
         const totalPurch = purch?.reduce((s, r) => s + (r.total_cost || r.unit_cost || 0), 0) || 0;
@@ -125,7 +126,7 @@ export default function DashboardPage() {
         const netProfit = totalRevenue - totalPurch - totalExp;
         const margin = totalRevenue > 0 ? (netProfit / totalRevenue * 100) : 0;
 
-        setStats({ totalGross, totalNet, totalCash, totalCard, totalShortOver, totalTax, totalPurch, totalExp, cashInHand, netProfit, margin });
+        setStats({ totalGross, totalNet, totalNonTax, totalCash, totalCard, totalShortOver, totalTax, totalPurch, totalExp, cashInHand, netProfit, margin });
 
         if (storeData?.length && !storeId) {
           const perf = storeData.map(st => {
@@ -424,7 +425,7 @@ export default function DashboardPage() {
             icon="📊"
             sub={<TwoLineSub lines={[
               { label: 'Tax stripped', value: fmt(stats.totalGross - stats.totalNet), color: 'text-[var(--text-muted)]' },
-              { label: 'Days tracked', value: String(rangeDays) },
+              { label: 'Non-tax sales', value: fmt(stats.totalNonTax || 0), color: 'text-[var(--text-muted)]' },
             ]} />}
           />
           {(() => {
