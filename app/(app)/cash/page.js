@@ -202,6 +202,27 @@ export default function CashPage() {
     load();
   };
 
+  // Delete the cash_collections row entirely so the day flips back to
+  // "pending" and the daily_sales.short_over recomputes from the
+  // sales-side fallback (cash − safe_drop − house). The recalc trigger
+  // on cash_collections fires on DELETE, so daily_sales updates in place.
+  const handleClear = async () => {
+    if (!editRow?.cash_id) return;
+    if (!confirm('Clear this cash collection? The day will flip back to PENDING and the short/over will recompute from the safe drop.')) return;
+    const { error } = await supabase.from('cash_collections').delete().eq('id', editRow.cash_id);
+    if (error) { alert(error.message); return; }
+    const stName = stores.find(s => s.id === editRow.store_id)?.name;
+    await logActivity(supabase, profile, {
+      action: 'delete',
+      entityType: 'cash_collection',
+      description: `${profile?.name} cleared cash collection for ${stName} on ${shortDate(editRow.date)}`,
+      storeName: stName,
+    });
+    setModal(null);
+    setEditRow(null);
+    load();
+  };
+
 
   if (!isOwner) return <div className="text-[var(--text-muted)] text-center py-20">Owner access required</div>;
   if (loading) return <Loading />;
@@ -465,7 +486,17 @@ export default function CashPage() {
       )}
 
       <Field label="Note"><input type="text" value={form.note} onChange={e => setForm({...form, note: e.target.value})} /></Field>
-      <div className="flex gap-2 justify-end"><Button variant="secondary" onClick={() => { setModal(null); setEditRow(null); }}>Cancel</Button><Button onClick={handleSave}>Save</Button></div>
+      <div className="flex gap-2 justify-between items-center">
+        {modal === 'edit' && editRow?.cash_id ? (
+          <Button variant="secondary" onClick={handleClear} className="!text-[var(--color-danger)] !border-sw-red/30 !bg-sw-redD">
+            🗑 Clear collection
+          </Button>
+        ) : <span />}
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => { setModal(null); setEditRow(null); }}>Cancel</Button>
+          <Button onClick={handleSave}>Save</Button>
+        </div>
+      </div>
     </Modal>}
 
   </div>);
