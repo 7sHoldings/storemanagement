@@ -75,10 +75,12 @@ export default function CashPage() {
       const { data: st } = await supabase.from('stores').select('*').order('created_at');
       setStores(st || []);
 
-      // Fetch safe-drop fields from daily_sales (the real "expected cash")
+      // Fetch safe-drop fields + the canonical short_over from daily_sales.
+      // We display daily_sales.short_over here so this page and the Daily
+      // Sales table can never disagree.
       let salesQ = supabase
         .from('daily_sales')
-        .select('store_id, date, r1_safe_drop, r2_safe_drop')
+        .select('store_id, date, r1_safe_drop, r2_safe_drop, short_over, cash_sales, r2_net, r1_house_account_amount')
         .gte('date', range.start).lte('date', range.end);
       let cashQ = supabase
         .from('cash_collections')
@@ -101,18 +103,27 @@ export default function CashPage() {
           date: s.date,
           r1_safe_drop: (prev.r1_safe_drop || 0) + (s.r1_safe_drop || 0),
           r2_safe_drop: (prev.r2_safe_drop || 0) + (s.r2_safe_drop || 0),
+          ds_short_over: Number(s.short_over || 0),
+          ds_cash_sales: Number(s.cash_sales || 0),
+          ds_r2_net: Number(s.r2_net || 0),
+          ds_house: Number(s.r1_house_account_amount || 0),
         };
       });
       cash?.forEach(c => {
         const k = `${c.store_id}_${c.date}`;
         const prev = map[k] || {};
+        // Ghost rows (no collected_by) shouldn't surface as "collected" —
+        // we only treat owner-recorded rows as real. The trigger applies
+        // the same rule when computing daily_sales.short_over.
+        const isReal = !!c.collected_by;
         map[k] = {
           ...prev,
           store_id: c.store_id,
           date: c.date,
-          cash_collected: (prev.cash_collected || 0) + (c.cash_collected || 0),
+          cash_collected: (prev.cash_collected || 0) + (isReal ? (c.cash_collected || 0) : 0),
           note: c.note || prev.note || '',
-          cash_id: c.id,
+          cash_id: isReal ? c.id : prev.cash_id || null,
+          collected_by: c.collected_by || prev.collected_by || null,
         };
       });
 
@@ -121,7 +132,13 @@ export default function CashPage() {
         const r2 = r.r2_safe_drop || 0;
         const expected = +(r1 + r2).toFixed(2);
         const cc = r.cash_collected || 0;
-        const so = +(cc - expected).toFixed(2);
+        // Use the canonical short_over from daily_sales so this page and
+        // the Daily Sales table always show the same number. It already
+        // reflects whether a manual collection has been recorded:
+        //   collected → cash_sales (+ r2_net) − cash_collected − house
+        //   pending   → cash_sales (+ r2_net) − safe_drop − house
+        // Convention: positive = SHORT (matches Daily Sales).
+        const so = +(Number(r.ds_short_over || 0)).toFixed(2);
         const store = st?.find(s => s.id === r.store_id);
         return {
           ...r,
@@ -131,7 +148,7 @@ export default function CashPage() {
           r2_safe_drop: r2,
           cash_collected: cc,
           short_over: so,
-          status: !cc ? 'pending' : Math.abs(so) < 0.01 ? 'matched' : so > 0 ? 'over' : 'short',
+          status: !r.cash_id ? 'pending' : Math.abs(so) < 0.01 ? 'matched' : so > 0 ? 'short' : 'over',
           store_name: store?.name,
           store_color: store?.color,
           has_r2: !!store?.has_register2,
@@ -294,9 +311,15 @@ export default function CashPage() {
 
     {/* Stat cards — fed by filtered rows */}
     {(() => {
+      // short_over convention: positive = SHORT (red), negative = OVER (green).
+      // Display matches the Sales table — show "−" prefix for short, "+" for over.
       const netShortOver = totalShort + totalOver;
-      const netVariant = Math.abs(netShortOver) < 0.01 ? 'default' : netShortOver > 0 ? 'success' : 'danger';
-      const netValue = Math.abs(netShortOver) < 0.01 ? fmt(0) : netShortOver > 0 ? `+${fmt(netShortOver)}` : fmt(netShortOver);
+      const netVariant = Math.abs(netShortOver) < 0.01 ? 'default' : netShortOver > 0 ? 'danger' : 'success';
+      const netValue = Math.abs(netShortOver) < 0.01
+        ? fmt(0)
+        : netShortOver > 0
+          ? `−${fmt(netShortOver)}`
+          : `+${fmt(Math.abs(netShortOver))}`;
       return (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
           <V2StatCard label="Expected Cash" value={fmt(totalExpected)} sub="Total expected" icon="💵" variant="warning" />
@@ -324,7 +347,16 @@ export default function CashPage() {
             sortValue: r => Number(r.expected || 0),
           },
           { key: 'cash_collected', label: 'Collected', align: 'right', mono: true, render: v => v ? <span className="text-[var(--color-info)] font-semibold">{fmt(v)}</span> : <span className="text-[var(--text-muted)]">—</span>, sortValue: r => Number(r.cash_collected || 0) },
-          { key: 'short_over', label: 'Short/Over', align: 'right', mono: true, render: (v,r) => r.status === 'pending' ? <span className="text-[var(--color-warning)] text-[10px]">PENDING</span> : <span className={v >= 0 ? 'text-[var(--color-success)] font-bold' : 'text-[var(--color-danger)] font-bold'}>{v >= 0 ? '+' : ''}{fmt(v)}</span>, sortValue: r => Number(r.short_over || 0) },
+          { key: 'short_over', label: 'Short/Over', align: 'right', mono: true,
+            tooltip: 'Same number as Daily Sales. Positive = SHORT (cash missing), negative = OVER. Pending = no collection recorded yet but the projected short/over is shown based on safe drop.',
+            render: (v, r) => {
+              const n = Number(v || 0);
+              if (Math.abs(n) < 0.01) return <span className="text-[var(--text-muted)] font-bold">{fmt(0)}</span>;
+              const cls = n > 0 ? 'text-[var(--color-danger)] font-bold' : 'text-[var(--color-success)] font-bold';
+              const prefix = n > 0 ? '−' : '+';
+              return <span className={cls}>{prefix}{fmt(Math.abs(n))}{r.status === 'pending' ? <span className="text-[var(--text-muted)] text-[10px] ml-1">(pending)</span> : null}</span>;
+            },
+            sortValue: r => Number(r.short_over || 0) },
           { key: 'status', label: 'Status', align: 'center', render: v => statusBadge(v), sortValue: r => ({ pending: 1, short: 2, over: 3, matched: 4 })[r.status] || 99 },
           ...(isOwner ? [{ key: '_action', label: '', align: 'right', sortable: false, render: (_, r) => (
             <div className="flex items-center justify-end gap-1.5 flex-wrap">
