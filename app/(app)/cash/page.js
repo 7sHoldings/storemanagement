@@ -34,7 +34,7 @@ const statusBadge = v => {
 export default function CashPage() {
   const { supabase, isOwner, profile, effectiveStoreId } = useAuth();
   const router = useRouter();
-  const { range, preset, selectPreset, setStart, setEnd } = useDateRange('last30');
+  const { range, preset, selectPreset, setStart, setEnd } = useDateRange('thismonth');
   const [recon, setRecon] = useState([]);
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
