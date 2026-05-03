@@ -16,7 +16,7 @@ const dayStr = () => new Date().toLocaleDateString('en-US', { weekday: 'long', m
 export default function DashboardPage() {
   const router = useRouter();
   const { supabase, isOwner, profile, effectiveStoreId } = useAuth();
-  const { range, preset, selectPreset, setStart, setEnd } = useDateRange('thismonth');
+  const { range, preset, selectPreset, setStart, setEnd } = useDateRange('thisweek');
   const [selectedStore, setSelectedStore] = useState('');
   const [stats, setStats] = useState(null);
   const [trends, setTrends] = useState([]);

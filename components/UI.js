@@ -97,14 +97,14 @@ export function StatCard({ label, value, sub, color, icon }) {
 
 // ── Date Preset Buttons ─────────────────────────────────────
 const PRIMARY_PRESETS = [
-  { id: 'today',     l: 'Today' },
+  { id: 'yesterday', l: 'Yesterday' },
   { id: 'thisweek',  l: 'This Week' },
   { id: 'thismonth', l: 'This Month' },
   { id: 'lastmonth', l: 'Last Month' },
 ];
 
 const OVERFLOW_PRESETS = [
-  { id: 'yesterday',   l: 'Yesterday' },
+  { id: 'today',       l: 'Today' },
   { id: 'lastweek',    l: 'Last Week' },
   { id: 'last2weeks',  l: 'Last 2 Weeks' },
   { id: 'last2months', l: 'Last 2 Months' },
