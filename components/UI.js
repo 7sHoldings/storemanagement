@@ -958,6 +958,25 @@ export function DataTable({ columns, rows, onEdit, onDelete, isOwner = true, emp
               );
             })}
           </tbody>
+          {columns.some(c => typeof c.total === 'function') && total > 0 && (
+            <tfoot>
+              <tr className="bg-[var(--bg-elevated)] border-t-2 border-[var(--border-strong)] font-bold">
+                {columns.map((c, i) => {
+                  const totalNode = typeof c.total === 'function' ? c.total(sortedRows) : null;
+                  return (
+                    <td
+                      key={c.key}
+                      className="!py-2.5"
+                      style={{ textAlign: c.align || 'left', fontFamily: c.mono ? "'IBM Plex Mono', monospace" : 'inherit', fontWeight: 700 }}
+                    >
+                      {totalNode != null ? totalNode : (i === 0 ? <span className="text-sw-sub text-[10px] uppercase tracking-wider">Totals</span> : null)}
+                    </td>
+                  );
+                })}
+                {(onEdit || onDelete) && isOwner && <td />}
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
       {total > 0 && (
