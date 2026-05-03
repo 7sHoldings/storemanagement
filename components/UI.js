@@ -121,6 +121,10 @@ export function DatePresets({ active, onChange }) {
   const [open, setOpen] = useState(false);
   const activeLabel = ALL_PRESETS.find(p => p.id === active)?.l;
   const activeInOverflow = OVERFLOW_PRESETS.some(p => p.id === active);
+  // Click an already-active preset to drop back into 'custom' mode (no
+  // preset highlighted). Lets the owner clear the selection without
+  // typing a date.
+  const togglePreset = (id) => onChange(active === id ? 'custom' : id);
 
   // Structure: a non-overflow `relative` wrapper holds the scrolling preset
   // row AND the "More" button + dropdown. The dropdown escapes any scroll
@@ -132,7 +136,8 @@ export function DatePresets({ active, onChange }) {
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {PRIMARY_PRESETS.map(p => (
-          <button key={p.id} onClick={() => onChange(p.id)}
+          <button key={p.id} onClick={() => togglePreset(p.id)}
+            title={active === p.id ? 'Click to clear' : ''}
             className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors flex-shrink-0
               ${active === p.id ? 'bg-sw-blueD text-sw-blue border border-sw-blue/20' : 'bg-sw-card2 text-sw-sub border border-sw-border hover:text-sw-text'}`}>
             {p.l}
@@ -155,13 +160,21 @@ export function DatePresets({ active, onChange }) {
             {OVERFLOW_PRESETS.map(p => (
               <button
                 key={p.id}
-                onClick={() => { onChange(p.id); setOpen(false); }}
+                onClick={() => { togglePreset(p.id); setOpen(false); }}
                 className={`block w-full text-left px-3 py-2 text-[12px] font-semibold transition-colors
                   ${active === p.id ? 'bg-sw-blueD text-sw-blue' : 'text-sw-sub hover:bg-sw-card2 hover:text-sw-text'}`}
               >
                 {p.l}
               </button>
             ))}
+            {active && active !== 'custom' && (
+              <button
+                onClick={() => { onChange('custom'); setOpen(false); }}
+                className="block w-full text-left px-3 py-2 text-[12px] font-semibold text-sw-dim hover:bg-sw-card2 hover:text-sw-text border-t border-sw-border"
+              >
+                ✕ Clear preset
+              </button>
+            )}
           </div>
         </>
       )}

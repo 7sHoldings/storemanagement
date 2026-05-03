@@ -14,7 +14,7 @@ export default function SalesPage() {
   const { supabase, isOwner, isEmployee, profile, effectiveStoreId } = useAuth();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { range, preset, selectPreset, setStart, setEnd } = useDateRange('last30');
+  const { range, preset, selectPreset, setStart, setEnd } = useDateRange('yesterday');
   const [sales, setSales] = useState([]);
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
