@@ -1831,26 +1831,32 @@ export default function SalesPage() {
           { key: 'gross_sales', label: 'Gross', align: 'right', mono: true,
             tooltip: 'Gross sales (with tax) = R1 gross + R2 net',
             sortValue: (r) => Number(r.gross_sales ?? r.total_sales ?? 0),
-            render: (v, r) => fmt(v ?? r.total_sales) },
+            render: (v, r) => fmt(v ?? r.total_sales),
+            total: rows => fmt(rows.reduce((s, r) => s + Number(r.gross_sales ?? r.total_sales ?? 0), 0)) },
           { key: 'total_sales', label: 'Total', align: 'right', mono: true,
             tooltip: 'Total net revenue = R1 net + R1 non-tax sales + R2 net',
             sortValue: (r) => Number(r.total_sales ?? r.net_sales ?? 0),
-            render: (v, r) => <span className="text-[var(--color-success)] font-bold">{fmt(v ?? r.net_sales ?? 0)}</span> },
+            render: (v, r) => <span className="text-[var(--color-success)] font-bold">{fmt(v ?? r.net_sales ?? 0)}</span>,
+            total: rows => <span className="text-[var(--color-success)]">{fmt(rows.reduce((s, r) => s + Number(r.total_sales ?? r.net_sales ?? 0), 0))}</span> },
           { key: 'cash_total', label: 'Cash', align: 'right', mono: true, sortable: true,
             tooltip: 'Cash = R1 cash + R2 net (R2 is cash-only)',
             sortValue: (r) => (Number(r.cash_sales || 0) + Number(r.r2_net || 0)),
-            render: (_, r) => fmt((r.cash_sales || 0) + (r.r2_net || 0)) },
+            render: (_, r) => fmt((r.cash_sales || 0) + (r.r2_net || 0)),
+            total: rows => fmt(rows.reduce((s, r) => s + Number(r.cash_sales || 0) + Number(r.r2_net || 0), 0)) },
           { key: 'card_sales', label: 'Card', align: 'right', mono: true,
             tooltip: 'Card sales = R1 credit + debit',
             sortValue: (r) => Number(r.card_sales || 0),
-            render: v => fmt(v) },
+            render: v => fmt(v),
+            total: rows => fmt(rows.reduce((s, r) => s + Number(r.card_sales || 0), 0)) },
           { key: 'cashapp_check', label: 'CApp/Chk', align: 'right', mono: true,
             tooltip: 'CashApp / Check payments (R1)',
             sortValue: (r) => Number(r.cashapp_check || 0),
-            render: v => fmt(v) },
+            render: v => fmt(v),
+            total: rows => fmt(rows.reduce((s, r) => s + Number(r.cashapp_check || 0), 0)) },
           { key: 'credits', label: 'H/A', align: 'right', mono: true,
             tooltip: 'House Account / Employee Credit total for the day',
             sortValue: (r) => Number(r.r1_house_account_amount ?? r.credits ?? 0),
+            total: rows => fmt(rows.reduce((s, r) => s + Number(r.r1_house_account_amount ?? r.credits ?? 0), 0)),
             render: (_, r) => {
               const amt = Number(r.r1_house_account_amount ?? r.credits ?? 0);
               if (amt === 0) return <span className="text-sw-dim">{fmt(0)}</span>;
@@ -1874,6 +1880,11 @@ export default function SalesPage() {
               // Positive short_over = SHORT (missing cash, red, shown with −).
               // Negative = OVER (extra cash, green, shown with +).
               return <span className={`font-bold ${n > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>{n > 0 ? '−' : '+'}{fmt(Math.abs(n))}</span>;
+            },
+            total: rows => {
+              const n = rows.reduce((s, r) => s + Number(r.short_over || 0), 0);
+              if (Math.abs(n) < 0.01) return <span className="text-[var(--text-muted)]">{fmt(0)}</span>;
+              return <span className={n > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}>{n > 0 ? '−' : '+'}{fmt(Math.abs(n))}</span>;
             } },
           { key: '_basket_diff', label: 'Diff', align: 'right', mono: true, sortable: true,
             tooltip: 'Basket vs R2 = R2 net − R1 canceled basket. Should be ≈ 0 when every R1 cash cancellation was re-rung on R2.',
@@ -1887,6 +1898,16 @@ export default function SalesPage() {
               const rowUsesR2 = !!rowStore?.has_register2;
               if (!rowUsesR2) return <span className="text-sw-dim">—</span>;
               const diff = Number(r.r2_net || 0) - Number(r.r1_canceled_basket || 0);
+              if (Math.abs(diff) < 0.01) return <span className="text-sw-green">{fmt(0)}</span>;
+              if (diff < 0) return <span className="text-sw-red">-{fmt(Math.abs(diff))}</span>;
+              return <span className="text-sw-amber">+{fmt(diff)}</span>;
+            },
+            total: rows => {
+              const diff = rows.reduce((s, r) => {
+                const rowStore = stores.find(st => st.id === r.store_id);
+                if (!rowStore?.has_register2) return s;
+                return s + Number(r.r2_net || 0) - Number(r.r1_canceled_basket || 0);
+              }, 0);
               if (Math.abs(diff) < 0.01) return <span className="text-sw-green">{fmt(0)}</span>;
               if (diff < 0) return <span className="text-sw-red">-{fmt(Math.abs(diff))}</span>;
               return <span className="text-sw-amber">+{fmt(diff)}</span>;

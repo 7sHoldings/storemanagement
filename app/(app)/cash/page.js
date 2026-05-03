@@ -366,8 +366,10 @@ export default function CashPage() {
               </span>
             ),
             sortValue: r => Number(r.expected || 0),
+            total: rows => fmt(rows.reduce((s, r) => s + Number(r.expected || 0), 0)),
           },
-          { key: 'cash_collected', label: 'Collected', align: 'right', mono: true, render: v => v ? <span className="text-[var(--color-info)] font-semibold">{fmt(v)}</span> : <span className="text-[var(--text-muted)]">—</span>, sortValue: r => Number(r.cash_collected || 0) },
+          { key: 'cash_collected', label: 'Collected', align: 'right', mono: true, render: v => v ? <span className="text-[var(--color-info)] font-semibold">{fmt(v)}</span> : <span className="text-[var(--text-muted)]">—</span>, sortValue: r => Number(r.cash_collected || 0),
+            total: rows => <span className="text-[var(--color-info)]">{fmt(rows.reduce((s, r) => s + Number(r.cash_collected || 0), 0))}</span> },
           { key: 'short_over', label: 'Short/Over', align: 'right', mono: true,
             tooltip: 'Same number as Daily Sales. Positive = SHORT (cash missing), negative = OVER. Pending = no collection recorded yet but the projected short/over is shown based on safe drop.',
             render: (v, r) => {
@@ -377,7 +379,12 @@ export default function CashPage() {
               const prefix = n > 0 ? '−' : '+';
               return <span className={cls}>{prefix}{fmt(Math.abs(n))}{r.status === 'pending' ? <span className="text-[var(--text-muted)] text-[10px] ml-1">(pending)</span> : null}</span>;
             },
-            sortValue: r => Number(r.short_over || 0) },
+            sortValue: r => Number(r.short_over || 0),
+            total: rows => {
+              const n = rows.reduce((s, r) => s + Number(r.short_over || 0), 0);
+              if (Math.abs(n) < 0.01) return <span className="text-[var(--text-muted)]">{fmt(0)}</span>;
+              return <span className={n > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}>{n > 0 ? '−' : '+'}{fmt(Math.abs(n))}</span>;
+            } },
           { key: 'status', label: 'Status', align: 'center', render: v => statusBadge(v), sortValue: r => ({ pending: 1, short: 2, over: 3, matched: 4 })[r.status] || 99 },
           ...(isOwner ? [{ key: '_action', label: '', align: 'right', sortable: false, render: (_, r) => (
             <div className="flex items-center justify-end gap-1.5 flex-wrap">
