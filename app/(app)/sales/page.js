@@ -535,17 +535,12 @@ export default function SalesPage() {
 
     // Sync cash_collections: upsert a row with expected = safe drops.
     // Preserves any existing collected amount; only updates expected.
-    const syncCashCollection = async () => {
-      const expected = (data.r1_safe_drop || 0) + (data.r2_safe_drop || 0);
-      const { error: ccErr } = await supabase
-        .from('cash_collections')
-        .upsert({
-          store_id: data.store_id,
-          date: data.date,
-          expected_amount: expected,
-        }, { onConflict: 'store_id,date', ignoreDuplicates: false });
-      if (ccErr) console.warn('[sales] cash_collection sync failed (non-fatal):', ccErr);
-    };
+    // Cash Collection now derives expected from daily_sales directly,
+    // so we no longer auto-upsert a row here on every save. Auto-creating
+    // a row with cash_collected = 0 (the column default) used to fool
+    // the calc_sales_totals trigger into computing short_over = 0 for
+    // NRS-synced days where r1_safe_drop = 0.
+    const syncCashCollection = async () => { /* intentionally a no-op */ };
 
     if (modal === 'edit' && editItem) {
       const { error } = await supabase.from('daily_sales').update(data).eq('id', editItem.id);

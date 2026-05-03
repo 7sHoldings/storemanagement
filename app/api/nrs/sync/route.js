@@ -38,12 +38,13 @@ export async function POST(req) {
       result = data;
     }
 
-    // Sync cash collection expected amount
-    const expectedCash = (parsed.r1_safe_drop || 0) + (parsed.r2_safe_drop || 0);
-    await admin.from('cash_collections').upsert(
-      { store_id, date, expected_amount: expectedCash },
-      { onConflict: 'store_id,date', ignoreDuplicates: false }
-    );
+    // We used to auto-upsert a cash_collections row here so the Cash
+    // Collection page would show today's expected amount. That created
+    // a row with cash_collected = 0 (default) which the calc_sales_totals
+    // trigger then read as "collected $0" → short_over got stuck at 0
+    // for NRS days where r1_safe_drop = 0. Cash Collection now derives
+    // expected from daily_sales directly, so we let cash_collections
+    // stay empty until the owner actually records a collection.
 
     // Log sync
     await admin.from('nrs_sync_log').insert({
