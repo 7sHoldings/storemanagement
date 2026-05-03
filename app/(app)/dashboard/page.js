@@ -64,7 +64,13 @@ export default function DashboardPage() {
         if (storeId) purchQ = purchQ.eq('store_id', storeId);
         const { data: purch } = await purchQ;
 
-        let expQ = supabase.from('expenses').select('amount, store_id');
+        // Expenses are stored as YYYY-MM. Filter to the months that overlap
+        // the selected date range so a 1-day window doesn't subtract every
+        // expense ever recorded against today's sales.
+        let expQ = supabase.from('expenses')
+          .select('amount, store_id, month')
+          .gte('month', range.start.slice(0, 7))
+          .lte('month', range.end.slice(0, 7));
         if (storeId) expQ = expQ.eq('store_id', storeId);
         const { data: exps } = await expQ;
 
