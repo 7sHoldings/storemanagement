@@ -1833,17 +1833,28 @@ export default function SalesPage() {
           },
           { key: 'date', label: 'Date', render: v => dayLabel(v) },
           { key: 'store_id', label: 'Store', sortValue: (r) => r.stores?.name || '', render: (v, r) => <StoreBadge name={r.stores?.name} color={r.stores?.color} /> },
-          { key: 'gross_sales', label: 'Gross', align: 'right', mono: true, sortValue: (r) => Number(r.gross_sales ?? r.total_sales ?? 0), render: (v, r) => fmt(v ?? r.total_sales) },
-          { key: 'net_sales', label: 'Net', align: 'right', mono: true,
-            sortValue: (r) => Number(r.net_sales ?? r.total_sales ?? 0),
-            render: (v, r) => <span className="text-[var(--text-secondary)]" title="Net of sales tax">{fmt(v ?? r.total_sales ?? 0)}</span> },
-          { key: 'total_sales', label: 'Total', align: 'right', mono: true, hideOnMobile: true,
+          { key: 'gross_sales', label: 'Gross', align: 'right', mono: true,
+            tooltip: 'Gross sales (with tax) = R1 gross + R2 net',
+            sortValue: (r) => Number(r.gross_sales ?? r.total_sales ?? 0),
+            render: (v, r) => fmt(v ?? r.total_sales) },
+          { key: 'total_sales', label: 'Total', align: 'right', mono: true,
+            tooltip: 'Total net revenue = R1 net + R1 non-tax sales + R2 net',
             sortValue: (r) => Number(r.total_sales ?? r.net_sales ?? 0),
-            render: (v, r) => <span className="text-[var(--color-success)] font-bold" title="Cash flow: cash + card + R2">{fmt(v ?? r.net_sales ?? 0)}</span> },
-          { key: 'cash_total', label: 'Cash', align: 'right', mono: true, sortable: true, sortValue: (r) => (Number(r.cash_sales || 0) + Number(r.register2_cash || 0)), render: (_, r) => fmt((r.cash_sales || 0) + (r.register2_cash || 0)) },
-          { key: 'card_sales', label: 'Card', align: 'right', mono: true, sortValue: (r) => Number(r.card_sales || 0), render: v => fmt(v) },
-          { key: 'cashapp_check', label: 'CApp/Chk', align: 'right', mono: true, sortValue: (r) => Number(r.cashapp_check || 0), render: v => fmt(v) },
+            render: (v, r) => <span className="text-[var(--color-success)] font-bold">{fmt(v ?? r.net_sales ?? 0)}</span> },
+          { key: 'cash_total', label: 'Cash', align: 'right', mono: true, sortable: true,
+            tooltip: 'Cash = R1 cash + R2 net (R2 is cash-only)',
+            sortValue: (r) => (Number(r.cash_sales || 0) + Number(r.r2_net || 0)),
+            render: (_, r) => fmt((r.cash_sales || 0) + (r.r2_net || 0)) },
+          { key: 'card_sales', label: 'Card', align: 'right', mono: true,
+            tooltip: 'Card sales = R1 credit + debit',
+            sortValue: (r) => Number(r.card_sales || 0),
+            render: v => fmt(v) },
+          { key: 'cashapp_check', label: 'CApp/Chk', align: 'right', mono: true,
+            tooltip: 'CashApp / Check payments (R1)',
+            sortValue: (r) => Number(r.cashapp_check || 0),
+            render: v => fmt(v) },
           { key: 'credits', label: 'H/A', align: 'right', mono: true,
+            tooltip: 'House Account / Employee Credit total for the day',
             sortValue: (r) => Number(r.r1_house_account_amount ?? r.credits ?? 0),
             render: (_, r) => {
               const amt = Number(r.r1_house_account_amount ?? r.credits ?? 0);
@@ -1859,6 +1870,7 @@ export default function SalesPage() {
               );
             } },
           { key: 'short_over', label: 'S/O', align: 'right', mono: true,
+            tooltip: 'Short / Over. With cash collection: expected safe drop − cash collected. Otherwise: R1 cash (+ R2 net) − R1 safe drop − house account. Positive = SHORT (red).',
             sortValue: (r) => Number(r.short_over ?? 0),
             render: v => {
               if (v == null) return <span className="text-[var(--text-muted)]">—</span>;
@@ -1869,6 +1881,7 @@ export default function SalesPage() {
               return <span className={`font-bold ${n > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>{n > 0 ? '−' : '+'}{fmt(Math.abs(n))}</span>;
             } },
           { key: '_basket_diff', label: 'Diff', align: 'right', mono: true, sortable: true,
+            tooltip: 'Basket vs R2 = R2 net − R1 canceled basket. Should be ≈ 0 when every R1 cash cancellation was re-rung on R2.',
             sortValue: (r) => {
               const rowStore = stores.find(s => s.id === r.store_id);
               if (!rowStore?.has_register2) return null;

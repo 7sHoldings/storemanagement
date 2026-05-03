@@ -891,11 +891,14 @@ export function DataTable({ columns, rows, onEdit, onDelete, isOwner = true, emp
                 return (
                   <th
                     key={c.key}
+                    title={c.tooltip || undefined}
                     className={`${colClass(c)} ${sortable ? 'cursor-pointer select-none hover:!text-sw-text transition-colors' : ''} ${active ? '!text-sw-blue' : ''}`}
                     style={{ textAlign: c.align || 'left' }}
                     onClick={() => handleSort(c)}
                   >
-                    {c.label}{typeof arrow === 'string' ? arrow : null}{typeof arrow !== 'string' ? arrow : null}
+                    {c.label}
+                    {c.tooltip && <span className="text-sw-dim/60 ml-1 cursor-help" title={c.tooltip}>ⓘ</span>}
+                    {typeof arrow === 'string' ? arrow : null}{typeof arrow !== 'string' ? arrow : null}
                   </th>
                 );
               })}
