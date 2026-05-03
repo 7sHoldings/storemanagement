@@ -203,7 +203,7 @@ export default function EmployeeDetailPage() {
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
         <V2StatCard label="Shifts" value={stats.totalShifts} icon="📋" variant="info" />
         <V2StatCard label="Hours" value={`${stats.totalHours}h`} icon="🕐" variant={Number(stats.totalHours) >= 40 ? 'success' : 'default'} />
-        <V2StatCard label="Sales Handled" value={fK(Number(stats.totalSales))} icon="💵" variant="success" />
+        <V2StatCard label="Sales Handled" value={fmt(Number(stats.totalSales))} icon="💵" variant="success" />
         <V2StatCard label="Net Short/Over" value={`${Number(stats.totalSO) >= 0 ? '+' : ''}${fmt(Number(stats.totalSO))}`} icon="💰" variant={Number(stats.totalSO) < 0 ? 'danger' : 'success'} />
         <V2StatCard label="House Credit" value={fmt(totalCredit)} icon="🪙" variant={totalCredit > 0 ? 'warning' : 'default'} />
         <V2StatCard label="Longest Shift" value={stats.longest ? `${stats.longest.hours}h` : '—'} sub={stats.longest ? dayLabel(stats.longest.date) : ''} icon="🏆" />

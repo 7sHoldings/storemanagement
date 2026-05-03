@@ -113,7 +113,7 @@ export default function ComparePage() {
                       <span className="text-[var(--text-primary)] text-[11px] font-semibold truncate">{r.name}</span>
                     </div>
                     <div className="flex-1"><Bar value={r.revenue} max={maxRev} color="#34D399" /></div>
-                    <span className="w-20 text-right text-[var(--color-success)] font-mono text-[11px] font-bold">{fK(r.revenue)}</span>
+                    <span className="w-20 text-right text-[var(--color-success)] font-mono text-[11px] font-bold">{fmt(r.revenue)}</span>
                   </div>
                 ))}
               </div>
@@ -130,7 +130,7 @@ export default function ComparePage() {
                       <span className="text-[var(--text-primary)] text-[11px] font-semibold truncate">{r.name}</span>
                     </div>
                     <div className="flex-1"><Bar value={r.expenses} max={maxExp} color="#FBBF2488" /></div>
-                    <span className="w-20 text-right text-[var(--color-warning)] font-mono text-[11px]">{fK(r.expenses)}</span>
+                    <span className="w-20 text-right text-[var(--color-warning)] font-mono text-[11px]">{fmt(r.expenses)}</span>
                   </div>
                 ))}
               </div>
@@ -148,7 +148,7 @@ export default function ComparePage() {
                     </div>
                     <div className="flex-1"><Bar value={r.net} max={maxNet} color="#39FF14aa" negative={r.net < 0} /></div>
                     <span className={`w-20 text-right font-mono text-[11px] font-bold ${r.net >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
-                      {r.net >= 0 ? '' : '-'}{fK(Math.abs(r.net))}
+                      {r.net >= 0 ? '' : '-'}{fmt(Math.abs(r.net))}
                     </span>
                   </div>
                 ))}

@@ -1732,9 +1732,9 @@ export default function SalesPage() {
 
       {/* Stats bar */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <V2StatCard label="Total Sales" value={fK(totalNetSales)} variant="success" icon="💰" />
+        <V2StatCard label="Total Sales" value={fmt(totalNetSales)} variant="success" icon="💰" />
         <V2StatCard label="Entries" value={filteredSales.length} icon="📋" />
-        <V2StatCard label="Avg / Day" value={fK(avgPerDay)} icon="📊" />
+        <V2StatCard label="Avg / Day" value={fmt(avgPerDay)} icon="📊" />
         <V2StatCard label="7S Agent" value={`${agentCount} of ${filteredSales.length}`} icon="🤖" sub={agentCount === filteredSales.length ? 'All auto-synced' : `${filteredSales.length - agentCount} manual`} />
       </div>
 
