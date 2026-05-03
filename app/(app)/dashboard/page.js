@@ -96,7 +96,29 @@ export default function DashboardPage() {
         const totalShortOver = sales?.reduce((s, r) => s + (r.short_over || 0), 0) || 0;
         const totalTax = sales?.reduce((s, r) => s + (r.tax_collected || 0), 0) || 0;
         const totalPurch = purch?.reduce((s, r) => s + (r.total_cost || r.unit_cost || 0), 0) || 0;
-        const totalExp = exps?.reduce((s, r) => s + (r.amount || 0), 0) || 0;
+        // Pro-rate monthly expenses by the fraction of days in the range
+        // that fall within each expense's month. A "This Week" pick that
+        // straddles two months should not subtract both full months of
+        // expenses against six days of sales.
+        const totalExp = (() => {
+          if (!exps?.length) return 0;
+          const start = new Date(range.start + 'T12:00:00');
+          const end   = new Date(range.end   + 'T12:00:00');
+          let total = 0;
+          exps.forEach(e => {
+            if (!e?.month) { total += (e?.amount || 0); return; }
+            const [yy, mm] = e.month.split('-').map(Number);
+            if (!yy || !mm) { total += (e.amount || 0); return; }
+            const monthStart = new Date(yy, mm - 1, 1, 12, 0, 0);
+            const monthEnd   = new Date(yy, mm,     0, 12, 0, 0);
+            const daysInMonth = monthEnd.getDate();
+            const overlapStart = start > monthStart ? start : monthStart;
+            const overlapEnd   = end   < monthEnd   ? end   : monthEnd;
+            const overlapDays  = Math.max(0, Math.round((overlapEnd - overlapStart) / 86400000) + 1);
+            total += (overlapDays / daysInMonth) * (e.amount || 0);
+          });
+          return total;
+        })();
         const cashInHand = cashRows?.reduce((s, r) => s + (r.cash_collected || 0), 0) || 0;
         // P&L still uses revenue (cash flow = total_sales) so margin lines
         // up with how the P&L Report and ledger compute things.
@@ -340,7 +362,17 @@ export default function DashboardPage() {
         >
           <div className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-10" style={{ background: `radial-gradient(circle, ${stats.netProfit >= 0 ? 'var(--color-success)' : 'var(--color-danger)'}, transparent 70%)`, filter: 'blur(40px)' }} />
           <p className="text-[var(--text-muted)] text-[11px] font-semibold uppercase tracking-wider mb-1">
-            Net Profit · {new Date(range.start + 'T12:00:00').toLocaleDateString('en-US', { month: 'long' })}
+            Net Profit · {(() => {
+              const PRESET_LABELS = {
+                today: 'Today', yesterday: 'Yesterday', thisweek: 'This Week', lastweek: 'Last Week',
+                thismonth: 'This Month', lastmonth: 'Last Month', last2weeks: 'Last 2 Weeks',
+                last2months: 'Last 2 Months', last3months: 'Last 3 Months', last6months: 'Last 6 Months',
+                thisyear: 'This Year', lastyear: 'Last Year', all: 'All Time',
+              };
+              if (PRESET_LABELS[preset]) return PRESET_LABELS[preset];
+              const f = (s) => new Date(s + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+              return `${f(range.start)} – ${f(range.end)}`;
+            })()}
           </p>
           <div className="flex items-end gap-6 flex-wrap">
             <p className={`text-[44px] font-bold tracking-tight tabular-nums leading-none ${stats.netProfit >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
