@@ -1,20 +1,23 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/components/AuthProvider';
-import { PageHeader, Modal, Field, Button, Loading, Alert, ConfirmModal, StoreBadge } from '@/components/UI';
+import { PageHeader, Modal, Field, Button, Loading, Alert, ConfirmModal, StoreBadge, DateBar, useDateRange } from '@/components/UI';
 import { V2StatCard } from '@/components/ui';
 import { fmt, dayLabel, today } from '@/lib/utils';
 import { logActivity, fmtMoney, shortDate } from '@/lib/activity';
 
 // Per-store ownership tracker. Each store has 0+ shareholders with a
 // percentage; the page shows what each shareholder is owed (their %
-// of the store's all-time net profit) minus payouts already made.
+// of the store's net profit for the selected range) minus payouts
+// already made in that range.
 export default function SharesPage() {
   const { supabase, isOwner, profile } = useAuth();
+  const { range, preset, selectPreset, setStart, setEnd } = useDateRange('thismonth');
+  const [view, setView] = useState('shareholder'); // 'shareholder' | 'store'
   const [stores, setStores] = useState([]);
   const [shareholders, setShareholders] = useState([]);
   const [payouts, setPayouts] = useState([]);
-  const [storeProfits, setStoreProfits] = useState({}); // { store_id: net_profit }
+  const [storeProfits, setStoreProfits] = useState({}); // { store_id: net_profit (range-scoped) }
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState('');
 
@@ -31,6 +34,8 @@ export default function SharesPage() {
 
   const load = async () => {
     setLoading(true);
+    const monthStart = range.start.slice(0, 7);
+    const monthEnd   = range.end.slice(0, 7);
     const [
       { data: st },
       { data: sh },
@@ -41,24 +46,40 @@ export default function SharesPage() {
     ] = await Promise.all([
       supabase.from('stores').select('id, name, color').eq('is_active', true).order('created_at'),
       supabase.from('store_shareholders').select('*').order('created_at'),
-      supabase.from('share_payouts').select('*').order('date', { ascending: false }),
-      supabase.from('daily_sales').select('store_id, total_sales, net_sales'),
-      supabase.from('purchases').select('store_id, total_cost, unit_cost'),
-      supabase.from('expenses').select('store_id, amount'),
+      // Payouts in the selected range only (scoped earnings vs scoped paid).
+      supabase.from('share_payouts').select('*').gte('date', range.start).lte('date', range.end).order('date', { ascending: false }),
+      supabase.from('daily_sales').select('store_id, total_sales, net_sales, date').gte('date', range.start).lte('date', range.end),
+      supabase.from('purchases').select('store_id, total_cost, unit_cost, week_of').gte('week_of', range.start).lte('week_of', range.end),
+      // Pro-rate monthly expenses by overlap with the range so a partial
+      // month doesn't subtract the full month against a few days of sales.
+      supabase.from('expenses').select('store_id, amount, month').gte('month', monthStart).lte('month', monthEnd),
     ]);
-    // Compute net profit per store (revenue − purchases − expenses).
     const profits = {};
     (st || []).forEach(s => { profits[s.id] = 0; });
     (sales || []).forEach(r => { profits[r.store_id] = (profits[r.store_id] || 0) + (r.total_sales ?? r.net_sales ?? 0); });
     (purch || []).forEach(r => { profits[r.store_id] = (profits[r.store_id] || 0) - (r.total_cost || r.unit_cost || 0); });
-    (exps || []).forEach(r => { profits[r.store_id] = (profits[r.store_id] || 0) - (r.amount || 0); });
+    (exps || []).forEach(r => {
+      if (!r?.month) { profits[r.store_id] = (profits[r.store_id] || 0) - (r.amount || 0); return; }
+      const [yy, mm] = r.month.split('-').map(Number);
+      if (!yy || !mm) { profits[r.store_id] = (profits[r.store_id] || 0) - (r.amount || 0); return; }
+      const monthFirst = new Date(yy, mm - 1, 1, 12, 0, 0);
+      const monthLast  = new Date(yy, mm,     0, 12, 0, 0);
+      const daysInMonth = monthLast.getDate();
+      const start = new Date(range.start + 'T12:00:00');
+      const end   = new Date(range.end   + 'T12:00:00');
+      const overlapStart = start > monthFirst ? start : monthFirst;
+      const overlapEnd   = end   < monthLast  ? end   : monthLast;
+      const overlapDays  = Math.max(0, Math.round((overlapEnd - overlapStart) / 86400000) + 1);
+      const portion = (overlapDays / daysInMonth) * (r.amount || 0);
+      profits[r.store_id] = (profits[r.store_id] || 0) - portion;
+    });
     setStores(st || []);
     setShareholders(sh || []);
     setPayouts(po || []);
     setStoreProfits(profits);
     setLoading(false);
   };
-  useEffect(() => { if (isOwner) load(); }, [isOwner]);
+  useEffect(() => { if (isOwner) load(); }, [isOwner, range.start, range.end]);
 
   // ── Aggregated view ─────────────────────────────────────
   const grouped = useMemo(() => {
@@ -91,6 +112,52 @@ export default function SharesPage() {
     const totalProfit = stores.reduce((s, st) => s + (storeProfits[st.id] || 0), 0);
     return { owed: +owed.toFixed(2), paid: +paid.toFixed(2), remaining: +(owed - paid).toFixed(2), totalProfit };
   }, [grouped, stores, storeProfits]);
+
+  // By Shareholder view: roll the same earned/paid numbers up by name
+  // (case-insensitive) so a partner with shares in multiple stores
+  // appears in one panel with a per-store breakdown inside.
+  const byShareholder = useMemo(() => {
+    const buckets = {};
+    grouped.forEach(g => {
+      g.shareholders.forEach(h => {
+        const key = (h.name || 'Unnamed').toLowerCase();
+        const existing = buckets[key] || {
+          name: h.name || 'Unnamed',
+          rows: [],
+          owed: 0,
+          paid: 0,
+          isActive: false,
+        };
+        existing.rows.push({
+          shareholderId: h.id,
+          storeId: g.store.id,
+          storeName: g.store.name,
+          storeColor: g.store.color,
+          storeProfit: g.profit,
+          share_pct: Number(h.share_pct) || 0,
+          owed: h.owed,
+          paid: h.paid,
+          remaining: h.remaining,
+          lastPayout: h.lastPayout,
+          is_active: h.is_active,
+          notes: h.notes,
+        });
+        existing.owed += h.owed;
+        existing.paid += h.paid;
+        if (h.is_active) existing.isActive = true;
+        buckets[key] = existing;
+      });
+    });
+    return Object.values(buckets)
+      .map(b => ({
+        ...b,
+        owed: +b.owed.toFixed(2),
+        paid: +b.paid.toFixed(2),
+        remaining: +(b.owed - b.paid).toFixed(2),
+        rows: b.rows.sort((a, b) => b.owed - a.owed),
+      }))
+      .sort((a, b) => Number(b.isActive) - Number(a.isActive) || b.remaining - a.remaining);
+  }, [grouped]);
 
   // ── Shareholder add/edit ────────────────────────────────
   const openAddSh = (store) => {
@@ -194,16 +261,108 @@ export default function SharesPage() {
 
   return (
     <div>
-      <PageHeader title="Shares" subtitle="Per-store ownership split. Track each partner's share, payouts, and remaining balance." />
+      <PageHeader title="Shares" subtitle="Per-store ownership split. Filter by month and switch between by-shareholder and by-store views." />
       {msg && <Alert type={msg === 'Saved' || msg === 'Payout recorded' ? 'success' : 'error'}>{msg}</Alert>}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <V2StatCard label="Total Net Profit" value={fmt(grandTotals.totalProfit)} sub="All stores · all-time" icon="📈" variant="success" />
-        <V2StatCard label="Owed to Shareholders" value={fmt(grandTotals.owed)} sub="Sum of all shares earned" icon="🤝" variant="info" />
-        <V2StatCard label="Already Paid" value={fmt(grandTotals.paid)} sub={`${payouts.length} payout${payouts.length === 1 ? '' : 's'}`} icon="💵" />
-        <V2StatCard label="Remaining" value={fmt(grandTotals.remaining)} sub="Owed − Paid" icon="🏦" variant={grandTotals.remaining < 0 ? 'danger' : 'warning'} />
+      <DateBar preset={preset} onPreset={selectPreset} startDate={range.start} endDate={range.end} onStartChange={setStart} onEndChange={setEnd} />
+
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <span className="text-[var(--text-muted)] text-[11px] font-semibold uppercase tracking-wider">View:</span>
+        <button
+          type="button"
+          onClick={() => setView('shareholder')}
+          className={`px-3 py-1 rounded-md text-[11px] font-semibold border transition-colors ${
+            view === 'shareholder'
+              ? 'bg-sw-blueD border-sw-blue/40 text-sw-blue'
+              : 'bg-sw-card2 border-sw-border text-sw-sub hover:text-sw-text'
+          }`}
+        >👤 By Shareholder</button>
+        <button
+          type="button"
+          onClick={() => setView('store')}
+          className={`px-3 py-1 rounded-md text-[11px] font-semibold border transition-colors ${
+            view === 'store'
+              ? 'bg-sw-blueD border-sw-blue/40 text-sw-blue'
+              : 'bg-sw-card2 border-sw-border text-sw-sub hover:text-sw-text'
+          }`}
+        >🏪 By Store</button>
       </div>
 
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        <V2StatCard label="Net Profit (range)" value={fmt(grandTotals.totalProfit)} sub="All stores · selected range" icon="📈" variant="success" />
+        <V2StatCard label="Owed to Shareholders" value={fmt(grandTotals.owed)} sub="Sum of shares earned in range" icon="🤝" variant="info" />
+        <V2StatCard label="Paid in Range" value={fmt(grandTotals.paid)} sub={`${payouts.length} payout${payouts.length === 1 ? '' : 's'}`} icon="💵" />
+        <V2StatCard label="Remaining" value={fmt(grandTotals.remaining)} sub="Owed − Paid (range)" icon="🏦" variant={grandTotals.remaining < 0 ? 'danger' : 'warning'} />
+      </div>
+
+      {view === 'shareholder' ? (
+        <div className="space-y-4">
+          {byShareholder.length === 0 ? (
+            <div className="bg-sw-card border border-sw-border rounded-xl p-8 text-center text-[var(--text-muted)] text-[12px]">
+              No shareholders configured yet. Switch to <button onClick={() => setView('store')} className="text-[var(--color-info)] underline">By Store</button> to add one.
+            </div>
+          ) : byShareholder.map(b => (
+            <div key={b.name} className={`bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] overflow-hidden ${!b.isActive ? 'opacity-60' : ''}`}>
+              <div className="px-4 py-3 border-b border-[var(--border-subtle)] flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-full bg-sw-blueD border border-sw-blue/30 text-[var(--color-info)] text-[14px] font-bold flex items-center justify-center">
+                    {b.name?.[0]?.toUpperCase() || '?'}
+                  </div>
+                  <div>
+                    <div className="text-[var(--text-primary)] text-[15px] font-bold">{b.name}</div>
+                    <div className="text-[var(--text-muted)] text-[10px]">
+                      {b.rows.length} store{b.rows.length === 1 ? '' : 's'}
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-3 text-[11px] text-right min-w-[280px]">
+                  <div>
+                    <div className="text-[var(--text-muted)] uppercase text-[9px] font-bold">Earned</div>
+                    <div className="font-mono font-bold text-[var(--text-primary)]">{fmt(b.owed)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[var(--text-muted)] uppercase text-[9px] font-bold">Paid</div>
+                    <div className="font-mono font-bold text-[var(--color-info)]">{fmt(b.paid)}</div>
+                  </div>
+                  <div>
+                    <div className="text-[var(--text-muted)] uppercase text-[9px] font-bold">Remaining</div>
+                    <div className={`font-mono font-bold ${b.remaining > 0.01 ? 'text-[var(--color-warning)]' : b.remaining < -0.01 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>{fmt(b.remaining)}</div>
+                  </div>
+                </div>
+              </div>
+              <div className="divide-y divide-[var(--border-subtle)]">
+                {b.rows.map(r => (
+                  <div key={r.shareholderId} className="px-4 py-2.5 flex items-center justify-between flex-wrap gap-2 hover:bg-sw-card2 transition-colors">
+                    <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+                      <StoreBadge name={r.storeName} color={r.storeColor} />
+                      <span className="text-[var(--color-info)] font-mono text-[10px] font-semibold">{r.share_pct.toFixed(2)}%</span>
+                      <span className="text-[var(--text-muted)] text-[10px]">of {fmt(r.storeProfit)} profit</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 text-[11px] text-right min-w-[260px]">
+                      <span className="font-mono text-[var(--text-primary)]">{fmt(r.owed)}</span>
+                      <span className="font-mono text-[var(--color-info)]">{fmt(r.paid)}</span>
+                      <span className={`font-mono font-bold ${r.remaining > 0.01 ? 'text-[var(--color-warning)]' : r.remaining < -0.01 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>{fmt(r.remaining)}</span>
+                    </div>
+                    <div className="flex gap-1.5 ml-2">
+                      <button
+                        onClick={() => openPayout({ id: r.shareholderId, name: b.name, store_id: r.storeId })}
+                        disabled={!r.is_active}
+                        className="px-3 rounded-md bg-sw-greenD border border-sw-green/30 text-[var(--color-success)] text-[12px] font-semibold disabled:opacity-40"
+                        style={{ minHeight: 32 }}
+                      >💵 Pay</button>
+                      <button
+                        onClick={() => openEditSh(stores.find(s => s.id === r.storeId), shareholders.find(s => s.id === r.shareholderId))}
+                        className="px-3 rounded-md bg-sw-blueD border border-sw-blue/30 text-[var(--color-info)] text-[12px] font-semibold"
+                        style={{ minHeight: 32 }}
+                      >Edit</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
       <div className="space-y-4">
         {grouped.map(g => (
           <div key={g.store.id} className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
@@ -293,6 +452,7 @@ export default function SharesPage() {
           </div>
         ))}
       </div>
+      )}
 
       {/* Recent payouts */}
       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] overflow-hidden mt-4">
