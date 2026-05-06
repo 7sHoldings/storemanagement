@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/components/AuthProvider';
-import { DataTable, PageHeader, Modal, Field, Button, Loading, Alert, ConfirmModal } from '@/components/UI';
+import { DataTable, PageHeader, Modal, Field, Button, Loading, Alert, ConfirmModal, DateBar, useDateRange } from '@/components/UI';
 import { V2StatCard } from '@/components/ui';
 import { fmt, dayLabel, today, downloadCSV } from '@/lib/utils';
 import { logActivity, fmtMoney, shortDate } from '@/lib/activity';
@@ -11,6 +11,7 @@ import { logActivity, fmtMoney, shortDate } from '@/lib/activity';
 // (sales − purchases − expenses) minus all takeouts to date.
 export default function ProfitTakeoutPage() {
   const { supabase, isOwner, profile } = useAuth();
+  const { range, preset, selectPreset, setStart, setEnd } = useDateRange('thismonth');
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [profitMetrics, setProfitMetrics] = useState({ revenue: 0, purchases: 0, expenses: 0 });
@@ -47,23 +48,34 @@ export default function ProfitTakeoutPage() {
   };
   useEffect(() => { if (isOwner) load(); }, [isOwner]);
 
+  // Take-outs that fall within the selected date range — drives the table
+  // and the "Taken Out (range)" stat. Cash-availability stats stay all-time
+  // because the pool is cumulative, not periodic.
+  const filteredRows = useMemo(
+    () => rows.filter(r => r.date >= range.start && r.date <= range.end),
+    [rows, range.start, range.end]
+  );
+
   const stats = useMemo(() => {
-    const totalCash = rows.reduce((s, r) => s + (r.cash_amount || 0), 0);
-    const totalCard = rows.reduce((s, r) => s + (r.card_amount || 0), 0);
-    const total = rows.reduce((s, r) => s + (r.amount || 0), 0);
+    // In-range — filtered by DateBar
+    const totalCash = filteredRows.reduce((s, r) => s + (r.cash_amount || 0), 0);
+    const totalCard = filteredRows.reduce((s, r) => s + (r.card_amount || 0), 0);
+    const totalRange = filteredRows.reduce((s, r) => s + (r.amount || 0), 0);
+    // All-time — drives the cumulative cards
+    const totalAllTime = rows.reduce((s, r) => s + (r.amount || 0), 0);
     const netProfit = profitMetrics.revenue - profitMetrics.purchases - profitMetrics.expenses;
-    const available = netProfit - total;
+    const available = netProfit - totalAllTime;
     const monthKey = new Date().toISOString().slice(0, 7); // YYYY-MM
     const thisMonth = rows
       .filter(r => (r.date || '').slice(0, 7) === monthKey)
       .reduce((s, r) => s + (r.amount || 0), 0);
-    // Per-source cash availability — what's left in each pool after take-outs.
+    // Per-source cash availability — cumulative pools after all take-outs.
     const salesTaken = rows.filter(r => (r.source || 'sales') === 'sales').reduce((s, r) => s + (r.amount || 0), 0);
     const gameTaken = rows.filter(r => r.source === 'game_machines').reduce((s, r) => s + (r.amount || 0), 0);
     const salesCashAvail = salesCashCollected - salesTaken;
     const gameCashAvail = gameCashCollected - gameTaken;
-    return { totalCash, totalCard, total, netProfit, available, thisMonth, salesTaken, gameTaken, salesCashAvail, gameCashAvail };
-  }, [rows, profitMetrics, salesCashCollected, gameCashCollected]);
+    return { totalCash, totalCard, totalRange, totalAllTime, netProfit, available, thisMonth, salesTaken, gameTaken, salesCashAvail, gameCashAvail };
+  }, [rows, filteredRows, profitMetrics, salesCashCollected, gameCashCollected]);
 
   const openAdd = () => { setEditRow(null); setForm({ ...blank }); setModal('add'); };
   const openEdit = (r) => {
@@ -132,9 +144,9 @@ export default function ProfitTakeoutPage() {
   };
 
   const exportCSV = () => {
-    downloadCSV('profit-takeouts.csv',
+    downloadCSV(`profit-takeouts-${range.start}-to-${range.end}.csv`,
       ['Date', 'Source', 'Cash', 'Card', 'Total', 'Destination', 'Notes'],
-      rows.map(r => [r.date, r.source === 'game_machines' ? 'Game Machines' : 'Sales', r.cash_amount || 0, r.card_amount || 0, r.amount || 0, r.destination || '', r.notes || '']));
+      filteredRows.map(r => [r.date, r.source === 'game_machines' ? 'Game Machines' : 'Sales', r.cash_amount || 0, r.card_amount || 0, r.amount || 0, r.destination || '', r.notes || '']));
   };
 
   if (!isOwner) return <div className="text-[var(--text-muted)] text-center py-20">Owner access required</div>;
@@ -149,10 +161,25 @@ export default function ProfitTakeoutPage() {
 
       {msg && <Alert type={msg === 'Saved' ? 'success' : 'error'}>{msg}</Alert>}
 
+      <DateBar
+        preset={preset}
+        onPreset={selectPreset}
+        startDate={range.start}
+        endDate={range.end}
+        onStartChange={setStart}
+        onEndChange={setEnd}
+      />
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
         <V2StatCard label="All-Time Net Profit" value={fmt(stats.netProfit)} sub="Revenue − Purchases − Expenses" icon="📈" variant="success" />
-        <V2StatCard label="Total Taken Out" value={fmt(stats.total)} sub={`${rows.length} entr${rows.length === 1 ? 'y' : 'ies'}`} icon="💸" variant="warning" />
-        <V2StatCard label="Available" value={fmt(stats.available)} sub="Net Profit − Total Taken Out" icon="🏦" variant={stats.available < 0 ? 'danger' : 'info'} />
+        <V2StatCard
+          label="Taken Out (Range)"
+          value={fmt(stats.totalRange)}
+          sub={`${filteredRows.length} entr${filteredRows.length === 1 ? 'y' : 'ies'} · all-time ${fmt(stats.totalAllTime)}`}
+          icon="💸"
+          variant="warning"
+        />
+        <V2StatCard label="Available" value={fmt(stats.available)} sub="All-time profit − all-time taken out" icon="🏦" variant={stats.available < 0 ? 'danger' : 'info'} />
         <V2StatCard label="This Month" value={fmt(stats.thisMonth)} sub="Taken out in current month" icon="📅" />
       </div>
 
@@ -175,13 +202,15 @@ export default function ProfitTakeoutPage() {
 
       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] overflow-hidden mb-4">
         <div className="px-3 py-2 border-b border-[var(--border-subtle)] flex justify-between items-center">
-          <h3 className="text-[var(--text-primary)] text-xs font-bold">All Take Outs</h3>
+          <h3 className="text-[var(--text-primary)] text-xs font-bold">Take Outs · {range.start} → {range.end}</h3>
           <span className="text-[var(--text-muted)] text-[10px]">
-            Cash {fmt(stats.totalCash)} · Card {fmt(stats.totalCard)} · Total {fmt(stats.total)}
+            Cash {fmt(stats.totalCash)} · Card {fmt(stats.totalCard)} · Total {fmt(stats.totalRange)}
           </span>
         </div>
         <DataTable
-          emptyMessage="No take-outs recorded yet. Click + Record Take Out to add one."
+          emptyMessage={rows.length === 0
+            ? "No take-outs recorded yet. Click + Record Take Out to add one."
+            : "No take-outs in this date range. Try a different range or click + Record Take Out."}
           columns={[
             { key: 'date', label: 'Date', render: v => dayLabel(v) },
             { key: 'source', label: 'Source', render: v => (
@@ -205,9 +234,9 @@ export default function ProfitTakeoutPage() {
             { key: 'destination', label: 'Destination', render: v => v || <span className="text-[var(--text-muted)]">—</span> },
             { key: 'notes', label: 'Notes', render: v => v || <span className="text-[var(--text-muted)]">—</span> },
           ]}
-          rows={rows}
+          rows={filteredRows}
           onEdit={openEdit}
-          onDelete={(id) => setConfirmDelete(rows.find(r => r.id === id))}
+          onDelete={(id) => setConfirmDelete(filteredRows.find(r => r.id === id))}
           isOwner={true}
         />
       </div>
