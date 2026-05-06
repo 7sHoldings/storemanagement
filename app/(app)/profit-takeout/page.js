@@ -14,22 +14,26 @@ export default function ProfitTakeoutPage() {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [profitMetrics, setProfitMetrics] = useState({ revenue: 0, purchases: 0, expenses: 0 });
+  const [salesCashCollected, setSalesCashCollected] = useState(0);
+  const [gameCashCollected, setGameCashCollected] = useState(0);
   const [modal, setModal] = useState(null);   // 'add' | 'edit' | null
   const [editRow, setEditRow] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [msg, setMsg] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const blank = { date: today(), cash_amount: '', card_amount: '', destination: '', notes: '' };
+  const blank = { date: today(), source: 'sales', cash_amount: '', card_amount: '', destination: '', notes: '' };
   const [form, setForm] = useState(blank);
 
   const load = async () => {
     setLoading(true);
-    const [{ data: tk }, { data: sales }, { data: purch }, { data: exps }] = await Promise.all([
+    const [{ data: tk }, { data: sales }, { data: purch }, { data: exps }, { data: salesCash }, { data: gameCash }] = await Promise.all([
       supabase.from('profit_takeouts').select('*').order('date', { ascending: false }),
       supabase.from('daily_sales').select('total_sales, gross_sales, net_sales'),
       supabase.from('purchases').select('total_cost, unit_cost'),
       supabase.from('expenses').select('amount'),
+      supabase.from('cash_collections').select('cash_collected'),
+      supabase.from('game_machine_collections').select('amount'),
     ]);
     setRows(tk || []);
     setProfitMetrics({
@@ -37,6 +41,8 @@ export default function ProfitTakeoutPage() {
       purchases: (purch || []).reduce((s, r) => s + (r.total_cost || r.unit_cost || 0), 0),
       expenses: (exps || []).reduce((s, r) => s + (r.amount || 0), 0),
     });
+    setSalesCashCollected((salesCash || []).reduce((s, r) => s + (r.cash_collected || 0), 0));
+    setGameCashCollected((gameCash || []).reduce((s, r) => s + (r.amount || 0), 0));
     setLoading(false);
   };
   useEffect(() => { if (isOwner) load(); }, [isOwner]);
@@ -51,14 +57,20 @@ export default function ProfitTakeoutPage() {
     const thisMonth = rows
       .filter(r => (r.date || '').slice(0, 7) === monthKey)
       .reduce((s, r) => s + (r.amount || 0), 0);
-    return { totalCash, totalCard, total, netProfit, available, thisMonth };
-  }, [rows, profitMetrics]);
+    // Per-source cash availability — what's left in each pool after take-outs.
+    const salesTaken = rows.filter(r => (r.source || 'sales') === 'sales').reduce((s, r) => s + (r.amount || 0), 0);
+    const gameTaken = rows.filter(r => r.source === 'game_machines').reduce((s, r) => s + (r.amount || 0), 0);
+    const salesCashAvail = salesCashCollected - salesTaken;
+    const gameCashAvail = gameCashCollected - gameTaken;
+    return { totalCash, totalCard, total, netProfit, available, thisMonth, salesTaken, gameTaken, salesCashAvail, gameCashAvail };
+  }, [rows, profitMetrics, salesCashCollected, gameCashCollected]);
 
   const openAdd = () => { setEditRow(null); setForm({ ...blank }); setModal('add'); };
   const openEdit = (r) => {
     setEditRow(r);
     setForm({
       date: r.date,
+      source: r.source || 'sales',
       cash_amount: String(r.cash_amount || ''),
       card_amount: String(r.card_amount || ''),
       destination: r.destination || '',
@@ -69,14 +81,17 @@ export default function ProfitTakeoutPage() {
   const closeModal = () => { setModal(null); setEditRow(null); };
 
   const handleSave = async () => {
+    const isGame = form.source === 'game_machines';
     const cash = parseFloat(form.cash_amount) || 0;
-    const card = parseFloat(form.card_amount) || 0;
+    // Game machines only produce cash — card field is hidden and forced to 0.
+    const card = isGame ? 0 : (parseFloat(form.card_amount) || 0);
     const total = +(cash + card).toFixed(2);
-    if (total <= 0) { setMsg('Enter a cash or card amount.'); setTimeout(() => setMsg(''), 2500); return; }
+    if (total <= 0) { setMsg(isGame ? 'Enter a cash amount.' : 'Enter a cash or card amount.'); setTimeout(() => setMsg(''), 2500); return; }
     if (!form.date) { setMsg('Date required.'); setTimeout(() => setMsg(''), 2500); return; }
     setSaving(true);
     const payload = {
       date: form.date,
+      source: form.source || 'sales',
       amount: total,
       cash_amount: cash,
       card_amount: card,
@@ -93,7 +108,7 @@ export default function ProfitTakeoutPage() {
       action: editRow ? 'update' : 'create',
       entityType: 'profit_takeout',
       entityId: editRow?.id,
-      description: `${profile?.name} ${editRow ? 'updated' : 'recorded'} profit take-out of ${fmtMoney(total)}${payload.destination ? ` → ${payload.destination}` : ''} on ${shortDate(form.date)}`,
+      description: `${profile?.name} ${editRow ? 'updated' : 'recorded'} profit take-out of ${fmtMoney(total)} from ${form.source === 'game_machines' ? 'game machines' : 'sales'}${payload.destination ? ` → ${payload.destination}` : ''} on ${shortDate(form.date)}`,
     });
     setMsg('Saved');
     setTimeout(() => setMsg(''), 2000);
@@ -118,8 +133,8 @@ export default function ProfitTakeoutPage() {
 
   const exportCSV = () => {
     downloadCSV('profit-takeouts.csv',
-      ['Date', 'Cash', 'Card', 'Total', 'Destination', 'Notes'],
-      rows.map(r => [r.date, r.cash_amount || 0, r.card_amount || 0, r.amount || 0, r.destination || '', r.notes || '']));
+      ['Date', 'Source', 'Cash', 'Card', 'Total', 'Destination', 'Notes'],
+      rows.map(r => [r.date, r.source === 'game_machines' ? 'Game Machines' : 'Sales', r.cash_amount || 0, r.card_amount || 0, r.amount || 0, r.destination || '', r.notes || '']));
   };
 
   if (!isOwner) return <div className="text-[var(--text-muted)] text-center py-20">Owner access required</div>;
@@ -141,6 +156,23 @@ export default function ProfitTakeoutPage() {
         <V2StatCard label="This Month" value={fmt(stats.thisMonth)} sub="Taken out in current month" icon="📅" />
       </div>
 
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <V2StatCard
+          label="Cash Available — Sales"
+          value={fmt(stats.salesCashAvail)}
+          sub={`${fmt(salesCashCollected)} collected · ${fmt(stats.salesTaken)} taken out`}
+          icon="💵"
+          variant={stats.salesCashAvail < 0 ? 'danger' : 'info'}
+        />
+        <V2StatCard
+          label="Cash Available — Game Machines"
+          value={fmt(stats.gameCashAvail)}
+          sub={`${fmt(gameCashCollected)} collected · ${fmt(stats.gameTaken)} taken out`}
+          icon="🎮"
+          variant={stats.gameCashAvail < 0 ? 'danger' : 'info'}
+        />
+      </div>
+
       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] overflow-hidden mb-4">
         <div className="px-3 py-2 border-b border-[var(--border-subtle)] flex justify-between items-center">
           <h3 className="text-[var(--text-primary)] text-xs font-bold">All Take Outs</h3>
@@ -152,6 +184,15 @@ export default function ProfitTakeoutPage() {
           emptyMessage="No take-outs recorded yet. Click + Record Take Out to add one."
           columns={[
             { key: 'date', label: 'Date', render: v => dayLabel(v) },
+            { key: 'source', label: 'Source', render: v => (
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                v === 'game_machines'
+                  ? 'bg-sw-pinkD text-sw-pink'
+                  : 'bg-sw-greenD text-[var(--color-success)]'
+              }`}>
+                {v === 'game_machines' ? 'Games' : 'Sales'}
+              </span>
+            )},
             { key: 'cash_amount', label: 'Cash', align: 'right', mono: true,
               render: v => v ? <span className="text-[var(--color-success)]">{fmt(v)}</span> : <span className="text-[var(--text-muted)]">—</span>,
               sortValue: r => Number(r.cash_amount || 0) },
@@ -176,21 +217,35 @@ export default function ProfitTakeoutPage() {
           <Field label="Date">
             <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
           </Field>
-          <div className="grid grid-cols-2 gap-2">
+          <Field label="Source — which money is being taken out">
+            <select value={form.source} onChange={e => setForm({ ...form, source: e.target.value, ...(e.target.value === 'game_machines' ? { card_amount: '' } : {}) })}>
+              <option value="sales">Sales (cash collected from stores)</option>
+              <option value="game_machines">Game Machines</option>
+            </select>
+          </Field>
+          {form.source === 'game_machines' ? (
             <Field label="Cash Amount">
               <input type="number" min="0" step="0.01" value={form.cash_amount}
                 onChange={e => setForm({ ...form, cash_amount: e.target.value.replace(/^-/, '') })}
                 placeholder="0.00" />
             </Field>
-            <Field label="Card Amount">
-              <input type="number" min="0" step="0.01" value={form.card_amount}
-                onChange={e => setForm({ ...form, card_amount: e.target.value.replace(/^-/, '') })}
-                placeholder="0.00" />
-            </Field>
-          </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <Field label="Cash Amount">
+                <input type="number" min="0" step="0.01" value={form.cash_amount}
+                  onChange={e => setForm({ ...form, cash_amount: e.target.value.replace(/^-/, '') })}
+                  placeholder="0.00" />
+              </Field>
+              <Field label="Card Amount">
+                <input type="number" min="0" step="0.01" value={form.card_amount}
+                  onChange={e => setForm({ ...form, card_amount: e.target.value.replace(/^-/, '') })}
+                  placeholder="0.00" />
+              </Field>
+            </div>
+          )}
           <div className="text-[var(--text-muted)] text-[11px] -mt-1 mb-2">
             Total: <span className="text-[var(--text-primary)] font-mono font-bold">
-              {fmt((parseFloat(form.cash_amount) || 0) + (parseFloat(form.card_amount) || 0))}
+              {fmt((parseFloat(form.cash_amount) || 0) + (form.source === 'game_machines' ? 0 : (parseFloat(form.card_amount) || 0)))}
             </span>
           </div>
           <Field label="Destination (where the money went)">
