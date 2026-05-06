@@ -37,6 +37,7 @@ export default function CashPage() {
   const { range, preset, selectPreset, setStart, setEnd } = useDateRange('thismonth');
   const [recon, setRecon] = useState([]);
   const [stores, setStores] = useState([]);
+  const [gameMachineCash, setGameMachineCash] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [modal, setModal] = useState(null);
@@ -86,12 +87,19 @@ export default function CashPage() {
         .from('cash_collections')
         .select('*')
         .gte('date', range.start).lte('date', range.end);
+      let gmQ = supabase
+        .from('game_machine_collections')
+        .select('amount')
+        .gte('date', range.start).lte('date', range.end);
       if (storeFilter.length) {
         salesQ = salesQ.in('store_id', storeFilter);
         cashQ = cashQ.in('store_id', storeFilter);
+        gmQ = gmQ.in('store_id', storeFilter);
       }
       const { data: sales } = await salesQ;
       const { data: cash } = await cashQ;
+      const { data: gm } = await gmQ;
+      setGameMachineCash((gm || []).reduce((s, r) => s + (r.amount || 0), 0));
 
       const map = {};
       sales?.forEach(s => {
@@ -342,9 +350,10 @@ export default function CashPage() {
           ? `−${fmt(netShortOver)}`
           : `+${fmt(Math.abs(netShortOver))}`;
       return (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
-          <V2StatCard label="Expected Cash" value={fmt(totalExpected)} sub="Total expected" icon="💵" variant="warning" />
-          <V2StatCard label="Cash in Hand" value={fmt(totalCashInHand)} sub="Collected so far" icon="💰" variant="info" />
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
+          <V2StatCard label="Expected Cash" value={fmt(totalExpected)} sub="From sales" icon="💵" variant="warning" />
+          <V2StatCard label="Cash in Hand — Sales" value={fmt(totalCashInHand)} sub="Collected from registers" icon="💰" variant="info" />
+          <V2StatCard label="Cash in Hand — Game Machines" value={fmt(gameMachineCash)} sub="Collected in this period" icon="🎮" variant="info" />
           <V2StatCard label="Net Short/Over" value={netValue} sub={`${shortRows.length} short · ${overRows.length} over`} icon="📊" variant={netVariant} />
           <V2StatCard label="Pending" value={`${pendingRows.length} / ${fmt(pendingExpected)}`} sub={`${pendingRows.length} pending`} icon="⏳" variant="warning" />
           <V2StatCard label="Matched" value={`${matchedRows.length} / ${fmt(matchedCollected)}`} sub={`${matchedRows.length} reconciled`} icon="✅" variant="success" />
