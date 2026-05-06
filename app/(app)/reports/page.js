@@ -61,6 +61,8 @@ export default function ReportsPage() {
           { data: expPrev },
           { data: cashCur },
           { data: cashPrev },
+          { data: gmCur },
+          { data: gmPrev },
         ] = await Promise.all([
           scope(supabase.from('daily_sales').select('*').gte('date', range.start).lte('date', range.end)),
           scope(supabase.from('daily_sales').select('date, store_id, total_sales, cash_sales, card_sales, r1_safe_drop, r2_safe_drop').gte('date', prev.start).lte('date', prev.end)),
@@ -70,6 +72,8 @@ export default function ReportsPage() {
           scope(supabase.from('expenses').select('amount, category').gte('month', prev.start.slice(0, 7)).lte('month', prev.end.slice(0, 7))),
           scope(supabase.from('cash_collections').select('*').gte('date', range.start).lte('date', range.end)),
           scope(supabase.from('cash_collections').select('store_id, date, cash_collected').gte('date', prev.start).lte('date', prev.end)),
+          scope(supabase.from('game_machine_collections').select('store_id, amount').gte('date', range.start).lte('date', range.end)),
+          scope(supabase.from('game_machine_collections').select('amount').gte('date', prev.start).lte('date', prev.end)),
         ]);
 
         setRawSales(salesCur || []);
@@ -91,9 +95,15 @@ export default function ReportsPage() {
         const totalTax = (salesCur || []).reduce((s, r) => s + (r.tax_collected || 0), 0);
         const totalPurchases = (purchCur || []).reduce((s, r) => s + (r.total_cost || r.unit_cost || 0), 0);
         const totalExpenses = (expCur || []).reduce((s, r) => s + (r.amount || 0), 0);
+        // Game-machine income is "other income" — added to net profit but
+        // intentionally NOT part of sales revenue (kept out of totalRevenue
+        // so sales metrics, payment-mix %s, and shareholder profit stay
+        // sales-only). Margin denominator includes it so the % math holds.
+        const totalGameMachine = (gmCur || []).reduce((s, r) => s + (r.amount || 0), 0);
         const grossProfit = totalRevenue - totalPurchases;
-        const netProfit = totalRevenue - totalPurchases - totalExpenses;
-        const margin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+        const netProfit = totalRevenue + totalGameMachine - totalPurchases - totalExpenses;
+        const totalIncome = totalRevenue + totalGameMachine;
+        const margin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
         const cashPct = totalRevenue > 0 ? (totalCash / totalRevenue) * 100 : 0;
         const cardPct = totalRevenue > 0 ? (totalCard / totalRevenue) * 100 : 0;
         const checkPct = totalRevenue > 0 ? (totalCheck / totalRevenue) * 100 : 0;
@@ -103,18 +113,22 @@ export default function ReportsPage() {
         const prevCard = (salesPrev || []).reduce((s, r) => s + (r.card_sales || 0), 0);
         const prevPurchases = (purchPrev || []).reduce((s, r) => s + (r.total_cost || r.unit_cost || 0), 0);
         const prevExpenses = (expPrev || []).reduce((s, r) => s + (r.amount || 0), 0);
+        const prevGameMachine = (gmPrev || []).reduce((s, r) => s + (r.amount || 0), 0);
         const prevGrossProfit = prevRevenue - prevPurchases;
-        const prevNetProfit = prevRevenue - prevPurchases - prevExpenses;
-        const prevMargin = prevRevenue > 0 ? (prevNetProfit / prevRevenue) * 100 : 0;
+        const prevNetProfit = prevRevenue + prevGameMachine - prevPurchases - prevExpenses;
+        const prevTotalIncome = prevRevenue + prevGameMachine;
+        const prevMargin = prevTotalIncome > 0 ? (prevNetProfit / prevTotalIncome) * 100 : 0;
 
         setSummary({
-          totalGross, totalRevenue, totalCash, totalCard, totalCheck, totalTax,
+          totalGross, totalRevenue, totalGameMachine, totalIncome,
+          totalCash, totalCard, totalCheck, totalTax,
           totalPurchases, totalExpenses,
           grossProfit, netProfit, margin, cashPct, cardPct, checkPct,
           revenueChange: prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : null,
         });
         setSummaryPrev({
-          totalRevenue: prevRevenue, totalCash: prevCash, totalCard: prevCard,
+          totalRevenue: prevRevenue, totalGameMachine: prevGameMachine,
+          totalCash: prevCash, totalCard: prevCard,
           totalPurchases: prevPurchases, totalExpenses: prevExpenses,
           grossProfit: prevGrossProfit, netProfit: prevNetProfit, margin: prevMargin,
         });
@@ -132,10 +146,12 @@ export default function ReportsPage() {
           const tax = storeSales.reduce((a, r) => a + (r.tax_collected || 0), 0);
           const pur = (purchCur || []).filter(r => r.store_id === s.id).reduce((a, r) => a + (r.total_cost || r.unit_cost || 0), 0);
           const exp = (expCur || []).filter(r => r.store_id === s.id).reduce((a, r) => a + (r.amount || 0), 0);
+          const games = (gmCur || []).filter(r => r.store_id === s.id).reduce((a, r) => a + (r.amount || 0), 0);
           const gross = rev - pur;
-          const net = rev - pur - exp;
-          const mg = rev > 0 ? (net / rev) * 100 : 0;
-          return { ...s, revenue: rev, cash, card, check, purchases: pur, expenses: exp, tax, gross, net, margin: mg };
+          const net = rev + games - pur - exp;
+          const income = rev + games;
+          const mg = income > 0 ? (net / income) * 100 : 0;
+          return { ...s, revenue: rev, games, cash, card, check, purchases: pur, expenses: exp, tax, gross, net, margin: mg };
         }).sort((a, b) => b.net - a.net);
         setStoreRows(rows);
 
@@ -269,6 +285,12 @@ export default function ReportsPage() {
     rows.push(['Tax Collected', money(summary.totalTax)]);
     rows.push([]);
 
+    // ── Other Income
+    rows.push(['=== OTHER INCOME ===']);
+    rows.push(['Game Machine Income', money(summary.totalGameMachine || 0)]);
+    rows.push(['Total Income (Sales + Other)', money((summary.totalRevenue || 0) + (summary.totalGameMachine || 0))]);
+    rows.push([]);
+
     // ── Cost Summary
     rows.push(['=== COST SUMMARY ===']);
     rows.push(['Total Purchases (Product Buying)', money(summary.totalPurchases)]);
@@ -279,7 +301,7 @@ export default function ReportsPage() {
     // ── Profit Calculation
     rows.push(['=== PROFIT CALCULATION ===']);
     rows.push(['Gross Profit (Revenue - Purchases)', money(summary.grossProfit)]);
-    rows.push(['Net Profit (Revenue - Purchases - Expenses)', money(summary.netProfit)]);
+    rows.push(['Net Profit (Revenue + Game Machines - Purchases - Expenses)', money(summary.netProfit)]);
     const grossMargin = summary.totalRevenue > 0 ? (summary.grossProfit / summary.totalRevenue) * 100 : 0;
     rows.push(['Gross Margin %', pct(grossMargin)]);
     rows.push(['Net Margin %', pct(summary.margin)]);
@@ -287,12 +309,13 @@ export default function ReportsPage() {
 
     // ── Store-by-store
     rows.push(['=== STORE-BY-STORE PERFORMANCE ===']);
-    rows.push(['Store', 'Revenue', 'Cash', 'Card', 'CashApp/Check', 'Purchases', 'Expenses', 'Gross Profit', 'Net Profit', 'Net Margin %', 'Tax']);
-    const storeTotals = { revenue: 0, cash: 0, card: 0, check: 0, purchases: 0, expenses: 0, gross: 0, net: 0, tax: 0 };
+    rows.push(['Store', 'Revenue', 'Game Machines', 'Cash', 'Card', 'CashApp/Check', 'Purchases', 'Expenses', 'Gross Profit', 'Net Profit', 'Net Margin %', 'Tax']);
+    const storeTotals = { revenue: 0, games: 0, cash: 0, card: 0, check: 0, purchases: 0, expenses: 0, gross: 0, net: 0, tax: 0 };
     storeRows.forEach(s => {
       rows.push([
         s.name,
         money(s.revenue),
+        money(s.games || 0),
         money(s.cash || 0),
         money(s.card || 0),
         money(s.check || 0),
@@ -304,6 +327,7 @@ export default function ReportsPage() {
         money(s.tax),
       ]);
       storeTotals.revenue += s.revenue;
+      storeTotals.games += (s.games || 0);
       storeTotals.cash += (s.cash || 0);
       storeTotals.card += (s.card || 0);
       storeTotals.check += (s.check || 0);
@@ -313,10 +337,12 @@ export default function ReportsPage() {
       storeTotals.net += s.net;
       storeTotals.tax += s.tax;
     });
-    const totalMargin = storeTotals.revenue > 0 ? (storeTotals.net / storeTotals.revenue) * 100 : 0;
+    const totalIncomeForMargin = storeTotals.revenue + storeTotals.games;
+    const totalMargin = totalIncomeForMargin > 0 ? (storeTotals.net / totalIncomeForMargin) * 100 : 0;
     rows.push([
       'TOTAL',
       money(storeTotals.revenue),
+      money(storeTotals.games),
       money(storeTotals.cash),
       money(storeTotals.card),
       money(storeTotals.check),
@@ -466,12 +492,13 @@ export default function ReportsPage() {
 
   const totals = storeRows.reduce((a, s) => ({
     revenue: a.revenue + s.revenue,
+    games: a.games + (s.games || 0),
     purchases: a.purchases + s.purchases,
     expenses: a.expenses + s.expenses,
     tax: a.tax + s.tax,
     gross: a.gross + s.gross,
     net: a.net + s.net,
-  }), { revenue: 0, purchases: 0, expenses: 0, tax: 0, gross: 0, net: 0 });
+  }), { revenue: 0, games: 0, purchases: 0, expenses: 0, tax: 0, gross: 0, net: 0 });
 
   const soColor = (v) => Math.abs(v) < 0.01 ? 'var(--text-muted)' : v >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
 
@@ -561,7 +588,7 @@ export default function ReportsPage() {
       {loadError && <V2Alert type="danger" className="mb-3">{loadError}</V2Alert>}
       {summary && (
         <div className="text-[var(--text-muted)] text-[10px] mb-2 print:hidden">
-          Data: {rawSales.length} sales ({fmt(summary.totalRevenue)}) · {rawPurch.length} purchases ({fmt(summary.totalPurchases)}) · {rawExp.length} expenses ({fmt(summary.totalExpenses)})
+          Data: {rawSales.length} sales ({fmt(summary.totalRevenue)}) · {rawPurch.length} purchases ({fmt(summary.totalPurchases)}) · {rawExp.length} expenses ({fmt(summary.totalExpenses)}){summary.totalGameMachine > 0 ? ` · 🎮 ${fmt(summary.totalGameMachine)} game machines` : ''}
         </div>
       )}
 
@@ -593,7 +620,7 @@ export default function ReportsPage() {
             </div>
           </Card>
 
-          <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-3 items-stretch">
+          <div className="grid grid-cols-2 lg:grid-cols-7 gap-3 mb-3 items-stretch">
             <a href="#drill-sales" className="block h-full transition-transform hover:-translate-y-0.5">
               <V2StatCard
                 className="h-full"
@@ -610,6 +637,16 @@ export default function ReportsPage() {
             <a href="#drill-sales" className="block h-full transition-transform hover:-translate-y-0.5">
               <V2StatCard className="h-full" label="Total Sales" value={fmt(summary.totalRevenue)} variant="success" icon="📊" />
             </a>
+            <a href="/game-machines" className="block h-full transition-transform hover:-translate-y-0.5">
+              <V2StatCard
+                className="h-full"
+                label="Game Machine Income"
+                value={fmt(summary.totalGameMachine || 0)}
+                variant="success"
+                icon="🎮"
+                sub="Other income (excl. from sales)"
+              />
+            </a>
             <a href="#drill-product-buying" className="block h-full transition-transform hover:-translate-y-0.5">
               <V2StatCard className="h-full" label="Product Buying" value={fmt(summary.totalPurchases)} variant="warning" icon="📦" />
             </a>
@@ -623,23 +660,15 @@ export default function ReportsPage() {
               <V2StatCard
                 className="h-full"
                 label="Cash in Hand"
-                value={fmt(cashRecon?.collected || 0)}
+                value={fmt((cashRecon?.collected || 0) + (summary.totalGameMachine || 0))}
                 variant="info"
                 icon="🏦"
-                sub={cashRecon ? (() => {
-                  const matched = Math.abs(cashRecon.diff) < 0.01;
-                  const short = cashRecon.diff < 0;
-                  const diffColor = matched
-                    ? 'text-[var(--text-muted)]'
-                    : short ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]';
-                  const diffLabel = matched ? 'Matched' : (short ? 'Short' : 'Over');
-                  return (
-                    <TwoLineSub lines={[
-                      { label: 'Expected', value: fmt(cashRecon.expected), color: 'text-[var(--color-info)]' },
-                      { label: diffLabel, value: matched ? '—' : fmt(Math.abs(cashRecon.diff)), color: diffColor },
-                    ]} />
-                  );
-                })() : 'From Cash Collection'}
+                sub={
+                  <TwoLineSub lines={[
+                    { label: '💵 Sales', value: fmt(cashRecon?.collected || 0), color: 'text-[var(--text-primary)]' },
+                    { label: '🎮 Games', value: fmt(summary.totalGameMachine || 0), color: 'text-[var(--text-primary)]' },
+                  ]} />
+                }
               />
             </a>
           </div>
@@ -662,7 +691,7 @@ export default function ReportsPage() {
         <div className="overflow-x-auto">
           <table>
             <thead>
-              <tr><th>#</th><th>Store</th><th style={{ textAlign: 'right' }}>Revenue</th><th style={{ textAlign: 'right' }}>Product Buying</th><th style={{ textAlign: 'right' }}>Expenses</th><th style={{ textAlign: 'right' }}>Profit</th><th style={{ textAlign: 'right' }}>Margin</th></tr>
+              <tr><th>#</th><th>Store</th><th style={{ textAlign: 'right' }}>Revenue</th><th style={{ textAlign: 'right' }}>🎮 Games</th><th style={{ textAlign: 'right' }}>Product Buying</th><th style={{ textAlign: 'right' }}>Expenses</th><th style={{ textAlign: 'right' }}>Profit</th><th style={{ textAlign: 'right' }}>Margin</th></tr>
             </thead>
             <tbody>
               {storeRows.map((s, i) => (
@@ -670,6 +699,7 @@ export default function ReportsPage() {
                   <td className="text-[var(--text-muted)] text-center">{i === 0 ? '🏆' : i + 1}</td>
                   <td><span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: s.color }} /><span className="text-[var(--text-primary)] font-semibold">{s.name}</span></span></td>
                   <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }} className="text-[var(--color-success)] font-semibold">{fmt(s.revenue)}</td>
+                  <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }} className={s.games ? 'text-sw-pink font-semibold' : 'text-[var(--text-muted)]'}>{s.games ? fmt(s.games) : '—'}</td>
                   <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }} className="text-[var(--text-secondary)]">{fmt(s.purchases)}</td>
                   <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }} className="text-[var(--text-secondary)]">{fmt(s.expenses)}</td>
                   <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums' }} className={`font-bold ${s.net >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>{fmt(s.net)}</td>
@@ -683,6 +713,7 @@ export default function ReportsPage() {
           <div className="px-3 py-2 border-t border-[var(--border-subtle)] text-[12px] font-mono flex flex-wrap gap-x-5 gap-y-1 text-[var(--text-muted)]">
             <span className="font-bold">TOTAL</span>
             <span>Revenue <span className="text-[var(--color-success)] font-bold">{fmt(totals.revenue)}</span></span>
+            {totals.games > 0 && <span>🎮 Games <span className="text-sw-pink font-bold">{fmt(totals.games)}</span></span>}
             <span>Net <span style={{ color: soColor(totals.net) }} className="font-bold">{fmt(totals.net)}</span></span>
           </div>
         )}
