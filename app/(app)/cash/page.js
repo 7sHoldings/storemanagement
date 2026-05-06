@@ -350,10 +350,26 @@ export default function CashPage() {
           ? `−${fmt(netShortOver)}`
           : `+${fmt(Math.abs(netShortOver))}`;
       return (
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
           <V2StatCard label="Expected Cash" value={fmt(totalExpected)} sub="From sales" icon="💵" variant="warning" />
-          <V2StatCard label="Cash in Hand — Sales" value={fmt(totalCashInHand)} sub="Collected from registers" icon="💰" variant="info" />
-          <V2StatCard label="Cash in Hand — Game Machines" value={fmt(gameMachineCash)} sub="Collected in this period" icon="🎮" variant="info" />
+          <V2StatCard
+            label="Cash in Hand"
+            value={fmt(totalCashInHand + gameMachineCash)}
+            icon="💰"
+            variant="info"
+            sub={
+              <span className="block space-y-0.5">
+                <span className="flex items-baseline justify-between gap-2">
+                  <span className="text-[var(--text-muted)]">💵 Sales</span>
+                  <span className="font-semibold tabular-nums text-[var(--text-primary)]">{fmt(totalCashInHand)}</span>
+                </span>
+                <span className="flex items-baseline justify-between gap-2">
+                  <span className="text-[var(--text-muted)]">🎮 Games</span>
+                  <span className="font-semibold tabular-nums text-[var(--text-primary)]">{fmt(gameMachineCash)}</span>
+                </span>
+              </span>
+            }
+          />
           <V2StatCard label="Net Short/Over" value={netValue} sub={`${shortRows.length} short · ${overRows.length} over`} icon="📊" variant={netVariant} />
           <V2StatCard label="Pending" value={`${pendingRows.length} / ${fmt(pendingExpected)}`} sub={`${pendingRows.length} pending`} icon="⏳" variant="warning" />
           <V2StatCard label="Matched" value={`${matchedRows.length} / ${fmt(matchedCollected)}`} sub={`${matchedRows.length} reconciled`} icon="✅" variant="success" />
