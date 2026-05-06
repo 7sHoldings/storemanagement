@@ -1,5 +1,5 @@
 import { createClient, createAdminClient } from '@/lib/supabase-server';
-import { fetchNRSDailyStats, parseNRSStatsToDailySales } from '@/lib/nrs-client';
+import { fetchNRSDailyStats, parseNRSStatsToDailySales, pickNrsOwnedFields } from '@/lib/nrs-client';
 import { extractShiftsFromNRS } from '@/lib/extract-shifts';
 
 export const dynamic = 'force-dynamic';
@@ -63,7 +63,7 @@ export async function POST(req) {
         controller.enqueue(encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
       };
 
-      let created = 0, skipped = 0, failed = 0;
+      let created = 0, updated = 0, skipped = 0, failed = 0;
 
       for (let i = 0; i < tasks.length; i++) {
         const { store, date } = tasks[i];
@@ -74,14 +74,28 @@ export async function POST(req) {
             .eq('store_id', store.id).eq('date', date)
             .maybeSingle();
 
+          const nrsData = await fetchNRSDailyStats(store.nrs_store_id, date);
+          const parsed = parseNRSStatsToDailySales(nrsData, store.id, date);
+
           if (existing) {
-            skipped++;
-            send('progress', { current: i + 1, total: tasks.length, store: store.name, date, status: 'skipped', duration_ms: Date.now() - taskStart });
+            const nrsFields = pickNrsOwnedFields(parsed);
+            const { error: updErr } = await admin
+              .from('daily_sales').update(nrsFields).eq('id', existing.id);
+            if (updErr) throw updErr;
+
+            const { error: logErr } = await admin.from('nrs_sync_log').insert({
+              store_id: store.id, sync_date: date, status: 'success',
+              nrs_response: nrsData, created_daily_sales_id: existing.id, synced_by: userId,
+            });
+            if (logErr) console.warn('[backfill] sync_log insert failed:', logErr.message);
+
+            await extractShiftsFromNRS(admin, nrsData, store.id, date, existing.id);
+            updated++;
+            send('progress', { current: i + 1, total: tasks.length, store: store.name, date, status: 'updated', gross: parsed.r1_gross, duration_ms: Date.now() - taskStart });
+            await new Promise(r => setTimeout(r, 100));
             continue;
           }
 
-          const nrsData = await fetchNRSDailyStats(store.nrs_store_id, date);
-          const parsed = parseNRSStatsToDailySales(nrsData, store.id, date);
           parsed.entered_by = userId;
 
           const { data: inserted, error } = await admin.from('daily_sales').insert(parsed).select().single();
@@ -110,11 +124,11 @@ export async function POST(req) {
         await new Promise(r => setTimeout(r, 100));
       }
 
-      send('complete', { total: tasks.length, created, skipped, failed });
+      send('complete', { total: tasks.length, created, updated, skipped, failed });
 
       const { error: actErr } = await admin.from('activity_log').insert({
         action: 'create', entity_type: 'nrs_backfill',
-        description: `7S Agent backfill: ${created} created, ${skipped} skipped, ${failed} failed (${start_date} to ${end_date})`,
+        description: `7S Agent backfill: ${created} created, ${updated} updated, ${skipped} skipped, ${failed} failed (${start_date} to ${end_date})`,
         user_id: userId, user_name: profile.name, user_role: profile.role,
       });
       if (actErr) console.warn('[backfill] activity_log insert failed:', actErr.message);

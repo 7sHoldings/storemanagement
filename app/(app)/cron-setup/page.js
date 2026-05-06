@@ -125,6 +125,7 @@ export default function CronSetupPage() {
                 <div key={i} className="flex items-center gap-2 text-[11px]">
                   <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase ${
                     r.status === 'created' ? 'bg-sw-greenD text-[var(--color-success)]' :
+                    r.status === 'updated' ? 'bg-sw-greenD text-[var(--color-success)]' :
                     r.status === 'skipped' ? 'bg-sw-amberD text-[var(--color-warning)]' :
                     'bg-sw-redD text-[var(--color-danger)]'
                   }`}>{r.status}</span>

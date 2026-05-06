@@ -1,6 +1,6 @@
 import { createAdminClient, createClient } from '@/lib/supabase-server';
 import { NextResponse } from 'next/server';
-import { fetchNRSDailyStats, parseNRSStatsToDailySales } from '@/lib/nrs-client';
+import { fetchNRSDailyStats, parseNRSStatsToDailySales, pickNrsOwnedFields } from '@/lib/nrs-client';
 import { extractShiftsFromNRS } from '@/lib/extract-shifts';
 import { sendTelegram, buildSyncSummaryMessage } from '@/lib/telegram';
 
@@ -14,32 +14,6 @@ function yesterdayCentral() {
   const m = String(central.getMonth() + 1).padStart(2, '0');
   const d = String(central.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
-}
-
-// NRS-canonical fields that the cron owns. Everything not listed here
-// (r2_*, register2_*, r1_house_account_*, credits) is employee-entered and
-// must NOT be overwritten when merging into an existing record.
-const NRS_OWNED_FIELDS = [
-  'r1_gross',
-  'r1_net',
-  'non_tax_sales',
-  'total_sales',
-  'cash_sales',
-  'card_sales',
-  'cashapp_check',
-  'r1_canceled_basket',
-  'r1_safe_drop',
-  'r1_sales_tax',
-  'tax_collected',
-  'sync_source',
-  'notes',
-  'ai_extracted_data',
-];
-
-function pickNrsOwnedFields(parsed) {
-  const out = {};
-  for (const k of NRS_OWNED_FIELDS) out[k] = parsed[k];
-  return out;
 }
 
 async function syncOneStore(supabase, store, targetDate) {

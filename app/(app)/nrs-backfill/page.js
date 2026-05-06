@@ -18,7 +18,7 @@ export default function NRSBackfillPage() {
   // Live progress
   const [total, setTotal] = useState(0);
   const [current, setCurrent] = useState(0);
-  const [counts, setCounts] = useState({ created: 0, skipped: 0, failed: 0 });
+  const [counts, setCounts] = useState({ created: 0, updated: 0, skipped: 0, failed: 0 });
   const [results, setResults] = useState([]);
   const [currentTask, setCurrentTask] = useState('');
   const [done, setDone] = useState(false);
@@ -57,14 +57,14 @@ export default function NRSBackfillPage() {
     setResults([]);
     setCurrent(0);
     setTotal(0);
-    setCounts({ created: 0, skipped: 0, failed: 0 });
+    setCounts({ created: 0, updated: 0, skipped: 0, failed: 0 });
     setCurrentTask('Starting…');
     setAvgMs(0);
 
     const controller = new AbortController();
     abortRef.current = controller;
     const durations = [];
-    const accCounts = { created: 0, skipped: 0, failed: 0 };
+    const accCounts = { created: 0, updated: 0, skipped: 0, failed: 0 };
     const accResults = [];
 
     try {
@@ -115,7 +115,7 @@ export default function NRSBackfillPage() {
                 setDone(true);
                 setCurrent(data.total);
                 setTotal(data.total);
-                setCounts({ created: data.created, skipped: data.skipped, failed: data.failed });
+                setCounts({ created: data.created, updated: data.updated || 0, skipped: data.skipped, failed: data.failed });
               }
             } catch {}
             eventType = '';
@@ -159,7 +159,7 @@ export default function NRSBackfillPage() {
 
       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] p-5 mb-4">
         <p className="text-[var(--text-secondary)] text-[12px] mb-4">
-          Streams results in real-time. Existing entries are automatically skipped. If the connection drops, click Resume — already-imported dates won't be duplicated.
+          Streams results in real-time. Existing entries are merged — only NRS-owned fields (R1 sales, cash, card, tax) are refreshed; employee-entered R2 / house account data is preserved. If the connection drops, click Resume.
         </p>
 
         <div className="mb-4">
@@ -194,7 +194,7 @@ export default function NRSBackfillPage() {
                 {currentTask && <span className="text-[var(--text-muted)] ml-2">— {currentTask}</span>}
               </span>
               <span className="text-[var(--text-secondary)]">
-                {counts.created} created · {counts.skipped} skipped · {counts.failed} failed
+                {counts.created} created · {counts.updated} updated · {counts.skipped} skipped · {counts.failed} failed
               </span>
             </div>
             <div className="w-full bg-[var(--bg-card)] rounded-full h-3 border border-[var(--border-subtle)]">
@@ -214,13 +214,13 @@ export default function NRSBackfillPage() {
 
         {interrupted && !running && (
           <div className="bg-sw-amberD text-[var(--color-warning)] border border-sw-amber/30 rounded-lg p-3 mb-3 text-[12px]">
-            Backfill interrupted at {current}/{total}. Click <strong>Resume</strong> to continue — already-imported dates will be skipped.
+            Backfill interrupted at {current}/{total}. Click <strong>Resume</strong> to continue — existing entries will be merged with fresh NRS data.
           </div>
         )}
 
         {done && !running && (
           <div className="bg-sw-greenD text-[var(--color-success)] border border-sw-green/30 rounded-lg p-3 mb-3 text-[13px] font-semibold">
-            Backfill complete: {counts.created} created, {counts.skipped} skipped, {counts.failed} failed
+            Backfill complete: {counts.created} created, {counts.updated} updated, {counts.skipped} skipped, {counts.failed} failed
           </div>
         )}
 
@@ -261,6 +261,7 @@ export default function NRSBackfillPage() {
                     <td>
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
                         r.status === 'created' ? 'bg-sw-greenD text-[var(--color-success)]' :
+                        r.status === 'updated' ? 'bg-sw-greenD text-[var(--color-success)]' :
                         r.status === 'skipped' ? 'bg-sw-amberD text-[var(--color-warning)]' :
                         'bg-sw-redD text-[var(--color-danger)]'
                       }`}>{r.status}</span>
