@@ -16,6 +16,32 @@ function yesterdayCentral() {
   return `${y}-${m}-${d}`;
 }
 
+// NRS-canonical fields that the cron owns. Everything not listed here
+// (r2_*, register2_*, r1_house_account_*, credits) is employee-entered and
+// must NOT be overwritten when merging into an existing record.
+const NRS_OWNED_FIELDS = [
+  'r1_gross',
+  'r1_net',
+  'non_tax_sales',
+  'total_sales',
+  'cash_sales',
+  'card_sales',
+  'cashapp_check',
+  'r1_canceled_basket',
+  'r1_safe_drop',
+  'r1_sales_tax',
+  'tax_collected',
+  'sync_source',
+  'notes',
+  'ai_extracted_data',
+];
+
+function pickNrsOwnedFields(parsed) {
+  const out = {};
+  for (const k of NRS_OWNED_FIELDS) out[k] = parsed[k];
+  return out;
+}
+
 async function syncOneStore(supabase, store, targetDate) {
   const t0 = Date.now();
 
@@ -26,13 +52,45 @@ async function syncOneStore(supabase, store, targetDate) {
     .eq('date', targetDate)
     .maybeSingle();
 
-  if (existing) {
-    console.log(`[nrs-cron] ${store.name} ${targetDate} — skipped (exists) [${Date.now() - t0}ms]`);
-    return { store_name: store.name, status: 'skipped', daily_sales_id: existing.id, error: null, ms: Date.now() - t0, salesData: existing };
-  }
-
   const nrsData = await fetchNRSDailyStats(store.nrs_store_id, targetDate);
   const parsed = parseNRSStatsToDailySales(nrsData, store.id, targetDate);
+
+  if (existing) {
+    const nrsFields = pickNrsOwnedFields(parsed);
+
+    const { data: updated, error: updateErr } = await supabase
+      .from('daily_sales')
+      .update(nrsFields)
+      .eq('id', existing.id)
+      .select()
+      .single();
+    if (updateErr) throw updateErr;
+
+    const { error: logErr } = await supabase.from('nrs_sync_log').insert({
+      store_id: store.id,
+      sync_date: targetDate,
+      status: 'success',
+      nrs_response: nrsData,
+      created_daily_sales_id: existing.id,
+    });
+    if (logErr) console.warn(`[nrs-cron] sync_log insert failed for ${store.name}:`, logErr.message);
+
+    const { error: actErr } = await supabase.from('activity_log').insert({
+      action: 'update',
+      entity_type: 'daily_sales',
+      entity_id: existing.id,
+      description: `7S Agent merged NRS R1 data into existing daily sales for ${store.name} on ${targetDate} ($${parsed.r1_net} net) — preserved employee-entered R2 / house account`,
+      user_name: '7S Agent',
+      user_role: 'system',
+      store_name: store.name,
+    });
+    if (actErr) console.warn(`[nrs-cron] activity_log insert failed for ${store.name}:`, actErr.message);
+
+    await extractShiftsFromNRS(supabase, nrsData, store.id, targetDate, existing.id);
+
+    console.log(`[nrs-cron] ${store.name} ${targetDate} — updated (gross $${parsed.r1_gross}) [${Date.now() - t0}ms]`);
+    return { store_name: store.name, status: 'updated', daily_sales_id: existing.id, error: null, ms: Date.now() - t0, salesData: updated };
+  }
 
   const { data: inserted, error: insertErr } = await supabase
     .from('daily_sales')
@@ -79,7 +137,7 @@ async function runSync(supabase, targetDate) {
 
   if (!stores?.length) {
     console.log('[nrs-cron] no stores with NRS IDs');
-    return { success: true, date_synced: targetDate, summary: { total_stores: 0, created: 0, skipped: 0, failed: 0 }, results: [], duration_ms: Date.now() - startMs };
+    return { success: true, date_synced: targetDate, summary: { total_stores: 0, created: 0, updated: 0, skipped: 0, failed: 0 }, results: [], duration_ms: Date.now() - startMs };
   }
 
   // Run all stores in parallel
@@ -88,7 +146,7 @@ async function runSync(supabase, targetDate) {
   );
 
   const results = [];
-  let created = 0, skipped = 0, failed = 0;
+  let created = 0, updated = 0, skipped = 0, failed = 0;
 
   for (let i = 0; i < settled.length; i++) {
     const outcome = settled[i];
@@ -96,6 +154,7 @@ async function runSync(supabase, targetDate) {
       const r = outcome.value;
       results.push(r);
       if (r.status === 'created') created++;
+      else if (r.status === 'updated') updated++;
       else if (r.status === 'skipped') skipped++;
     } else {
       const store = stores[i];
@@ -115,7 +174,7 @@ async function runSync(supabase, targetDate) {
   }
 
   const durationMs = Date.now() - startMs;
-  console.log(`[nrs-cron] done in ${durationMs}ms: ${created} created, ${skipped} skipped, ${failed} failed`);
+  console.log(`[nrs-cron] done in ${durationMs}ms: ${created} created, ${updated} updated, ${skipped} skipped, ${failed} failed`);
 
   if (failed > 0) {
     console.error(`[nrs-cron] WARNING: ${failed} store(s) failed to sync for ${targetDate}`);
@@ -134,7 +193,7 @@ async function runSync(supabase, targetDate) {
   return {
     success: failed === 0,
     date_synced: targetDate,
-    summary: { total_stores: stores.length, created, skipped, failed },
+    summary: { total_stores: stores.length, created, updated, skipped, failed },
     results,
     duration_ms: durationMs,
     short_over_alerts: shortOverAlerts.length,
