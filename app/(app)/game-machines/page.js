@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/components/AuthProvider';
-import { DataTable, PageHeader, Modal, Field, Button, Loading, Alert, ConfirmModal } from '@/components/UI';
+import { DataTable, PageHeader, Modal, Field, Button, Loading, Alert, ConfirmModal, DateBar, useDateRange } from '@/components/UI';
 import { V2StatCard } from '@/components/ui';
 import { fmt, dayLabel, today, downloadCSV } from '@/lib/utils';
 import { logActivity, fmtMoney, shortDate } from '@/lib/activity';
@@ -11,6 +11,7 @@ import { logActivity, fmtMoney, shortDate } from '@/lib/activity';
 // from (with source='game_machines'), but never toward sales revenue.
 export default function GameMachinesPage() {
   const { supabase, isOwner, profile } = useAuth();
+  const { range, preset, selectPreset, setStart, setEnd } = useDateRange('thismonth');
   const [rows, setRows] = useState([]);
   const [stores, setStores] = useState([]);
   const [takeouts, setTakeouts] = useState([]);
@@ -40,17 +41,26 @@ export default function GameMachinesPage() {
 
   const storeName = (id) => stores.find(s => s.id === id)?.name || '—';
 
+  // Collections in the active date range — drives the table and the
+  // "Collected (Range)" stat. "Available Cash" stays all-time because it's
+  // a cumulative pool: total ever collected minus everything ever taken out.
+  const filteredRows = useMemo(
+    () => rows.filter(r => r.date >= range.start && r.date <= range.end),
+    [rows, range.start, range.end]
+  );
+
   const stats = useMemo(() => {
-    const total = rows.reduce((s, r) => s + (r.amount || 0), 0);
+    const totalAllTime = rows.reduce((s, r) => s + (r.amount || 0), 0);
+    const totalRange = filteredRows.reduce((s, r) => s + (r.amount || 0), 0);
     const takenOut = takeouts.reduce((s, r) => s + (r.amount || 0), 0);
-    const available = total - takenOut;
+    const available = totalAllTime - takenOut;
     const monthKey = new Date().toISOString().slice(0, 7);
     const thisMonth = rows
       .filter(r => (r.date || '').slice(0, 7) === monthKey)
       .reduce((s, r) => s + (r.amount || 0), 0);
     const lastDate = rows[0]?.date || null;
-    return { total, takenOut, available, thisMonth, lastDate, count: rows.length };
-  }, [rows, takeouts]);
+    return { totalAllTime, totalRange, takenOut, available, thisMonth, lastDate, countRange: filteredRows.length, countAll: rows.length };
+  }, [rows, filteredRows, takeouts]);
 
   const openAdd = () => {
     setEditRow(null);
@@ -119,9 +129,9 @@ export default function GameMachinesPage() {
   };
 
   const exportCSV = () => {
-    downloadCSV('game-machine-collections.csv',
+    downloadCSV(`game-machine-collections-${range.start}-to-${range.end}.csv`,
       ['Date', 'Store', 'Amount', 'Notes'],
-      rows.map(r => [r.date, storeName(r.store_id), r.amount || 0, r.notes || '']));
+      filteredRows.map(r => [r.date, storeName(r.store_id), r.amount || 0, r.notes || '']));
   };
 
   if (!isOwner) return <div className="text-[var(--text-muted)] text-center py-20">Owner access required</div>;
@@ -136,22 +146,39 @@ export default function GameMachinesPage() {
 
       {msg && <Alert type={msg === 'Saved' ? 'success' : 'error'}>{msg}</Alert>}
 
+      <DateBar
+        preset={preset}
+        onPreset={selectPreset}
+        startDate={range.start}
+        endDate={range.end}
+        onStartChange={setStart}
+        onEndChange={setEnd}
+      />
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <V2StatCard label="Total Collected" value={fmt(stats.total)} sub={`${stats.count} entr${stats.count === 1 ? 'y' : 'ies'}`} icon="🎮" variant="success" />
-        <V2StatCard label="Available Cash" value={fmt(stats.available)} sub={`${fmt(stats.takenOut)} taken out`} icon="🏦" variant={stats.available < 0 ? 'danger' : 'info'} />
+        <V2StatCard
+          label="Collected (Range)"
+          value={fmt(stats.totalRange)}
+          sub={`${stats.countRange} entr${stats.countRange === 1 ? 'y' : 'ies'} · all-time ${fmt(stats.totalAllTime)}`}
+          icon="🎮"
+          variant="success"
+        />
+        <V2StatCard label="Available Cash" value={fmt(stats.available)} sub={`${fmt(stats.takenOut)} taken out · cumulative pool`} icon="🏦" variant={stats.available < 0 ? 'danger' : 'info'} />
         <V2StatCard label="This Month" value={fmt(stats.thisMonth)} sub="Collected in current month" icon="📅" />
         <V2StatCard label="Last Collection" value={stats.lastDate ? shortDate(stats.lastDate) : '—'} sub={stats.lastDate ? dayLabel(stats.lastDate) : 'No collections yet'} icon="🕒" />
       </div>
 
       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] overflow-hidden mb-4">
         <div className="px-3 py-2 border-b border-[var(--border-subtle)] flex justify-between items-center">
-          <h3 className="text-[var(--text-primary)] text-xs font-bold">All Collections</h3>
+          <h3 className="text-[var(--text-primary)] text-xs font-bold">Collections · {range.start} → {range.end}</h3>
           <span className="text-[var(--text-muted)] text-[10px]">
-            Total {fmt(stats.total)}
+            Total {fmt(stats.totalRange)}
           </span>
         </div>
         <DataTable
-          emptyMessage="No game machine collections yet. Click + Collect to add one."
+          emptyMessage={rows.length === 0
+            ? "No game machine collections yet. Click + Collect to add one."
+            : "No collections in this date range. Try a different range or click + Collect."}
           columns={[
             { key: 'date', label: 'Date', render: v => dayLabel(v) },
             { key: 'store_id', label: 'Store', render: v => storeName(v) },
@@ -160,9 +187,9 @@ export default function GameMachinesPage() {
               sortValue: r => Number(r.amount || 0) },
             { key: 'notes', label: 'Notes', render: v => v || <span className="text-[var(--text-muted)]">—</span> },
           ]}
-          rows={rows}
+          rows={filteredRows}
           onEdit={openEdit}
-          onDelete={(id) => setConfirmDelete(rows.find(r => r.id === id))}
+          onDelete={(id) => setConfirmDelete(filteredRows.find(r => r.id === id))}
           isOwner={true}
         />
       </div>
