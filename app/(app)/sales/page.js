@@ -9,6 +9,52 @@ import { logActivity, fmtMoney, shortDate } from '@/lib/activity';
 import { uploadReceipt, compressImage } from '@/lib/storage';
 import { clampShiftHours } from '@/lib/shift-hours';
 import NRSSyncModal from '@/components/NRSSyncModal';
+import DailySalesHeader from '@/components/daily-sales/DailySalesHeader';
+import DailySalesKpis from '@/components/daily-sales/DailySalesKpis';
+import DailySalesFilters from '@/components/daily-sales/DailySalesFilters';
+import EntriesCardList from '@/components/daily-sales/EntriesCardList';
+
+const VIEW_MODE_KEY = 'daily-sales-view-mode';
+
+// Mirrors DataTable's comparator for the sort keys this page exposes, so the
+// card view can show entries in the same order as the table.
+function sortSalesRows(rows, sortState, stores) {
+  if (!sortState) return rows;
+  const { key, dir } = sortState;
+  const sign = dir === 'asc' ? 1 : -1;
+  const accessor = (r) => {
+    switch (key) {
+      case 'store_id': return r.stores?.name || '';
+      case 'gross_sales': return Number(r.gross_sales ?? r.total_sales ?? 0);
+      case 'total_sales': return Number(r.total_sales ?? r.net_sales ?? 0);
+      case 'cash_total': return Number(r.cash_sales || 0) + Number(r.r2_net || 0);
+      case '_status': {
+        const st = stores.find(s => s.id === r.store_id);
+        if (!st?.has_register2) return 2;
+        const d = Number(r.r2_net || 0) - Number(r.r1_canceled_basket || 0);
+        return Math.abs(d) < 0.01 ? 2 : 1;
+      }
+      case 'date': default: return r.date || '';
+    }
+  };
+  return [...rows].sort((a, b) => {
+    const av = accessor(a), bv = accessor(b);
+    let cmp;
+    if (typeof av === 'number' && typeof bv === 'number') cmp = (av - bv) * sign;
+    else cmp = String(av).localeCompare(String(bv)) * sign;
+    if (cmp !== 0) return cmp;
+    return (b.date || '').localeCompare(a.date || '');
+  });
+}
+
+// Same per-row check the `_status` table column uses (no new logic).
+function getRowStatus(r, stores) {
+  const st = stores.find(s => s.id === r.store_id);
+  if (!st?.has_register2) return { state: 'synced', title: 'No Register 2' };
+  const diff = Number(r.r2_net || 0) - Number(r.r1_canceled_basket || 0);
+  if (Math.abs(diff) < 0.01) return { state: 'synced', title: 'R2 Net matches Canceled Basket' };
+  return { state: 'warning', title: `R2 Net (${fmt(Number(r.r2_net || 0))}) − Canceled Basket (${fmt(Number(r.r1_canceled_basket || 0))}) = ${fmt(diff)}` };
+}
 
 export default function SalesPage() {
   const { supabase, isOwner, isEmployee, profile, effectiveStoreId } = useAuth();
@@ -41,10 +87,21 @@ export default function SalesPage() {
   const [employeeFilter, setEmployeeFilter] = useState([]);
   const [mismatchFilter, setMismatchFilter] = useState('');
   const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState('table');
 
   useEffect(() => {
     if (effectiveStoreId) setPageStoreIds([effectiveStoreId]);
   }, [effectiveStoreId]);
+
+  // View-mode preference: an explicit choice wins; otherwise default by viewport.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_MODE_KEY);
+      if (saved === 'table' || saved === 'cards') { setViewMode(saved); return; }
+    } catch { /* storage unavailable */ }
+    if (typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches) setViewMode('cards');
+  }, []);
+  const changeViewMode = (m) => { setViewMode(m); try { localStorage.setItem(VIEW_MODE_KEY, m); } catch { /* storage unavailable */ } };
   // Local form-only store id. Used when the owner picks a store for a
   // specific Add entry while "All Stores" is selected in the sidebar.
   // This is NEVER written back to the sidebar's selectedStore.
@@ -1713,88 +1770,60 @@ export default function SalesPage() {
   const totalNetSales = filteredSales.reduce((s, r) => s + (r.total_sales ?? r.net_sales ?? 0), 0);
   const agentCount = filteredSales.filter(r => r.sync_source === '7s_agent').length;
   const avgPerDay = (() => { const days = new Set(filteredSales.map(r => r.date)).size; return days > 0 ? totalNetSales / days : 0; })();
+  const sortedSales = sortSalesRows(filteredSales, sortState, stores);
+  const clearAllFilters = () => { setPageStoreIds([]); setEmployeeFilter([]); setMismatchFilter(''); setSearch(''); };
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
-        <div>
-          <p className="text-[var(--text-muted)] text-[11px] font-semibold uppercase tracking-wider">Sales</p>
-          <h1 className="text-[var(--text-primary)] text-[22px] font-bold tracking-tight">Daily Sales</h1>
-          <p className="text-[var(--text-secondary)] text-[12px]">{hasStore ? storeName : 'All Stores'} · {filteredSales.length} entries</p>
-        </div>
-        <div className="flex gap-1.5 flex-wrap">
-          <Button variant="secondary" onClick={handleExport} className="!text-[11px]">📥 CSV</Button>
-          {isOwner && <Button variant="secondary" onClick={() => setNrsSyncOpen(true)} className="!text-[11px]">🤖 Sync NRS</Button>}
-          {isOwner && <Button onClick={tryOpenAdd}>+ Add</Button>}
-        </div>
-      </div>
+      <DailySalesHeader
+        subtitle={`${hasStore ? storeName : 'All Stores'} · ${filteredSales.length} ${filteredSales.length === 1 ? 'entry' : 'entries'}`}
+        viewMode={viewMode}
+        onViewModeChange={changeViewMode}
+        isOwner={isOwner}
+        onExportCsv={handleExport}
+        onSyncNrs={() => setNrsSyncOpen(true)}
+        onAdd={tryOpenAdd}
+      />
 
-      {/* Stats bar */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-        <V2StatCard label="Total Sales" value={fmt(totalNetSales)} variant="success" icon="💰" />
-        <V2StatCard label="Entries" value={filteredSales.length} icon="📋" />
-        <V2StatCard label="Avg / Day" value={fmt(avgPerDay)} icon="📊" />
-        <V2StatCard label="7S Agent" value={`${agentCount} of ${filteredSales.length}`} icon="🤖" sub={agentCount === filteredSales.length ? 'All auto-synced' : `${filteredSales.length - agentCount} manual`} />
-      </div>
+      <DailySalesKpis
+        totalSales={fmt(totalNetSales)}
+        entries={filteredSales.length}
+        avgPerDay={fmt(avgPerDay)}
+        agentCount={agentCount}
+        agentTotal={filteredSales.length}
+        agentNote={agentCount === filteredSales.length ? 'All auto-synced' : `${filteredSales.length - agentCount} manual`}
+        allSynced={agentCount === filteredSales.length}
+      />
 
       {msg === 'success' && <Alert type="success">Saved!</Alert>}
       {msg && msg !== 'success' && <Alert type="error">{msg}</Alert>}
       {loadError && <Alert type="error">{loadError}</Alert>}
 
-      <StorePills
+      <DailySalesFilters
         stores={stores}
-        value={pageStoreIds.length === 1 ? pageStoreIds[0] : ''}
-        onChange={(id) => setPageStoreIds(id ? [id] : [])}
+        pageStoreIds={pageStoreIds}
+        setPageStoreIds={setPageStoreIds}
+        preset={preset}
+        onPreset={selectPreset}
+        rangeStart={range.start}
+        rangeEnd={range.end}
+        onStartChange={setStart}
+        onEndChange={setEnd}
+        search={search}
+        setSearch={setSearch}
+        employeeOptions={employeeOptions}
+        employeeFilter={employeeFilter}
+        setEmployeeFilter={setEmployeeFilter}
+        mismatchFilter={mismatchFilter}
+        setMismatchFilter={setMismatchFilter}
+        sortState={sortState}
+        setSortState={setSortState}
+        salesSortOptions={salesSortOptions}
+        onClearAll={clearAllFilters}
       />
 
-      <DateBar preset={preset} onPreset={selectPreset} startDate={range.start} endDate={range.end} onStartChange={setStart} onEndChange={setEnd} />
-
-      <div className="bg-[var(--bg-elevated)] rounded-lg p-2.5 border border-[var(--border-subtle)] mb-3 flex gap-2 flex-wrap items-center">
-        <MultiSelect
-          label="Store"
-          placeholder="All Stores"
-          unitLabel="store"
-          value={pageStoreIds}
-          onChange={setPageStoreIds}
-          options={stores.map(s => ({ value: s.id, label: s.name }))}
-        />
-        {employeeOptions.length > 0 && (
-          <MultiSelect
-            label="Employee"
-            placeholder="All Employees"
-            unitLabel="employee"
-            value={employeeFilter}
-            onChange={setEmployeeFilter}
-            options={employeeOptions}
-          />
-        )}
-        <div className="inline-flex items-center gap-2">
-          <label className="text-sw-sub text-[10px] font-bold uppercase">Status</label>
-          <select
-            value={mismatchFilter}
-            onChange={e => setMismatchFilter(e.target.value)}
-            className="!w-auto !min-w-[160px] !py-1.5 !text-[11px]"
-          >
-            <option value="">All</option>
-            <option value="mismatch">Mismatches only ⚠️</option>
-            <option value="clean">Clean only ✅</option>
-          </select>
-        </div>
-        <SortDropdown options={salesSortOptions} value={sortState} onChange={setSortState} />
-        <input
-          type="text"
-          placeholder="Search… (store, amount, employee)"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="!w-full sm:!flex-1 sm:!min-w-[220px] !py-1.5 !text-[11px]"
-        />
-        {(pageStoreIds.length > 0 || employeeFilter.length > 0 || mismatchFilter || search) && (
-          <button onClick={() => { setPageStoreIds([]); setEmployeeFilter([]); setMismatchFilter(''); setSearch(''); }} className="text-sw-dim text-[10px] underline">clear</button>
-        )}
-      </div>
-
-      <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
+      {viewMode === 'table' ? (
+      <div className="overflow-hidden rounded-[10px] border border-[#2C2C2A] bg-[#0A0A0A]">
         <DataTable
           sortState={sortState}
           onSortChange={setSortState}
@@ -1964,6 +1993,17 @@ export default function SalesPage() {
           }] : []),
         ]} rows={filteredSales} isOwner={false} />
       </div>
+      ) : (
+        <EntriesCardList
+          entries={sortedSales}
+          stores={stores}
+          isOwner={isOwner}
+          onEdit={openEditRow}
+          onDelete={setConfirmDelete}
+          onViewReceipts={setViewReceipts}
+          getStatus={(e) => getRowStatus(e, stores)}
+        />
+      )}
 
       {modal && (
         <Modal title={modal === 'edit' ? 'Edit Sale' : 'Add Sale'} onClose={closeModal}>
