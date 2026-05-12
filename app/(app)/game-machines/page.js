@@ -22,7 +22,7 @@ export default function GameMachinesPage() {
   const [msg, setMsg] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const blank = { date: today(), store_id: '', amount: '', notes: '' };
+  const blank = { date: today(), date_to: today(), store_id: '', amount: '', notes: '' };
   const [form, setForm] = useState(blank);
 
   const load = async () => {
@@ -71,6 +71,7 @@ export default function GameMachinesPage() {
     setEditRow(r);
     setForm({
       date: r.date,
+      date_to: r.date_to || r.date,
       store_id: r.store_id,
       amount: String(r.amount || ''),
       notes: r.notes || '',
@@ -83,11 +84,14 @@ export default function GameMachinesPage() {
     const amount = parseFloat(form.amount) || 0;
     if (amount <= 0) { setMsg('Enter an amount.'); setTimeout(() => setMsg(''), 2500); return; }
     if (!form.store_id) { setMsg('Select a store.'); setTimeout(() => setMsg(''), 2500); return; }
-    if (!form.date) { setMsg('Date required.'); setTimeout(() => setMsg(''), 2500); return; }
+    if (!form.date) { setMsg('From date required.'); setTimeout(() => setMsg(''), 2500); return; }
+    if (!form.date_to) { setMsg('To date required.'); setTimeout(() => setMsg(''), 2500); return; }
+    if (form.date_to < form.date) { setMsg('To date must be on or after the From date.'); setTimeout(() => setMsg(''), 3000); return; }
     setSaving(true);
     const payload = {
       store_id: form.store_id,
       date: form.date,
+      date_to: form.date_to,
       amount,
       notes: (form.notes || '').trim() || null,
       collected_by: profile?.id || null,
@@ -101,7 +105,7 @@ export default function GameMachinesPage() {
       action: editRow ? 'update' : 'create',
       entityType: 'game_machine_collection',
       entityId: editRow?.id,
-      description: `${profile?.name} ${editRow ? 'updated' : 'recorded'} game machine collection of ${fmtMoney(amount)} at ${storeName(form.store_id)} on ${shortDate(form.date)}`,
+      description: `${profile?.name} ${editRow ? 'updated' : 'recorded'} game machine collection of ${fmtMoney(amount)} at ${storeName(form.store_id)} for ${shortDate(form.date)}${form.date_to && form.date_to !== form.date ? ` – ${shortDate(form.date_to)}` : ''}`,
       storeName: storeName(form.store_id),
     });
     setMsg('Saved');
@@ -130,8 +134,8 @@ export default function GameMachinesPage() {
 
   const exportCSV = () => {
     downloadCSV(`game-machine-collections-${range.start}-to-${range.end}.csv`,
-      ['Date', 'Store', 'Amount', 'Notes'],
-      filteredRows.map(r => [r.date, storeName(r.store_id), r.amount || 0, r.notes || '']));
+      ['Date From', 'Date To', 'Store', 'Amount', 'Notes'],
+      filteredRows.map(r => [r.date, r.date_to || r.date, storeName(r.store_id), r.amount || 0, r.notes || '']));
   };
 
   if (!isOwner) return <div className="text-[var(--text-muted)] text-center py-20">Owner access required</div>;
@@ -180,7 +184,7 @@ export default function GameMachinesPage() {
             ? "No game machine collections yet. Click + Collect to add one."
             : "No collections in this date range. Try a different range or click + Collect."}
           columns={[
-            { key: 'date', label: 'Date', render: v => dayLabel(v) },
+            { key: 'date', label: 'Period', render: (v, r) => r.date_to && r.date_to !== v ? `${dayLabel(v)} → ${dayLabel(r.date_to)}` : dayLabel(v) },
             { key: 'store_id', label: 'Store', render: v => storeName(v) },
             { key: 'amount', label: 'Amount', align: 'right', mono: true,
               render: v => <span className="font-bold text-[var(--color-success)]">{fmt(v)}</span>,
@@ -196,27 +200,36 @@ export default function GameMachinesPage() {
 
       {modal && (
         <Modal title={modal === 'edit' ? 'Edit Collection' : 'Record Collection'} onClose={closeModal}>
-          <Field label="Date">
-            <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
-          </Field>
-          <Field label="Store">
-            <select value={form.store_id} onChange={e => setForm({ ...form, store_id: e.target.value })}>
-              <option value="">Select store…</option>
-              {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </Field>
-          <Field label="Amount Collected">
-            <input type="number" min="0" step="0.01" value={form.amount}
-              onChange={e => setForm({ ...form, amount: e.target.value.replace(/^-/, '') })}
-              placeholder="0.00" />
-          </Field>
-          <Field label="Notes">
-            <input type="text" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
-              placeholder="Optional" />
-          </Field>
-          <div className="flex justify-end gap-2 mt-2">
-            <Button variant="secondary" onClick={closeModal}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : modal === 'edit' ? 'Update' : 'Save'}</Button>
+          {/* data-theme="dark" keeps the form inputs dark even when the app
+              is in light mode (the modal chrome itself is dark-only). */}
+          <div data-theme="dark">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-3">
+              <Field label="From Date">
+                <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
+              </Field>
+              <Field label="To Date">
+                <input type="date" value={form.date_to} min={form.date} onChange={e => setForm({ ...form, date_to: e.target.value })} />
+              </Field>
+            </div>
+            <Field label="Store">
+              <select value={form.store_id} onChange={e => setForm({ ...form, store_id: e.target.value })}>
+                <option value="">Select store…</option>
+                {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </Field>
+            <Field label="Amount Collected">
+              <input type="number" min="0" step="0.01" value={form.amount}
+                onChange={e => setForm({ ...form, amount: e.target.value.replace(/^-/, '') })}
+                placeholder="0.00" />
+            </Field>
+            <Field label="Notes">
+              <input type="text" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
+                placeholder="Optional" />
+            </Field>
+            <div className="flex justify-end gap-2 mt-2">
+              <Button variant="secondary" onClick={closeModal}>Cancel</Button>
+              <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : modal === 'edit' ? 'Update' : 'Save'}</Button>
+            </div>
           </div>
         </Modal>
       )}
