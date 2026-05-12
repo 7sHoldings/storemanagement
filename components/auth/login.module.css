@@ -1,10 +1,12 @@
 /* Scoped overrides for the login form inputs. The app's globals.css applies
-   element-level styles to every input[type="email"|"password"]; nesting these
-   rules under .form gives them higher specificity so the login fields can use
-   the brand's dark-on-black treatment. */
+   element-level styles to every input[type="email"|"password"|"text"]; nesting
+   these rules under .form gives them higher specificity so the login fields
+   get the brand's dark-on-black treatment. The password field becomes
+   type="text" when the show/hide toggle is on, so it's covered here too. */
 
 .form input[type="email"],
-.form input[type="password"] {
+.form input[type="password"],
+.form input[type="text"] {
   width: 100%;
   min-height: 0;
   padding: 12px 12px 12px 38px;
@@ -18,19 +20,23 @@
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-/* Room for the show/hide-password toggle on the right. */
-.form input[type="password"] {
+/* Room for the show/hide-password toggle on the right (password field,
+   whether masked as type="password" or revealed as type="text"). */
+.form input[type="password"],
+.form input[type="text"] {
   padding-right: 40px;
 }
 
 .form input[type="email"]::placeholder,
-.form input[type="password"]::placeholder {
+.form input[type="password"]::placeholder,
+.form input[type="text"]::placeholder {
   color: #5f5e5a;
   opacity: 1;
 }
 
 .form input[type="email"].error,
-.form input[type="password"].error {
+.form input[type="password"].error,
+.form input[type="text"].error {
   border-color: #ff1493;
   box-shadow: 0 0 0 1px rgba(255, 20, 147, 0.35);
 }
@@ -38,7 +44,8 @@
 /* Focus ring wins over the error state so an actively-edited field reads as
    "in progress" rather than "wrong". */
 .form input[type="email"]:focus,
-.form input[type="password"]:focus {
+.form input[type="password"]:focus,
+.form input[type="text"]:focus {
   outline: none;
   border-color: #39ff14;
   box-shadow: 0 0 0 1px #39ff14;
@@ -47,7 +54,8 @@
 /* iOS Safari zooms in on focus when the font-size is < 16px. */
 @media (max-width: 767px) {
   .form input[type="email"],
-  .form input[type="password"] {
+  .form input[type="password"],
+  .form input[type="text"] {
     font-size: 16px;
   }
 }
