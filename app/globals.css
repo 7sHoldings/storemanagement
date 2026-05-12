@@ -6,6 +6,9 @@
 /* Dark mode is default; existing hardcoded colors still work alongside these vars */
 
 :root, [data-theme='dark'] {
+  /* Desktop sidebar width — updated by the Sidebar component when it
+     collapses/expands so the app content margin can follow it. */
+  --sidebar-w: 240px;
   --bg-base: #060A10;
   --bg-elevated: #0C1219;
   --bg-card: #131C28;
@@ -127,7 +130,7 @@ input, select, button, textarea { font-family: inherit; }
 
 /* App main-content padding with safe-area insets on mobile. */
 .app-main-pad {
-  padding-top: calc(60px + env(safe-area-inset-top));
+  padding-top: calc(68px + env(safe-area-inset-top));
   padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
 @media (min-width: 768px) {
