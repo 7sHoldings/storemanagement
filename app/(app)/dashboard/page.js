@@ -2,9 +2,17 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import { DateBar, useDateRange, TrendChart, Loading, StorePills } from '@/components/UI';
-import { Card, V2StatCard, Badge, V2Alert, SectionHeader } from '@/components/ui';
+import { useDateRange, Loading } from '@/components/UI';
+import { V2Alert } from '@/components/ui';
 import { fmt, weekRangeLabel, startOfWeekMonday, today } from '@/lib/utils';
+import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import AttentionAlerts from '@/components/dashboard/AttentionAlerts';
+import DashboardFilters from '@/components/dashboard/DashboardFilters';
+import NetProfitHero from '@/components/dashboard/NetProfitHero';
+import KpiGrid from '@/components/dashboard/KpiGrid';
+import WeeklyChartCard from '@/components/dashboard/WeeklyChartCard';
+import StorePerformanceCard from '@/components/dashboard/StorePerformanceCard';
+import QuickActionsRow from '@/components/dashboard/QuickActionsRow';
 
 function greeting(name) {
   const h = new Date().getHours();
@@ -12,6 +20,13 @@ function greeting(name) {
   return `${g}, ${name || 'Owner'}`;
 }
 const dayStr = () => new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+
+const PRESET_LABELS = {
+  today: 'Today', yesterday: 'Yesterday', thisweek: 'This Week', lastweek: 'Last Week',
+  thismonth: 'This Month', lastmonth: 'Last Month', last2weeks: 'Last 2 Weeks',
+  last2months: 'Last 2 Months', last3months: 'Last 3 Months', last6months: 'Last 6 Months',
+  thisyear: 'This Year', lastyear: 'Last Year', all: 'All Time',
+};
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -288,6 +303,7 @@ export default function DashboardPage() {
   const daysLeft = Math.max(0, daysInMonth - daysPassed);
   const monthProgressPct = Math.round((daysPassed / daysInMonth) * 100);
   const projectedNet = stats && daysPassed > 0 ? (stats.netProfit / daysPassed) * daysInMonth : 0;
+  const monthName = now.toLocaleDateString('en-US', { month: 'long' });
 
   const relativeTime = (iso) => {
     if (!iso) return '';
@@ -301,369 +317,81 @@ export default function DashboardPage() {
     return `${Math.round(hr / 24)}d ago`;
   };
 
+  const netProfitPeriodLabel = PRESET_LABELS[preset] || (() => {
+    const f = (s) => new Date(s + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return `${f(range.start)} – ${f(range.end)}`;
+  })();
+
   return (
     <div>
-      {/* Live status bar */}
-      <div className="flex items-center gap-x-5 gap-y-2 flex-wrap px-4 py-2 mb-4 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[12px]">
-        <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-[var(--color-success)] animate-pulse" />
-          <span className="text-[var(--color-success)] font-semibold">Live</span>
-        </span>
-        <span className="text-[var(--text-muted)]">
-          Today <span className="text-[var(--text-primary)] font-semibold tabular-nums">{fmt(totalToday)}</span>
-          {todayDeltaPct != null && (
-            <span className={`ml-1.5 font-semibold ${todayDeltaPct >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
-              {todayDeltaPct >= 0 ? '+' : ''}{todayDeltaPct.toFixed(1)}%
-            </span>
-          )}
-        </span>
-        {alerts.length > 0 && (
-          <span className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[var(--color-warning)]" />
-            <span className="text-[var(--color-warning)] font-semibold">{alerts.length} alert{alerts.length === 1 ? '' : 's'}</span>
-          </span>
-        )}
-        {isOwner && nrsStatus !== null && (
-          <span className={`flex items-center gap-1.5 ${nrsStatus ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
-            <span className={`w-2 h-2 rounded-full ${nrsStatus ? 'bg-[var(--color-success)]' : 'bg-[var(--color-danger)]'}`} />
-            <span className="font-semibold">{nrsStatus ? 'NRS Connected' : 'NRS Invalid'}</span>
-          </span>
-        )}
-        {lastSync && (
-          <span className="text-[var(--text-muted)] ml-auto">
-            Synced <span className="text-[var(--text-secondary)]">{relativeTime(lastSync.time)}</span>
-          </span>
-        )}
-      </div>
+      {/* 1. Greeting + consolidated live status */}
+      <DashboardHeader
+        dateStr={dayStr()}
+        greeting={greeting(profile?.name)}
+        isOwner={isOwner}
+        nrsStatus={nrsStatus}
+        syncedAgo={lastSync ? relativeTime(lastSync.time) : ''}
+        todayLabel={fmt(totalToday)}
+        todayDeltaPct={todayDeltaPct}
+      />
 
-      {/* Greeting */}
-      <div className="mb-4">
-        <p className="text-[var(--text-muted)] text-[12px] font-semibold">{dayStr()}</p>
-        <h1 className="text-[var(--text-primary)] text-[24px] font-bold tracking-tight">{greeting(profile?.name)}</h1>
-      </div>
+      {loadError && <V2Alert type="danger" className="mb-4">{loadError}</V2Alert>}
 
-      {/* Store filter pills */}
-      <StorePills stores={stores} value={selectedStore} onChange={setSelectedStore} />
-
-      <DateBar preset={preset} onPreset={selectPreset} startDate={range.start} endDate={range.end} onStartChange={setStart} onEndChange={setEnd} />
-
-      {loadError && <V2Alert type="danger" className="mb-3">{loadError}</V2Alert>}
-
-      {/* Hero: Net Profit + Margin + Pace */}
-      {stats && (
-        <Card
-          padding="lg"
-          className="mb-5 relative overflow-hidden"
-          style={{
-            background: stats.netProfit >= 0
-              ? 'linear-gradient(135deg, rgba(52,211,153,0.14), rgba(52,211,153,0.03))'
-              : 'linear-gradient(135deg, rgba(248,113,113,0.14), rgba(248,113,113,0.03))',
-            borderColor: stats.netProfit >= 0 ? 'rgba(52,211,153,0.25)' : 'rgba(248,113,113,0.25)',
-          }}
-        >
-          <div className="absolute top-0 right-0 w-48 h-48 rounded-full opacity-10" style={{ background: `radial-gradient(circle, ${stats.netProfit >= 0 ? 'var(--color-success)' : 'var(--color-danger)'}, transparent 70%)`, filter: 'blur(40px)' }} />
-          <p className="text-[var(--text-muted)] text-[11px] font-semibold uppercase tracking-wider mb-1">
-            Net Profit · {(() => {
-              const PRESET_LABELS = {
-                today: 'Today', yesterday: 'Yesterday', thisweek: 'This Week', lastweek: 'Last Week',
-                thismonth: 'This Month', lastmonth: 'Last Month', last2weeks: 'Last 2 Weeks',
-                last2months: 'Last 2 Months', last3months: 'Last 3 Months', last6months: 'Last 6 Months',
-                thisyear: 'This Year', lastyear: 'Last Year', all: 'All Time',
-              };
-              if (PRESET_LABELS[preset]) return PRESET_LABELS[preset];
-              const f = (s) => new Date(s + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-              return `${f(range.start)} – ${f(range.end)}`;
-            })()}
-          </p>
-          <div className="flex items-end gap-6 flex-wrap">
-            <p className={`text-[44px] font-bold tracking-tight tabular-nums leading-none ${stats.netProfit >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
-              {stats.netProfit >= 0 ? '' : '−'}{fmt(Math.abs(stats.netProfit))}
-            </p>
-            <div className="text-[12px] text-[var(--text-secondary)] pb-1">
-              Margin <span className={`font-bold ${stats.margin >= 20 ? 'text-[var(--color-success)]' : 'text-[var(--color-warning)]'}`}>{stats.margin.toFixed(1)}%</span>
-              <span className="mx-2 text-[var(--text-muted)]">·</span>
-              Pace <span className={`font-bold tabular-nums ${projectedNet >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>{fmt(projectedNet)}/mo</span>
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="h-2 rounded-full bg-[var(--bg-card)] overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all"
-                style={{
-                  width: `${monthProgressPct}%`,
-                  background: stats.netProfit >= 0 ? 'var(--color-success)' : 'var(--color-danger)',
-                }}
-              />
-            </div>
-            <div className="flex justify-between mt-1.5 text-[11px] text-[var(--text-muted)]">
-              <span>{monthProgressPct}% of the month</span>
-              <span>{daysLeft} day{daysLeft === 1 ? '' : 's'} left</span>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Stat Cards */}
-      {stats && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5 items-stretch">
-          <V2StatCard
-            className="h-full"
-            label="Gross Sales"
-            value={fmt(stats.totalGross)}
-            variant="success"
-            icon="💰"
-            sub={<TwoLineSub lines={[
-              { label: 'Cash', value: fmt(stats.totalCash), color: 'text-[var(--color-success)]' },
-              { label: 'Card', value: fmt(stats.totalCard), color: 'text-[var(--color-info)]' },
-            ]} />}
-          />
-          <V2StatCard
-            className="h-full"
-            label="Net Sales"
-            value={fmt(stats.totalNet)}
-            variant="success"
-            icon="📊"
-            sub={<TwoLineSub lines={[
-              { label: 'Tax stripped', value: fmt(stats.totalGross - stats.totalNet), color: 'text-[var(--text-muted)]' },
-              { label: 'Non-tax sales', value: fmt(stats.totalNonTax || 0), color: 'text-[var(--text-muted)]' },
-            ]} />}
-          />
-          {(() => {
-            // Convention: positive short_over = SHORT (missing cash, red with −),
-            // negative = OVER (extra cash, green with +), zero = matched.
-            const n = stats.totalShortOver;
-            const matched = Math.abs(n) < 0.01;
-            const short = n > 0;
-            const displayValue = matched ? fmt(0) : (short ? `−${fmt(Math.abs(n))}` : `+${fmt(Math.abs(n))}`);
-            const variant = matched ? 'default' : short ? 'danger' : 'success';
-            const icon = matched ? '⚖️' : short ? '🔴' : '🟢';
-            return <V2StatCard className="h-full" label="Short / Over" value={displayValue} variant={variant} icon={icon} />;
-          })()}
-          {(() => {
-            const expected = stats.totalCash || 0;
-            const collected = stats.cashInHand || 0;
-            const d = collected - expected;
-            const matched = Math.abs(d) < 0.01;
-            const short = d < 0;
-            const diffColor = matched
-              ? 'text-[var(--text-muted)]'
-              : short ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]';
-            const diffLabel = matched ? 'Matched' : (short ? 'Short' : 'Over');
-            return (
-              <V2StatCard
-                className="h-full"
-                label="Cash in Hand"
-                value={fmt(collected)}
-                variant="info"
-                icon="🏦"
-                sub={<TwoLineSub lines={[
-                  { label: 'Expected', value: fmt(expected), color: 'text-[var(--color-info)]' },
-                  { label: diffLabel, value: matched ? '—' : fmt(Math.abs(d)), color: diffColor },
-                ]} />}
-              />
-            );
-          })()}
-        </div>
-      )}
-
-      {/* Attention Needed */}
+      {/* 2. Attention needed — promoted to the top */}
       {alerts.length > 0 ? (
-        <Card padding="md" className="mb-5">
-          <div className="flex items-center gap-2 mb-3">
-            <h2 className="text-[var(--text-primary)] text-[14px] font-bold">Attention needed</h2>
-            <span className="text-[10px] font-bold rounded-full px-2 py-0.5 bg-[var(--color-danger-bg)] text-[var(--color-danger)]">{alerts.length}</span>
-          </div>
-          <div className="space-y-2">
-            {alerts.map((a, i) => {
-              const accent = a.type === 'danger' ? 'var(--color-danger)' : a.type === 'warning' ? 'var(--color-warning)' : 'var(--color-info)';
-              const cta = a.type === 'danger' ? 'Fix now' : 'Review';
-              const btnClasses = a.type === 'danger'
-                ? 'bg-[var(--color-danger)] text-white'
-                : 'border border-[var(--color-warning)] text-[var(--color-warning)] bg-transparent';
-              return (
-                <div
-                  key={i}
-                  className="w-full flex items-center gap-3 p-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)]"
-                  style={{ borderLeft: `3px solid ${accent}` }}
-                >
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[var(--text-primary)] text-[13px] font-semibold truncate">{a.text}</p>
-                  </div>
-                  <button
-                    onClick={() => a.link && router.push(a.link)}
-                    className={`text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-opacity hover:opacity-90 ${btnClasses}`}
-                  >
-                    {cta}
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </Card>
+        <AttentionAlerts alerts={alerts} onAction={(link) => link && router.push(link)} />
       ) : stats && (
-        <div className="mb-5 rounded-xl px-4 py-3 text-center text-[12px] font-semibold" style={{ background: 'var(--color-success-bg)', color: 'var(--color-success)', border: '1px solid var(--color-success)' }}>
+        <div
+          className="mb-4 rounded-xl px-4 py-3 text-center text-[12px] font-medium"
+          style={{ background: 'rgba(57,255,20,0.08)', color: '#39FF14', border: '1px solid rgba(57,255,20,0.25)' }}
+        >
           ✅ All systems healthy
         </div>
       )}
 
-      {/* Chart + Payment Mix */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-5">
-        <Card padding="md" className="lg:col-span-2">
-          {(() => {
-            const totalSales = trends.reduce((s, d) => s + (d.sales || 0), 0);
-            const totalPurch = trends.reduce((s, d) => s + (d.purchases || 0), 0);
-            return (
-              <div className="flex items-start justify-between gap-3 flex-wrap mb-2">
-                <div>
-                  <h3 className="text-[var(--text-primary)] text-[14px] font-bold">Weekly Sales vs Purchases</h3>
-                  <p className="text-[var(--text-muted)] text-[11px] mt-0.5">
-                    Monday–Sunday weeks · {range.start} to {range.end}
-                  </p>
-                </div>
-                <div className="flex gap-4 text-[11px]">
-                  <div className="text-right">
-                    <div className="text-[var(--text-muted)] uppercase font-semibold text-[9px]">Total Sales</div>
-                    <div className="text-[var(--color-success)] font-mono font-bold tabular-nums">{fmt(totalSales)}</div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-[var(--text-muted)] uppercase font-semibold text-[9px]">Total Purchases</div>
-                    <div className="text-[var(--color-warning)] font-mono font-bold tabular-nums">{fmt(totalPurch)}</div>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
-          <div className="max-w-full overflow-x-auto"><TrendChart data={trends} /></div>
-        </Card>
-        {paymentMix && (
-          <Card padding="md">
-            <SectionHeader title="Payment Mix" />
-            <div className="flex flex-col items-center py-4">
-              <div className="relative w-28 h-28">
-                <div className="w-full h-full rounded-full" style={{ background: `conic-gradient(var(--color-info) 0% ${paymentMix.cardPct}%, var(--color-success) ${paymentMix.cardPct}% 100%)` }} />
-                <div className="absolute inset-3 rounded-full bg-[var(--bg-elevated)] flex items-center justify-center">
-                  <span className="text-[var(--text-primary)] text-[13px] font-bold tabular-nums">{fmt(paymentMix.cash + paymentMix.card)}</span>
-                </div>
-              </div>
-              <div className="flex gap-4 mt-3 text-[11px]">
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-[var(--color-info)]" />Card {paymentMix.cardPct}%</span>
-                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-sm bg-[var(--color-success)]" />Cash {paymentMix.cashPct}%</span>
-              </div>
-            </div>
-          </Card>
-        )}
-      </div>
+      {/* 3. Filters */}
+      <DashboardFilters
+        stores={stores}
+        selectedStore={selectedStore}
+        onStoreChange={setSelectedStore}
+        preset={preset}
+        onPreset={selectPreset}
+        rangeStart={range.start}
+        rangeEnd={range.end}
+        onStartChange={setStart}
+        onEndChange={setEnd}
+      />
 
-      {/* Store Performance — cards with inline share-of-revenue bar */}
-      {sortedStores.length > 0 && (() => {
-        const maxRevenue = Math.max(1, ...sortedStores.map(s => s.revenue));
-        return (
-          <Card padding="md" className="mb-5">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-[var(--text-primary)] text-[14px] font-bold">Store performance</h2>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] uppercase text-[var(--text-muted)] tracking-wider">Sorted by</span>
-                <select value={storeSort} onChange={e => setStoreSort(e.target.value)} className="!w-auto !min-w-0 !py-1 !px-2 !text-[10px]">
-                  <option value="revenue">Revenue</option>
-                  <option value="profit">Profit</option>
-                  <option value="margin">Margin</option>
-                  <option value="name">Name</option>
-                </select>
-              </div>
-            </div>
-            <div className="space-y-2">
-              {sortedStores.map((s, i) => {
-                const shortName = s.name?.split(' - ').pop()?.trim() || s.name;
-                const share = (s.revenue / maxRevenue) * 100;
-                const marginColor = s.margin >= 40 ? 'var(--color-success)' : s.margin >= 20 ? 'var(--color-warning)' : 'var(--color-danger)';
-                return (
-                  <div
-                    key={s.id}
-                    className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-4 items-center p-2.5 rounded-lg"
-                    style={i === 0 ? { background: 'rgba(251,191,36,0.06)' } : undefined}
-                  >
-                    <span className="w-6 text-center text-[var(--text-muted)] font-semibold">
-                      {i === 0 ? '🏆' : i + 1}
-                    </span>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="w-2 h-2 rounded-sm flex-shrink-0" style={{ background: s.color }} />
-                        <span className="text-[var(--text-primary)] font-semibold text-[13px] truncate">{shortName}</span>
-                      </div>
-                      <div className="h-1 rounded-full bg-[var(--bg-card)] overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${share}%`, background: s.color }} />
-                      </div>
-                    </div>
-                    <span className="text-[var(--text-primary)] font-mono font-semibold tabular-nums text-[13px] text-right w-20">{fmt(s.revenue)}</span>
-                    <span className={`font-mono font-bold tabular-nums text-[13px] text-right w-20 ${s.profit >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>{fmt(s.profit)}</span>
-                    <span
-                      className="text-[11px] font-bold rounded-md px-2 py-0.5 tabular-nums"
-                      style={{ background: marginColor + '22', color: marginColor }}
-                    >
-                      {s.margin.toFixed(1)}%
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-        );
-      })()}
+      {/* 4. Net Profit hero + KPI grid */}
+      {stats && (
+        <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-[1.6fr_1fr]">
+          <NetProfitHero
+            netProfit={stats.netProfit}
+            margin={stats.margin}
+            projectedNet={projectedNet}
+            monthProgressPct={monthProgressPct}
+            daysLeft={daysLeft}
+            monthName={monthName}
+            periodLabel={netProfitPeriodLabel}
+          />
+          <KpiGrid stats={stats} />
+        </div>
+      )}
 
-      {/* Top Employees + Quick Actions side by side */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-5">
-        {topEmployees.length > 0 && (
-          <Card padding="md">
-            <SectionHeader title="Top Employees" />
-            <div className="space-y-2">
-              {topEmployees.map((e, i) => (
-                <div key={i} className="flex items-center gap-3 p-2 rounded-lg bg-[var(--bg-card)]">
-                  <span className="text-[18px]">{i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉'}</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[var(--text-primary)] text-[13px] font-semibold truncate">{e.name}</div>
-                    <div className="text-[var(--text-muted)] text-[10px]">{e.storeName} · {e.shifts} shifts</div>
-                  </div>
-                  <span className="text-[var(--color-success)] font-mono font-bold text-[13px] tabular-nums">{fmt(e.sales)}</span>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
+      {/* 5. Weekly chart (+ Payment Mix) + Store performance */}
+      {sortedStores.length > 0 ? (
+        <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-[1.4fr_1fr]">
+          <WeeklyChartCard trends={trends} rangeStart={range.start} rangeEnd={range.end} paymentMix={paymentMix} />
+          <StorePerformanceCard stores={sortedStores} storeSort={storeSort} onSortChange={setStoreSort} />
+        </div>
+      ) : (
+        <div className="mb-4">
+          <WeeklyChartCard trends={trends} rangeStart={range.start} rangeEnd={range.end} paymentMix={paymentMix} />
+        </div>
+      )}
 
-        <Card padding="md">
-          <SectionHeader title="Quick Actions" />
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { label: 'Daily Sales', icon: '💰', href: '/sales' },
-              { label: 'P&L Report', icon: '📑', href: '/reports' },
-              { label: 'Cash Collection', icon: '🏦', href: '/cash' },
-              { label: 'Employee Tracking', icon: '🕐', href: '/employee-tracking' },
-              { label: 'Sync NRS', icon: '🤖', href: '/nrs-sync-history' },
-              { label: 'Inventory Report', icon: '🛒', href: '/nrs-backfill' },
-            ].map(a => (
-              <button key={a.href} onClick={() => router.push(a.href)} className="flex items-center gap-2 p-3 rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] hover:border-[var(--color-info)] transition-colors text-left">
-                <span className="text-[16px]">{a.icon}</span>
-                <span className="text-[var(--text-primary)] text-[12px] font-semibold">{a.label}</span>
-              </button>
-            ))}
-          </div>
-        </Card>
-      </div>
+      {/* 6. Quick Actions */}
+      <QuickActionsRow onNavigate={(href) => router.push(href)} />
     </div>
-  );
-}
-
-// Two-line stat-card sub with aligned label/value rows. Label is muted on
-// the left, value on the right with its own color.
-function TwoLineSub({ lines }) {
-  return (
-    <span className="block space-y-0.5">
-      {lines.map((l, i) => (
-        <span key={i} className="flex items-baseline justify-between gap-2">
-          <span className="text-[var(--text-muted)]">{l.label}</span>
-          <span className={`font-semibold tabular-nums ${l.color || 'text-[var(--text-primary)]'}`}>{l.value}</span>
-        </span>
-      ))}
-    </span>
   );
 }
