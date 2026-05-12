@@ -246,7 +246,7 @@ export default function Sidebar({ selectedStore, onStoreChange }) {
               key={n.path}
               onClick={() => navigate(n.path)}
               aria-current={active ? 'page' : undefined}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] ${active ? 'text-[#39FF14]' : 'text-[#888780]'}`}
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[#39FF14] ${active ? 'text-[#39FF14]' : 'text-[#888780]'}`}
             >
               {n.icon}
               <span className="text-[9px] font-semibold uppercase tracking-wide">{n.label.split(' ')[0]}</span>
@@ -257,7 +257,7 @@ export default function Sidebar({ selectedStore, onStoreChange }) {
           <button
             onClick={() => setMoreOpen(true)}
             aria-label="More"
-            className="flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] text-[#888780]"
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] text-[#888780] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[#39FF14]"
           >
             <MoreHorizontal {...IP} />
             <span className="text-[9px] font-semibold uppercase tracking-wide">More</span>
@@ -266,7 +266,7 @@ export default function Sidebar({ selectedStore, onStoreChange }) {
         {!isOwner && (
           <button
             onClick={signOut}
-            className="flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] text-[#FF1493]"
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[44px] text-[#FF1493] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-[#FF1493]"
           >
             <LogOut {...IP} />
             <span className="text-[9px] font-semibold uppercase tracking-wide">Sign Out</span>
@@ -302,7 +302,7 @@ export default function Sidebar({ selectedStore, onStoreChange }) {
                     key={n.path}
                     onClick={() => navigate(n.path)}
                     aria-current={active ? 'page' : undefined}
-                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-lg border min-h-[72px] ${active ? 'text-[#39FF14] border-[#39FF14]/30 bg-[linear-gradient(180deg,rgba(57,255,20,0.12),rgba(57,255,20,0.04))]' : 'text-[#C4C4C4] border-[#2C2C2A] bg-[#0A0A0A]'}`}
+                    className={`flex flex-col items-center justify-center gap-1 p-3 rounded-lg border min-h-[72px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#39FF14] ${active ? 'text-[#39FF14] border-[#39FF14]/30 bg-[linear-gradient(180deg,rgba(57,255,20,0.12),rgba(57,255,20,0.04))]' : 'text-[#C4C4C4] border-[#2C2C2A] bg-[#0A0A0A]'}`}
                   >
                     {n.icon}
                     <span className="text-[10px] font-medium text-center leading-tight">{n.label}</span>
@@ -311,7 +311,7 @@ export default function Sidebar({ selectedStore, onStoreChange }) {
               })}
               <button
                 onClick={() => { setMoreOpen(false); signOut(); }}
-                className="flex flex-col items-center justify-center gap-1 p-3 rounded-lg border text-[#FF1493] border-[#FF1493]/30 bg-[#FF1493]/10 min-h-[72px]"
+                className="flex flex-col items-center justify-center gap-1 p-3 rounded-lg border text-[#FF1493] border-[#FF1493]/30 bg-[#FF1493]/10 min-h-[72px] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#FF1493]"
               >
                 <LogOut {...IP} />
                 <span className="text-[10px] font-medium">Sign Out</span>
