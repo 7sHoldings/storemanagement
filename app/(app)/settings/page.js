@@ -57,6 +57,7 @@ export default function SettingsPage() {
 
   const blankStore = {
     name: '', color: '#60A5FA', email: '', has_register2: false, tax_rate: '8.25',
+    buying_target_pct: '50',
     address: '', phone: '', is_active: true, telegram_chat_id: '',
     open_time: '11:00', close_time: '22:00',
     hours_same_for_all: true,
@@ -90,6 +91,7 @@ export default function SettingsPage() {
       email: s.email || '',
       has_register2: !!s.has_register2,
       tax_rate: String(s.tax_rate ?? '8.25'),
+      buying_target_pct: String(s.buying_target_pct ?? '50'),
       address: s.address || '',
       phone: s.phone || '',
       is_active: s.is_active !== false,
@@ -116,6 +118,7 @@ export default function SettingsPage() {
       email: form.email.trim(),
       has_register2: form.has_register2,
       tax_rate: parseFloat(form.tax_rate) || 8.25,
+      buying_target_pct: form.buying_target_pct === '' || isNaN(parseFloat(form.buying_target_pct)) ? 50 : parseFloat(form.buying_target_pct),
       address: form.address.trim(),
       phone: form.phone.trim(),
       is_active: form.is_active,
@@ -296,6 +299,11 @@ export default function SettingsPage() {
 
           <Field label="Tax Rate (%)">
             <input type="number" step="0.01" min="0" max="100" value={form.tax_rate} onChange={e => setForm({ ...form, tax_rate: e.target.value })} />
+          </Field>
+
+          <Field label="Buying Target (% of sales)">
+            <input type="number" step="1" min="0" max="100" value={form.buying_target_pct} onChange={e => setForm({ ...form, buying_target_pct: e.target.value })} placeholder="50" />
+            <p className="text-[var(--text-muted)] text-[10px] mt-1">Flag this store when month-to-date product buying exceeds this share of its net sales.</p>
           </Field>
 
           <Field label="Address (optional)">

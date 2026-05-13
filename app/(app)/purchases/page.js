@@ -6,6 +6,7 @@ import ImageGallery from '@/components/ImageGallery';
 import { fmt, dateLabel, today, downloadCSV } from '@/lib/utils';
 import { logActivity, fmtMoney, shortDate } from '@/lib/activity';
 import { uploadInvoice, compressImage } from '@/lib/storage';
+import BuyingPacingCard from '@/components/BuyingPacingCard';
 
 export default function PurchasesPage() {
   const { supabase, isOwner, profile, effectiveStoreId, setSelectedStore } = useAuth();
@@ -367,6 +368,9 @@ export default function PurchasesPage() {
       onChange={(id) => setPageStoreIds(id ? [id] : [])}
     />
     <DateBar preset={preset} onPreset={selectPreset} startDate={range.start} endDate={range.end} onStartChange={setStart} onEndChange={setEnd} />
+
+    {/* Month-to-date buying vs sales pacing (independent of the date filter above) */}
+    <BuyingPacingCard className="mb-3" />
 
     {/* Vendor filter + search */}
     <div className="bg-[var(--bg-elevated)] rounded-lg p-2.5 border border-[var(--border-subtle)] mb-3 flex gap-2 flex-wrap items-center">
