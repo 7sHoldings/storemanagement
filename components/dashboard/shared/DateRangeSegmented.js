@@ -48,43 +48,47 @@ export default function DateRangeSegmented({ preset, onPreset, startDate, endDat
     `flex-shrink-0 rounded-md px-2.5 py-1.5 text-[11px] font-medium transition-colors ${activeFlag ? 'bg-[#39FF14] text-[#0A0A0A]' : 'text-[#C4C4C4] hover:bg-[#1A1A1A]'}`;
 
   return (
-    <div className="flex items-center gap-1 rounded-lg border border-[#2C2C2A] bg-[#141414] p-[3px] max-w-full overflow-x-auto">
-      {PRIMARY.map(p => (
-        <button key={p.id} type="button" onClick={() => togglePreset(p.id)} title={preset === p.id ? 'Click to clear' : undefined} className={segBtn(preset === p.id)}>
-          {p.l}
-        </button>
-      ))}
-      <div className="relative flex-shrink-0">
-        <button type="button" onClick={() => setOpen(o => !o)} className={`${segBtn(activeInOverflow)} flex items-center gap-1`} aria-haspopup="true" aria-expanded={open}>
-          {customLabel} <ChevronDown size={11} strokeWidth={2} />
-        </button>
-        {open && (
-          <>
-            <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-            <div className="absolute right-0 top-full z-40 mt-1.5 w-[236px] rounded-lg border border-[#2C2C2A] bg-[#141414] p-3 shadow-xl">
-              <div className="flex items-center gap-1.5">
-                <input type="date" value={localStart} onChange={e => handleStart(e.target.value)} onBlur={flushStart} aria-label="Start date" className="!min-h-0 !flex-1 !py-1.5 !text-[11px]" />
-                <span className="text-[#5F5E5A] text-xs">→</span>
-                <input type="date" value={localEnd} onChange={e => handleEnd(e.target.value)} onBlur={flushEnd} aria-label="End date" className="!min-h-0 !flex-1 !py-1.5 !text-[11px]" />
-              </div>
-              <div className="mt-2 grid grid-cols-2 gap-1">
-                {OVERFLOW.map(p => (
-                  <button key={p.id} type="button" onClick={() => { togglePreset(p.id); setOpen(false); }}
-                    className={`rounded-md px-2 py-1.5 text-left text-[11px] font-medium transition-colors ${preset === p.id ? 'bg-[rgba(57,255,20,0.12)] text-[#39FF14]' : 'text-[#C4C4C4] hover:bg-[#1A1A1A]'}`}>
-                    {p.l}
-                  </button>
-                ))}
-              </div>
-              {preset && preset !== 'custom' && (
-                <button type="button" onClick={() => { onPreset('custom'); setOpen(false); }}
-                  className="mt-2 w-full border-t border-[#2C2C2A] pt-2 text-left text-[11px] font-medium text-[#888780] hover:text-[#C4C4C4]">
-                  ✕ Clear preset
-                </button>
-              )}
-            </div>
-          </>
-        )}
+    // The outer container is NON-overflowing so the "Custom" dropdown can
+    // hang below it without being clipped. The four primary preset buttons
+    // live in an inner row that handles horizontal scrolling on narrow
+    // screens; the Custom button + popover are siblings of that row.
+    <div className="relative flex items-center gap-1 rounded-lg border border-[#2C2C2A] bg-[#141414] p-[3px] max-w-full">
+      <div className="flex min-w-0 items-center gap-1 overflow-x-auto">
+        {PRIMARY.map(p => (
+          <button key={p.id} type="button" onClick={() => togglePreset(p.id)} title={preset === p.id ? 'Click to clear' : undefined} className={segBtn(preset === p.id)}>
+            {p.l}
+          </button>
+        ))}
       </div>
+      <button type="button" onClick={() => setOpen(o => !o)} className={`${segBtn(activeInOverflow)} flex flex-shrink-0 items-center gap-1`} aria-haspopup="true" aria-expanded={open}>
+        {customLabel} <ChevronDown size={11} strokeWidth={2} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full z-40 mt-1.5 w-[236px] rounded-lg border border-[#2C2C2A] bg-[#141414] p-3 shadow-xl">
+            <div className="flex items-center gap-1.5">
+              <input type="date" value={localStart} onChange={e => handleStart(e.target.value)} onBlur={flushStart} aria-label="Start date" className="!min-h-0 !flex-1 !py-1.5 !text-[11px]" />
+              <span className="text-[#5F5E5A] text-xs">→</span>
+              <input type="date" value={localEnd} onChange={e => handleEnd(e.target.value)} onBlur={flushEnd} aria-label="End date" className="!min-h-0 !flex-1 !py-1.5 !text-[11px]" />
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-1">
+              {OVERFLOW.map(p => (
+                <button key={p.id} type="button" onClick={() => { togglePreset(p.id); setOpen(false); }}
+                  className={`rounded-md px-2 py-1.5 text-left text-[11px] font-medium transition-colors ${preset === p.id ? 'bg-[rgba(57,255,20,0.12)] text-[#39FF14]' : 'text-[#C4C4C4] hover:bg-[#1A1A1A]'}`}>
+                  {p.l}
+                </button>
+              ))}
+            </div>
+            {preset && preset !== 'custom' && (
+              <button type="button" onClick={() => { onPreset('custom'); setOpen(false); }}
+                className="mt-2 w-full border-t border-[#2C2C2A] pt-2 text-left text-[11px] font-medium text-[#888780] hover:text-[#C4C4C4]">
+                ✕ Clear preset
+              </button>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }
