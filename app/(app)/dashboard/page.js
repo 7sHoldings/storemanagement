@@ -338,19 +338,7 @@ export default function DashboardPage() {
 
       {loadError && <V2Alert type="danger" className="mb-4">{loadError}</V2Alert>}
 
-      {/* 2. Attention needed — promoted to the top */}
-      {alerts.length > 0 ? (
-        <AttentionAlerts alerts={alerts} onAction={(link) => link && router.push(link)} />
-      ) : stats && (
-        <div
-          className="mb-4 rounded-xl px-4 py-3 text-center text-[12px] font-medium"
-          style={{ background: 'rgba(57,255,20,0.08)', color: '#39FF14', border: '1px solid rgba(57,255,20,0.25)' }}
-        >
-          ✅ All systems healthy
-        </div>
-      )}
-
-      {/* 3. Filters */}
+      {/* 2. Filters */}
       <DashboardFilters
         stores={stores}
         selectedStore={selectedStore}
@@ -363,10 +351,7 @@ export default function DashboardPage() {
         onEndChange={setEnd}
       />
 
-      {/* Buying vs Sales pacing (month-to-date — independent of the filters above) */}
-      <BuyingPacingCard className="mb-4" />
-
-      {/* 4. Net Profit hero + KPI grid */}
+      {/* 3. Net Profit hero + KPI grid */}
       {stats && (
         <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-[1.6fr_1fr]">
           <NetProfitHero
@@ -382,7 +367,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* 5. Weekly chart (+ Payment Mix) + Store performance */}
+      {/* 4. Weekly chart (+ Payment Mix) + Store performance */}
       {sortedStores.length > 0 ? (
         <div className="mb-4 grid grid-cols-1 gap-3 lg:grid-cols-[1.4fr_1fr]">
           <WeeklyChartCard trends={trends} rangeStart={range.start} rangeEnd={range.end} paymentMix={paymentMix} />
@@ -394,7 +379,22 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* 6. Quick Actions */}
+      {/* 5. Buying vs Sales pacing (month-to-date — independent of the filters above) */}
+      <BuyingPacingCard className="mb-4" />
+
+      {/* 6. Attention needed */}
+      {alerts.length > 0 ? (
+        <AttentionAlerts alerts={alerts} onAction={(link) => link && router.push(link)} />
+      ) : stats && (
+        <div
+          className="mb-4 rounded-xl px-4 py-3 text-center text-[12px] font-medium"
+          style={{ background: 'rgba(57,255,20,0.08)', color: '#39FF14', border: '1px solid rgba(57,255,20,0.25)' }}
+        >
+          ✅ All systems healthy
+        </div>
+      )}
+
+      {/* 7. Quick Actions */}
       <QuickActionsRow onNavigate={(href) => router.push(href)} />
     </div>
   );
