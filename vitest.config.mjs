@@ -30,5 +30,16 @@ export default defineConfig({
     setupFiles: ['./tests/setup.js'],
     include: ['tests/**/*.test.{js,jsx,mjs}'],
     css: false,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'text-summary', 'html'],
+      include: ['lib/**', 'components/**', 'app/api/**'],
+      exclude: [
+        '**/*.test.{js,jsx}',
+        'tests/**',
+        // Big page components / shared UI library are tracked but the
+        // pure-helper / single-purpose modules are the priority.
+      ],
+    },
   },
 });
