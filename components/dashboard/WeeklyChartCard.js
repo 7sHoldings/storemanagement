@@ -10,7 +10,7 @@ export default function WeeklyChartCard({ trends, rangeStart, rangeEnd, paymentM
   const totalSales = trends.reduce((s, d) => s + (d.sales || 0), 0);
   const totalPurch = trends.reduce((s, d) => s + (d.purchases || 0), 0);
   return (
-    <div className="rounded-xl border border-[#2C2C2A] bg-[#0A0A0A] p-4 sm:p-5">
+    <div className="min-w-0 rounded-xl border border-[#2C2C2A] bg-[#0A0A0A] p-4 sm:p-5">
       <div className="mb-1 flex flex-wrap items-start justify-between gap-3">
         <h3 className="text-[14px] font-medium text-white">Weekly Sales vs Purchases</h3>
         <div className="flex gap-5 text-right">
