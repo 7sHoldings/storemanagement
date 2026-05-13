@@ -8,7 +8,7 @@ import { fmt } from '@/lib/utils';
 export default function StorePerformanceCard({ stores, storeSort, onSortChange }) {
   const maxRevenue = Math.max(1, ...stores.map(s => s.revenue));
   return (
-    <div className="rounded-xl border border-[#2C2C2A] bg-[#0A0A0A] p-4 sm:p-5">
+    <div className="min-w-0 rounded-xl border border-[#2C2C2A] bg-[#0A0A0A] p-4 sm:p-5">
       <div className="mb-2 flex items-center justify-between gap-2">
         <h3 className="text-[14px] font-medium text-white">Store performance</h3>
         <select
