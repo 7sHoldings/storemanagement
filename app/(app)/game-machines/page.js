@@ -1,10 +1,19 @@
 'use client';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { DataTable, PageHeader, Modal, Field, Button, Loading, Alert, ConfirmModal, DateBar, useDateRange } from '@/components/UI';
 import { V2StatCard } from '@/components/ui';
 import { fmt, dayLabel, today, downloadCSV } from '@/lib/utils';
 import { logActivity, fmtMoney, shortDate } from '@/lib/activity';
+import { compressImage, uploadReceipt } from '@/lib/storage';
+import ImageGallery from '@/components/ImageGallery';
+
+// Convert a public receipts URL back to its storage path so we can delete it.
+const pathFromReceiptUrl = (url) => {
+  if (!url) return null;
+  const m = String(url).match(/\/receipts\/(.+?)(?:\?.*)?$/);
+  return m ? decodeURIComponent(m[1]) : null;
+};
 
 // Per-store ledger of cash collected from in-store game machines.
 // Counts toward the "cash in hand" pool that Profit Take Out can pull
@@ -24,6 +33,32 @@ export default function GameMachinesPage() {
 
   const blank = { date: today(), date_to: today(), store_id: '', amount: '', notes: '' };
   const [form, setForm] = useState(blank);
+
+  // Receipt / photo attachments
+  const [pendingReceipts, setPendingReceipts] = useState([]); // [{ id, file, preview }]
+  const [existingReceipts, setExistingReceipts] = useState([]); // [url] kept from editRow
+  const [removedReceipts, setRemovedReceipts] = useState([]);   // [url] removed during this edit
+  const [galleryImages, setGalleryImages] = useState(null);
+  const receiptCameraRef = useRef(null);
+  const receiptLibraryRef = useRef(null);
+  const resetReceipts = () => { setPendingReceipts([]); setExistingReceipts([]); setRemovedReceipts([]); };
+
+  const handleReceiptPick = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const additions = await Promise.all(files.map(file => new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = (ev) => resolve({ id: `pend_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, file, preview: ev.target.result });
+      reader.readAsDataURL(file);
+    })));
+    setPendingReceipts(prev => [...prev, ...additions]);
+    e.target.value = '';
+  };
+  const removePendingReceipt = (id) => setPendingReceipts(prev => prev.filter(p => p.id !== id));
+  const removeExistingReceipt = (url) => {
+    setExistingReceipts(prev => prev.filter(u => u !== url));
+    setRemovedReceipts(prev => [...prev, url]);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -65,6 +100,7 @@ export default function GameMachinesPage() {
   const openAdd = () => {
     setEditRow(null);
     setForm({ ...blank, store_id: stores[0]?.id || '' });
+    resetReceipts();
     setModal('add');
   };
   const openEdit = (r) => {
@@ -76,9 +112,12 @@ export default function GameMachinesPage() {
       amount: String(r.amount || ''),
       notes: r.notes || '',
     });
+    setPendingReceipts([]);
+    setExistingReceipts(Array.isArray(r.receipt_urls) ? r.receipt_urls : []);
+    setRemovedReceipts([]);
     setModal('edit');
   };
-  const closeModal = () => { setModal(null); setEditRow(null); };
+  const closeModal = () => { setModal(null); setEditRow(null); resetReceipts(); };
 
   const handleSave = async () => {
     const amount = parseFloat(form.amount) || 0;
@@ -88,30 +127,54 @@ export default function GameMachinesPage() {
     if (!form.date_to) { setMsg('To date required.'); setTimeout(() => setMsg(''), 2500); return; }
     if (form.date_to < form.date) { setMsg('To date must be on or after the From date.'); setTimeout(() => setMsg(''), 3000); return; }
     setSaving(true);
-    const payload = {
-      store_id: form.store_id,
-      date: form.date,
-      date_to: form.date_to,
-      amount,
-      notes: (form.notes || '').trim() || null,
-      collected_by: profile?.id || null,
-    };
-    const { error } = editRow
-      ? await supabase.from('game_machine_collections').update(payload).eq('id', editRow.id)
-      : await supabase.from('game_machine_collections').insert(payload);
-    setSaving(false);
-    if (error) { setMsg(error.message); setTimeout(() => setMsg(''), 4000); return; }
-    await logActivity(supabase, profile, {
-      action: editRow ? 'update' : 'create',
-      entityType: 'game_machine_collection',
-      entityId: editRow?.id,
-      description: `${profile?.name} ${editRow ? 'updated' : 'recorded'} game machine collection of ${fmtMoney(amount)} at ${storeName(form.store_id)} for ${shortDate(form.date)}${form.date_to && form.date_to !== form.date ? ` – ${shortDate(form.date_to)}` : ''}`,
-      storeName: storeName(form.store_id),
-    });
-    setMsg('Saved');
-    setTimeout(() => setMsg(''), 2000);
-    closeModal();
-    load();
+    try {
+      const sName = storeName(form.store_id);
+
+      // Upload any newly attached photos first.
+      const newUrls = [];
+      for (const p of pendingReceipts) {
+        try {
+          const compressed = await compressImage(p.file);
+          const { url } = await uploadReceipt(supabase, compressed, { storeName: sName, date: form.date, kind: 'game_machine' });
+          if (url) newUrls.push(url);
+        } catch (upErr) {
+          console.error('[game-machines] receipt upload failed:', upErr);
+        }
+      }
+      // Delete any photos the user removed during this edit.
+      const removedPaths = removedReceipts.map(pathFromReceiptUrl).filter(Boolean);
+      if (removedPaths.length) {
+        const { error: rmErr } = await supabase.storage.from('receipts').remove(removedPaths);
+        if (rmErr) console.warn('[game-machines] receipt cleanup failed (non-fatal):', rmErr);
+      }
+
+      const payload = {
+        store_id: form.store_id,
+        date: form.date,
+        date_to: form.date_to,
+        amount,
+        notes: (form.notes || '').trim() || null,
+        collected_by: profile?.id || null,
+        receipt_urls: [...existingReceipts, ...newUrls],
+      };
+      const { error } = editRow
+        ? await supabase.from('game_machine_collections').update(payload).eq('id', editRow.id)
+        : await supabase.from('game_machine_collections').insert(payload);
+      if (error) { setMsg(error.message); setTimeout(() => setMsg(''), 4000); return; }
+      await logActivity(supabase, profile, {
+        action: editRow ? 'update' : 'create',
+        entityType: 'game_machine_collection',
+        entityId: editRow?.id,
+        description: `${profile?.name} ${editRow ? 'updated' : 'recorded'} game machine collection of ${fmtMoney(amount)} at ${sName} for ${shortDate(form.date)}${form.date_to && form.date_to !== form.date ? ` – ${shortDate(form.date_to)}` : ''}`,
+        storeName: sName,
+      });
+      setMsg('Saved');
+      setTimeout(() => setMsg(''), 2000);
+      closeModal();
+      load();
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -190,6 +253,19 @@ export default function GameMachinesPage() {
               render: v => <span className="font-bold text-[var(--color-success)]">{fmt(v)}</span>,
               sortValue: r => Number(r.amount || 0) },
             { key: 'notes', label: 'Notes', render: v => v || <span className="text-[var(--text-muted)]">—</span> },
+            { key: '_receipt', label: '📷', align: 'center', sortable: false, render: (_, r) => {
+              const urls = Array.isArray(r.receipt_urls) ? r.receipt_urls : [];
+              if (!urls.length) return <span className="text-[var(--text-muted)]">—</span>;
+              return (
+                <button
+                  onClick={() => setGalleryImages(urls.map((u, i) => ({ image_url: u, caption: `${storeName(r.store_id)} · ${r.date}`, downloadName: `game-machine-${r.date}-${i + 1}.jpg` })))}
+                  title={`View ${urls.length} receipt${urls.length > 1 ? 's' : ''}`}
+                  className="inline-flex items-center gap-0.5 text-[var(--color-info)]"
+                >
+                  <span className="text-base">📷</span><span className="text-[10px] font-bold">{urls.length}</span>
+                </button>
+              );
+            } },
           ]}
           rows={filteredRows}
           onEdit={openEdit}
@@ -226,6 +302,47 @@ export default function GameMachinesPage() {
               <input type="text" value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
                 placeholder="Optional" />
             </Field>
+
+            <Field label={`Photo (Optional)${(existingReceipts.length + pendingReceipts.length) > 0 ? ` — ${existingReceipts.length + pendingReceipts.length} attached` : ''}`}>
+              <div className="flex flex-col sm:flex-row gap-2 mb-2">
+                <button type="button" onClick={() => receiptCameraRef.current?.click()}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg border-2 border-dashed border-sw-blue/40 bg-sw-blueD text-[var(--color-info)] text-[13px] font-semibold min-h-[44px]">
+                  <span className="text-lg">📷</span><span>Take Photo</span>
+                </button>
+                <button type="button" onClick={() => receiptLibraryRef.current?.click()}
+                  className="flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg border-2 border-dashed border-sw-blue/40 bg-sw-blueD text-[var(--color-info)] text-[13px] font-semibold min-h-[44px]">
+                  <span className="text-lg">📁</span><span>From Library</span>
+                </button>
+                <input ref={receiptCameraRef} type="file" accept="image/*" capture="environment" onChange={handleReceiptPick} className="hidden" />
+                <input ref={receiptLibraryRef} type="file" accept="image/*" multiple onChange={handleReceiptPick} className="hidden" />
+              </div>
+              {(existingReceipts.length + pendingReceipts.length) > 0 && (
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {existingReceipts.map((url, i) => (
+                    <div key={`ex-${i}`} className="relative">
+                      <button type="button" onClick={() => setGalleryImages([...existingReceipts, ...pendingReceipts.map(p => p.preview)].map(u => ({ image_url: u })))}
+                        className="block w-full aspect-square rounded-lg overflow-hidden border border-[var(--border-subtle)] bg-black/20">
+                        <img src={url} alt="Receipt" className="w-full h-full object-cover" />
+                      </button>
+                      <button type="button" onClick={() => removeExistingReceipt(url)} title="Remove"
+                        className="absolute top-1 right-1 w-7 h-7 rounded-md bg-sw-redD border border-sw-red/50 text-[var(--color-danger)] text-sm flex items-center justify-center">✕</button>
+                    </div>
+                  ))}
+                  {pendingReceipts.map(p => (
+                    <div key={p.id} className="relative">
+                      <button type="button" onClick={() => setGalleryImages([{ image_url: p.preview }])}
+                        className="block w-full aspect-square rounded-lg overflow-hidden border border-sw-blue/40 bg-black/20">
+                        <img src={p.preview} alt="New receipt" className="w-full h-full object-cover" />
+                      </button>
+                      <span className="absolute top-1 left-1 bg-sw-blueD text-[var(--color-info)] border border-sw-blue/40 text-[9px] font-bold px-1 rounded">NEW</span>
+                      <button type="button" onClick={() => removePendingReceipt(p.id)} title="Remove"
+                        className="absolute top-1 right-1 w-7 h-7 rounded-md bg-sw-redD border border-sw-red/50 text-[var(--color-danger)] text-sm flex items-center justify-center">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Field>
+
             <div className="flex justify-end gap-2 mt-2">
               <Button variant="secondary" onClick={closeModal}>Cancel</Button>
               <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : modal === 'edit' ? 'Update' : 'Save'}</Button>
@@ -243,6 +360,8 @@ export default function GameMachinesPage() {
           confirmVariant="danger"
         />
       )}
+
+      <ImageGallery images={galleryImages || []} isOpen={!!galleryImages} onClose={() => setGalleryImages(null)} />
     </div>
   );
 }
