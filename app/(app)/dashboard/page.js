@@ -13,6 +13,7 @@ import KpiGrid from '@/components/dashboard/KpiGrid';
 import WeeklyChartCard from '@/components/dashboard/WeeklyChartCard';
 import StorePerformanceCard from '@/components/dashboard/StorePerformanceCard';
 import QuickActionsRow from '@/components/dashboard/QuickActionsRow';
+import BuyingPacingCard from '@/components/BuyingPacingCard';
 
 function greeting(name) {
   const h = new Date().getHours();
@@ -361,6 +362,9 @@ export default function DashboardPage() {
         onStartChange={setStart}
         onEndChange={setEnd}
       />
+
+      {/* Buying vs Sales pacing (month-to-date — independent of the filters above) */}
+      <BuyingPacingCard className="mb-4" />
 
       {/* 4. Net Profit hero + KPI grid */}
       {stats && (
