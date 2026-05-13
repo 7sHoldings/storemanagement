@@ -44,7 +44,8 @@ export default function BuyingPacingCard({ className = '' }) {
     >
       <div className="mb-3 flex items-center justify-between gap-2 flex-wrap">
         <h3 className="text-[var(--text-primary)] text-[14px] font-bold">
-          🛒 Buying vs Sales · {data.monthName} <span className="text-[var(--text-muted)] font-normal text-[12px]">through day {data.daysElapsed}</span>
+          🛒 Buying vs Sales · {data.monthName} 1–{data.daysElapsed}
+          <span className="text-[var(--text-muted)] font-normal text-[12px]"> ({data.daysElapsed} of {data.daysInMonth} days)</span>
         </h3>
         <span className="text-[10px] font-bold rounded-full px-2 py-0.5 uppercase tracking-wide" style={{ background: c(o.overBudget) + '22', color: c(o.overBudget) }}>
           {o.overBudget ? 'Over target' : 'On target'}
@@ -54,16 +55,17 @@ export default function BuyingPacingCard({ className = '' }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
         <Stat label="Sales (MTD)" value={fmt(o.mtdSales)} />
         <Stat label="Buying (MTD)" value={fmt(o.mtdBuying)} />
-        <Stat label="Buying % of sales" value={pctStr(o.pct)} sub={`target ≤ ${o.targetPct.toFixed(0)}%`} color={c(o.overBudget)} />
-        <Stat label={o.headroom >= 0 ? 'Headroom left' : 'Over target by'} value={fmt(Math.abs(o.headroom))} color={o.headroom >= 0 ? 'var(--color-success)' : 'var(--color-danger)'} />
+        <Stat label="Buying % of sales" value={pctStr(o.pct)} sub={`target ≤ ${o.targetPct.toFixed(0)}% (${fmt(o.targetBuying)})`} color={c(o.overBudget)} />
+        <Stat label={o.headroom >= 0 ? 'Left to spend' : 'Over target by'} value={fmt(Math.abs(o.headroom))} color={o.headroom >= 0 ? 'var(--color-success)' : 'var(--color-danger)'} />
       </div>
 
       <div className="rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3 text-[12px]">
-        <p className="text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-wider mb-1">Projected month-end (current pace)</p>
+        <p className="text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-wider mb-1">Projected for all of {data.monthName} (current pace)</p>
         <p className="text-[var(--text-secondary)]">
           Sales ~<span className="text-[var(--text-primary)] font-semibold tabular-nums">{fmt(o.projSales)}</span>
           {' · '}Buying ~<span className="font-semibold tabular-nums" style={{ color: c(o.projOverBudget) }}>{fmt(o.projBuying)}</span>
           {' '}(<span className="tabular-nums" style={{ color: c(o.projOverBudget) }}>{pctStr(o.projPct)}</span>)
+          {' · '}target ~<span className="tabular-nums">{fmt(o.projTargetBuying)}</span>
           {o.projOverBudget && <span className="text-[var(--color-danger)] font-semibold"> — on pace to overspend, buy less this weekend</span>}
         </p>
       </div>
