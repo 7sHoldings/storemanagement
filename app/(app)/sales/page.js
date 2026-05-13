@@ -64,6 +64,7 @@ export default function SalesPage() {
   const [sales, setSales] = useState([]);
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [loadError, setLoadError] = useState('');
   const [modal, setModal] = useState(null);
   const [editItem, setEditItem] = useState(null);
@@ -259,6 +260,7 @@ export default function SalesPage() {
       setLoadError(e?.message || 'Failed to load sales data');
     } finally {
       setLoading(false);
+      setHasLoadedOnce(true);
     }
   }, [range.start, range.end, storeId, pageStoreIds.join(',')]);
 
@@ -1683,7 +1685,10 @@ export default function SalesPage() {
   }
 
   // ── Owner full view ─────────────────────────────────────
-  if (loading) return <Loading />;
+  // Only show the full <Loading/> on the very first load. Background
+  // refetches (e.g. when picking a custom date range) keep the UI mounted
+  // so the date dropdown doesn't disappear mid-selection.
+  if (loading && !hasLoadedOnce) return <Loading />;
 
   const hasStore = !!effectiveStoreId;
   // Display name in the modal: when editing, prefer the row's store; otherwise

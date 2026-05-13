@@ -66,23 +66,32 @@ export default function DateRangeSegmented({ preset, onPreset, startDate, endDat
       {open && (
         <>
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-full z-40 mt-1.5 w-[236px] rounded-lg border border-[#2C2C2A] bg-[#141414] p-3 shadow-xl">
-            <div className="flex items-center gap-1.5">
-              <input type="date" value={localStart} onChange={e => handleStart(e.target.value)} onBlur={flushStart} aria-label="Start date" className="!min-h-0 !flex-1 !py-1.5 !text-[11px]" />
-              <span className="text-[#5F5E5A] text-xs">→</span>
-              <input type="date" value={localEnd} onChange={e => handleEnd(e.target.value)} onBlur={flushEnd} aria-label="End date" className="!min-h-0 !flex-1 !py-1.5 !text-[11px]" />
+          <div className="absolute right-0 top-full z-40 mt-1.5 w-[300px] rounded-lg border border-[#2C2C2A] bg-[#141414] p-3.5 shadow-xl">
+            <p className="mb-2 text-[9px] font-semibold uppercase tracking-[1.2px] text-[#888780]">Custom range</p>
+            <div className="mb-3 grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-medium text-[#888780]">From</span>
+                <input type="date" value={localStart} onChange={e => handleStart(e.target.value)} onBlur={flushStart} aria-label="Start date" className="!min-h-0 !w-full !rounded-md !px-2 !py-2 !text-[12px]" />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-[10px] font-medium text-[#888780]">To</span>
+                <input type="date" value={localEnd} onChange={e => handleEnd(e.target.value)} onBlur={flushEnd} aria-label="End date" className="!min-h-0 !w-full !rounded-md !px-2 !py-2 !text-[12px]" />
+              </label>
             </div>
-            <div className="mt-2 grid grid-cols-2 gap-1">
-              {OVERFLOW.map(p => (
-                <button key={p.id} type="button" onClick={() => { togglePreset(p.id); setOpen(false); }}
-                  className={`rounded-md px-2 py-1.5 text-left text-[11px] font-medium transition-colors ${preset === p.id ? 'bg-[rgba(57,255,20,0.12)] text-[#39FF14]' : 'text-[#C4C4C4] hover:bg-[#1A1A1A]'}`}>
-                  {p.l}
-                </button>
-              ))}
+            <div className="border-t border-[#2C2C2A] pt-2.5">
+              <p className="mb-1.5 text-[9px] font-semibold uppercase tracking-[1.2px] text-[#888780]">Quick presets</p>
+              <div className="grid grid-cols-2 gap-1">
+                {OVERFLOW.map(p => (
+                  <button key={p.id} type="button" onClick={() => { togglePreset(p.id); setOpen(false); }}
+                    className={`rounded-md px-2 py-1.5 text-left text-[11px] font-medium transition-colors ${preset === p.id ? 'bg-[rgba(57,255,20,0.12)] text-[#39FF14]' : 'text-[#C4C4C4] hover:bg-[#1A1A1A]'}`}>
+                    {p.l}
+                  </button>
+                ))}
+              </div>
             </div>
             {preset && preset !== 'custom' && (
               <button type="button" onClick={() => { onPreset('custom'); setOpen(false); }}
-                className="mt-2 w-full border-t border-[#2C2C2A] pt-2 text-left text-[11px] font-medium text-[#888780] hover:text-[#C4C4C4]">
+                className="mt-2.5 w-full border-t border-[#2C2C2A] pt-2.5 text-left text-[11px] font-medium text-[#888780] hover:text-[#C4C4C4]">
                 ✕ Clear preset
               </button>
             )}
