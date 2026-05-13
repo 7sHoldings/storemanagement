@@ -283,7 +283,10 @@ export default function DashboardPage() {
     return s;
   }, [storePerf, storeSort]);
 
-  if (loading) return <Loading />;
+  // Only block the whole page on the very first load. Subsequent refetches
+  // (e.g. when the user is mid-way through picking a custom date range)
+  // keep the existing UI mounted so the Custom dropdown doesn't disappear.
+  if (loading && !stats) return <Loading />;
 
   // Daily-avg denominator = days between the range start and the last
   // synced date (not today), so partial/un-synced days don't dilute it.
