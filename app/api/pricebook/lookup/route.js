@@ -5,10 +5,31 @@ import { getPricebookItemDetail } from '@/lib/nrs-pricebook';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-// Free, no-key UPC database fallback (UPCItemDB trial — rate-limited to a
-// modest number of lookups per day). Best-effort: short timeout, swallow all
-// errors so a blocked network or a miss just yields no name.
-async function lookupExternalUpc(upc) {
+// Go-UPC lookup (paid, better coverage for vape/tobacco). Skipped when no
+// GOUPC_API_KEY is configured. Best-effort with a short timeout.
+async function lookupGoUpc(upc) {
+  const key = process.env.GOUPC_API_KEY;
+  if (!key) return null;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch(`https://go-upc.com/api/v1/code/${encodeURIComponent(upc)}`, {
+      signal: controller.signal,
+      headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    const name = (json?.product?.name || '').trim();
+    return name ? { name, source: 'go-upc' } : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Free, no-key UPC database (UPCItemDB trial — rate-limited per day).
+async function lookupUpcItemDb(upc) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 4000);
   try {
@@ -18,14 +39,18 @@ async function lookupExternalUpc(upc) {
     });
     if (!res.ok) return null;
     const json = await res.json();
-    const item = json?.items?.[0];
-    const name = (item?.title || '').trim();
-    return name ? { name } : null;
+    const name = (json?.items?.[0]?.title || '').trim();
+    return name ? { name, source: 'catalog' } : null;
   } catch {
     return null;
   } finally {
     clearTimeout(timer);
   }
+}
+
+// External name lookup: try Go-UPC first (best coverage), then the free DB.
+async function lookupExternalUpc(upc) {
+  return (await lookupGoUpc(upc)) || (await lookupUpcItemDb(upc));
 }
 
 // GET /api/pricebook/lookup?upc=XXXX
@@ -82,7 +107,7 @@ export async function GET(req) {
     // brand-new item gets its name filled.
     const ext = await lookupExternalUpc(upc);
     if (ext?.name) {
-      return NextResponse.json({ found: true, source: 'catalog', foundInStore: 'product database', name: ext.name, size: '', dept: '', costCents: 0, cents: null });
+      return NextResponse.json({ found: true, source: ext.source || 'catalog', foundInStore: 'product database', name: ext.name, size: '', dept: '', costCents: 0, cents: null });
     }
 
     return NextResponse.json({ found: false });
