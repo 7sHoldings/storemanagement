@@ -665,7 +665,7 @@ function AddItemPanel({ stores }) {
         setCost(prev => prev.trim() ? prev : (json.costCents ? (json.costCents / 100).toFixed(2) : ''));
         setLookup({
           status: 'found',
-          msg: json.source === 'catalog'
+          msg: json.source && json.source !== 'store'
             ? 'Name from product database — pick a department.'
             : `Auto-filled from ${json.foundInStore}`,
         });
