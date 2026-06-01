@@ -628,6 +628,8 @@ function AddItemPanel({ stores }) {
   const [bulkPrice, setBulkPrice] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
+  const [lookup, setLookup] = useState(null); // { status:'searching'|'found'|'notfound', msg }
+  const lookedUp = useRef('');
   const upcRef = useRef(null);
 
   // Load departments once (they match across stores).
@@ -643,6 +645,31 @@ function AddItemPanel({ stores }) {
       }
     })();
     upcRef.current?.focus();
+  }, []);
+
+  // Look a UPC up across all stores and auto-fill name/size/dept/cost. Only
+  // fills fields the user hasn't already typed, so it never clobbers input.
+  const lookupUpc = useCallback(async (code) => {
+    const u = String(code || '').trim();
+    if (!u || u === lookedUp.current) return;
+    lookedUp.current = u;
+    setLookup({ status: 'searching', msg: 'Looking up product…' });
+    try {
+      const res = await fetch(`/api/pricebook/lookup?upc=${encodeURIComponent(u)}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Lookup failed');
+      if (json.found) {
+        setName(prev => prev.trim() ? prev : (json.name || ''));
+        setSize(prev => prev.trim() ? prev : (json.size || ''));
+        setDept(prev => prev || (json.dept || ''));
+        setCost(prev => prev.trim() ? prev : (json.costCents ? (json.costCents / 100).toFixed(2) : ''));
+        setLookup({ status: 'found', msg: `Auto-filled from ${json.foundInStore}` });
+      } else {
+        setLookup({ status: 'notfound', msg: 'New product — type the name below.' });
+      }
+    } catch (e) {
+      setLookup({ status: 'notfound', msg: '' });
+    }
   }, []);
 
   const toggleSel = (id) => setSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -692,10 +719,19 @@ function AddItemPanel({ stores }) {
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="UPC / barcode">
             <div className="flex gap-2">
-              <input ref={upcRef} value={upc} onChange={e => setUpc(e.target.value)} placeholder="Scan or type…"
+              <input ref={upcRef} value={upc}
+                onChange={e => { setUpc(e.target.value); if (e.target.value.trim() !== lookedUp.current) setLookup(null); }}
+                onBlur={() => lookupUpc(upc)}
+                onKeyDown={e => { if (e.key === 'Enter') lookupUpc(upc); }}
+                placeholder="Scan or type…"
                 className="flex-1 min-w-0 rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text" />
               <Button variant="secondary" onClick={() => setScanOpen(true)} title="Scan with camera">📷 Scan</Button>
             </div>
+            {lookup?.msg && (
+              <span className={`text-[11px] ${lookup.status === 'found' ? 'text-green-500' : lookup.status === 'searching' ? 'text-[var(--text-muted)]' : 'text-amber-500'}`}>
+                {lookup.msg}
+              </span>
+            )}
           </Field>
           <Field label="Department">
             <select value={dept} onChange={e => setDept(e.target.value)}
@@ -779,7 +815,7 @@ function AddItemPanel({ stores }) {
 
       {scanOpen && (
         <BarcodeScanModal
-          onDetected={(code) => { setUpc(code); setScanOpen(false); upcRef.current?.focus(); }}
+          onDetected={(code) => { setUpc(code); setScanOpen(false); lookupUpc(code); }}
           onClose={() => setScanOpen(false)}
         />
       )}
