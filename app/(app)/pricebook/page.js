@@ -394,7 +394,7 @@ function SearchPanel({ storeId, stores, pending, onStage }) {
             <thead>
               <tr className="text-left text-[var(--text-muted)] border-b border-sw-border">
                 <th className="py-2 pr-2 w-6">
-                  <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Select all" />
+                  <input type="checkbox" className="w-4 h-4 shrink-0 accent-amber-500" checked={allSelected} onChange={toggleAll} aria-label="Select all" />
                 </th>
                 <th className="py-2 pr-2 font-semibold">Item</th>
                 <th className="py-2 px-2 font-semibold">Current</th>
@@ -408,7 +408,7 @@ function SearchPanel({ storeId, stores, pending, onStage }) {
                 return (
                   <tr key={it.upc} className={`border-b border-sw-border/50 ${checked ? 'bg-amber-500/5' : ''}`}>
                     <td className="py-2 pr-2">
-                      <input type="checkbox" checked={checked} onChange={() => toggleRow(it.upc)} aria-label={`Select ${it.name || it.upc}`} />
+                      <input type="checkbox" className="w-4 h-4 shrink-0 accent-amber-500" checked={checked} onChange={() => toggleRow(it.upc)} aria-label={`Select ${it.name || it.upc}`} />
                     </td>
                     <td className="py-2 pr-2">
                       <div className="font-medium text-sw-text">{it.name || it.desc || '—'}</div>
@@ -524,7 +524,7 @@ function CopyToStoresModal({ item, sourceStoreId, stores, onClose }) {
       <ul className="space-y-2 mb-4 max-h-[280px] overflow-y-auto">
         {rows.map(r => (
           <li key={r.id} className="flex items-center gap-2">
-            <input type="checkbox" checked={r.selected} onChange={e => setRow(r.id, { selected: e.target.checked })} />
+            <input type="checkbox" className="w-4 h-4 shrink-0 accent-amber-500" checked={r.selected} onChange={e => setRow(r.id, { selected: e.target.checked })} />
             <span className="flex-1 min-w-0 truncate text-[13px] text-sw-text" title={r.name}>{r.name || r.id}</span>
             <span className="text-[var(--text-muted)] text-[13px]">$</span>
             <input value={r.price} onChange={e => setRow(r.id, { price: e.target.value })} inputMode="decimal" placeholder="0.00"
@@ -749,7 +749,7 @@ function AddItemPanel({ stores }) {
             const checked = sel.has(s.id);
             return (
               <li key={s.id} className="flex items-center gap-2">
-                <input type="checkbox" checked={checked} onChange={() => toggleSel(s.id)} />
+                <input type="checkbox" className="w-4 h-4 shrink-0 accent-amber-500" checked={checked} onChange={() => toggleSel(s.id)} />
                 <span className="flex-1 min-w-0 truncate text-[13px] text-sw-text" title={s.name}>{s.name || s.id}</span>
                 <span className="text-[var(--text-muted)] text-[13px]">$</span>
                 <input value={prices[s.id] ?? ''} onChange={e => setPrice(s.id, e.target.value)} inputMode="decimal" placeholder="0.00"
@@ -795,47 +795,79 @@ function AddItemPanel({ stores }) {
   );
 }
 
-// ── Camera barcode scanner (uses the browser's built-in BarcodeDetector) ──
+// ── Camera barcode scanner ──────────────────────────────────────────────
+// Uses the browser's native BarcodeDetector when present (Android/Chrome),
+// and falls back to ZXing for everything else (notably iOS Safari, which has
+// no BarcodeDetector). Works on phones over HTTPS.
 function BarcodeScanModal({ onDetected, onClose }) {
   const videoRef = useRef(null);
   const [err, setErr] = useState('');
-  const supported = typeof window !== 'undefined' && 'BarcodeDetector' in window;
+  const [status, setStatus] = useState('Starting camera…');
 
   useEffect(() => {
-    if (!supported) {
-      setErr('This browser has no built-in barcode scanner. A USB/Bluetooth scanner typed into the UPC box also works, or just type the number.');
-      return;
-    }
-    let stream, raf, stopped = false;
-    const detector = new window.BarcodeDetector({
-      formats: ['upc_a', 'upc_e', 'ean_13', 'ean_8', 'code_128', 'code_39', 'codabar', 'itf'],
-    });
+    let stopped = false;
+    let done = false;
+    let cleanup = () => {};
+    const hit = (val) => {
+      if (done || stopped || !val) return;
+      done = true;
+      onDetected(String(val).trim());
+    };
+
     (async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
-        if (stopped) { stream.getTracks().forEach(t => t.stop()); return; }
-        const v = videoRef.current;
-        if (v) { v.srcObject = stream; await v.play().catch(() => {}); }
-        const tick = async () => {
-          if (stopped || !videoRef.current) return;
-          try {
-            const codes = await detector.detect(videoRef.current);
-            const val = codes?.[0]?.rawValue;
-            if (val) { onDetected(String(val)); return; }
-          } catch { /* frame not ready */ }
+      // Fast path: native BarcodeDetector.
+      if (typeof window !== 'undefined' && 'BarcodeDetector' in window) {
+        try {
+          const detector = new window.BarcodeDetector({
+            formats: ['upc_a', 'upc_e', 'ean_13', 'ean_8', 'code_128', 'code_39', 'codabar', 'itf'],
+          });
+          const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+          if (stopped) { stream.getTracks().forEach(t => t.stop()); return; }
+          const v = videoRef.current;
+          if (v) { v.srcObject = stream; await v.play().catch(() => {}); }
+          setStatus('Point the camera at the barcode…');
+          let raf;
+          const tick = async () => {
+            if (stopped || done || !videoRef.current) return;
+            try {
+              const codes = await detector.detect(videoRef.current);
+              if (codes?.[0]?.rawValue) return hit(codes[0].rawValue);
+            } catch { /* frame not ready */ }
+            raf = requestAnimationFrame(tick);
+          };
           raf = requestAnimationFrame(tick);
-        };
-        raf = requestAnimationFrame(tick);
+          cleanup = () => { if (raf) cancelAnimationFrame(raf); stream.getTracks().forEach(t => t.stop()); };
+          return;
+        } catch { /* fall through to ZXing */ }
+      }
+
+      // Cross-platform fallback: ZXing (iOS Safari, etc.).
+      try {
+        const [{ BrowserMultiFormatReader }, { DecodeHintType, BarcodeFormat }] = await Promise.all([
+          import('@zxing/browser'),
+          import('@zxing/library'),
+        ]);
+        const hints = new Map();
+        hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+          BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, BarcodeFormat.EAN_13, BarcodeFormat.EAN_8,
+          BarcodeFormat.CODE_128, BarcodeFormat.CODE_39, BarcodeFormat.ITF, BarcodeFormat.CODABAR,
+        ]);
+        const reader = new BrowserMultiFormatReader(hints);
+        if (stopped || !videoRef.current) return;
+        setStatus('Point the camera at the barcode…');
+        const controls = await reader.decodeFromConstraints(
+          { video: { facingMode: { ideal: 'environment' } } },
+          videoRef.current,
+          (result) => { if (result) hit(result.getText()); }
+        );
+        cleanup = () => { try { controls.stop(); } catch { /* already stopped */ } };
       } catch (e) {
-        setErr('Could not access the camera: ' + (e?.message || e));
+        setErr('Could not start the camera: ' + (e?.message || e) + '. A USB/Bluetooth scanner typed into the box also works, or type the number.');
       }
     })();
-    return () => {
-      stopped = true;
-      if (raf) cancelAnimationFrame(raf);
-      if (stream) stream.getTracks().forEach(t => t.stop());
-    };
-  }, [supported, onDetected]);
+
+    return () => { stopped = true; cleanup(); };
+  }, [onDetected]);
 
   return (
     <Modal title="Scan barcode" onClose={onClose}>
@@ -843,8 +875,8 @@ function BarcodeScanModal({ onDetected, onClose }) {
         <Alert type="warning">{err}</Alert>
       ) : (
         <>
-          <video ref={videoRef} className="w-full rounded-lg bg-black aspect-video object-cover" muted playsInline />
-          <p className="text-[12px] text-[var(--text-muted)] mt-2">Point the camera at the barcode — it fills in automatically.</p>
+          <video ref={videoRef} className="w-full rounded-lg bg-black aspect-video object-cover" muted playsInline autoPlay />
+          <p className="text-[12px] text-[var(--text-muted)] mt-2">{status} It fills in automatically.</p>
         </>
       )}
       <div className="flex justify-end mt-3"><Button variant="secondary" onClick={onClose}>Close</Button></div>
