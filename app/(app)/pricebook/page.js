@@ -663,7 +663,12 @@ function AddItemPanel({ stores }) {
         setSize(prev => prev.trim() ? prev : (json.size || ''));
         setDept(prev => prev || (json.dept || ''));
         setCost(prev => prev.trim() ? prev : (json.costCents ? (json.costCents / 100).toFixed(2) : ''));
-        setLookup({ status: 'found', msg: `Auto-filled from ${json.foundInStore}` });
+        setLookup({
+          status: 'found',
+          msg: json.source === 'catalog'
+            ? 'Name from product database — pick a department.'
+            : `Auto-filled from ${json.foundInStore}`,
+        });
       } else {
         setLookup({ status: 'notfound', msg: 'New product — type the name below.' });
       }
