@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAuth } from '@/components/AuthProvider';
-import { PageHeader, Button, Alert, Loading, EmptyState, ConfirmModal, Field } from '@/components/UI';
+import { PageHeader, Button, Alert, Loading, EmptyState, ConfirmModal, Field, Modal } from '@/components/UI';
 
 const fmtCents = (c) => `$${(Number(c || 0) / 100).toFixed(2)}`;
 // "29.99" / "$29.99" / "2999¢"? → integer cents. Returns null if unparseable.
@@ -128,7 +128,7 @@ export default function PricebookPage() {
           </div>
 
           <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
-            <SearchPanel storeId={storeId} pending={pending} onStage={stageEdit} />
+            <SearchPanel storeId={storeId} stores={stores} pending={pending} onStage={stageEdit} />
             <ReviewPanel
               pendingList={pendingList}
               onRemove={removePending}
@@ -157,12 +157,13 @@ export default function PricebookPage() {
 }
 
 // ── Search + results with inline price editing ──────────────────────────
-function SearchPanel({ storeId, pending, onStage }) {
+function SearchPanel({ storeId, stores, pending, onStage }) {
   const [q, setQ] = useState('');
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
+  const [copyItem, setCopyItem] = useState(null); // item being cloned to other stores
   const reqRef = useRef(0);
 
   const [total, setTotal] = useState(0);       // recordsFiltered for the query
@@ -408,6 +409,11 @@ function SearchPanel({ storeId, pending, onStage }) {
                     <td className="py-2 pr-2">
                       <div className="font-medium text-sw-text">{it.name || it.desc || '—'}</div>
                       <div className="text-[11px] text-[var(--text-muted)]">{it.upc}{it.dept ? ` · ${it.dept}` : ''}</div>
+                      {stores?.length > 1 && (
+                        <button onClick={() => setCopyItem(it)} className="text-[11px] text-amber-500 hover:underline mt-0.5">
+                          Copy to other stores →
+                        </button>
+                      )}
                     </td>
                     <td className="py-2 px-2 whitespace-nowrap text-sw-text">{fmtCents(it.cents)}</td>
                     <td className="py-2 pl-2">
@@ -440,7 +446,105 @@ function SearchPanel({ storeId, pending, onStage }) {
           )}
         </div>
       )}
+
+      {copyItem && (
+        <CopyToStoresModal item={copyItem} sourceStoreId={storeId} stores={stores} onClose={() => setCopyItem(null)} />
+      )}
     </div>
+  );
+}
+
+// ── Clone an existing item into other stores ────────────────────────────
+function CopyToStoresModal({ item, sourceStoreId, stores, onClose }) {
+  const sourcePrice = (item.cents / 100).toFixed(2);
+  const [rows, setRows] = useState(() =>
+    stores.filter(s => s.id !== sourceStoreId).map(s => ({ id: s.id, name: s.name, selected: true, price: sourcePrice }))
+  );
+  const [bulkPrice, setBulkPrice] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const setRow = (id, patch) => setRows(rs => rs.map(r => r.id === id ? { ...r, ...patch } : r));
+  const applyBulk = () => {
+    if (!bulkPrice.trim()) return;
+    const v = (parseFloat(bulkPrice.replace(/[^0-9.]/g, '')) || 0).toFixed(2);
+    setRows(rs => rs.map(r => r.selected ? { ...r, price: v } : r));
+  };
+
+  const selectedRows = rows.filter(r => r.selected);
+  const canSubmit = selectedRows.length > 0 && selectedRows.every(r => r.price.trim() && Number(r.price) >= 0);
+
+  const submit = async () => {
+    setSubmitting(true); setResult(null);
+    try {
+      const targets = selectedRows.map(r => ({ store_id: r.id, cents: Math.round(parseFloat(r.price) * 100) }));
+      const res = await fetch('/api/pricebook/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          item: { upc: item.upc, name: item.name, size: item.size || '', dept: item.dept, costCents: item.cost_cents || 0 },
+          targets,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Copy failed');
+      setResult(json);
+    } catch (e) {
+      setResult({ error: e.message });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal title={`Copy "${item.name || item.upc}" to other stores`} onClose={onClose}>
+      <p className="text-sw-sub text-[12px] mb-3">
+        Clones this item ({item.upc}{item.dept ? ` · ${item.dept}` : ''}) into the selected stores. Price prefilled from the source — adjust per store if needed.
+      </p>
+
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-[var(--text-muted)] text-[13px]">$</span>
+        <input value={bulkPrice} onChange={e => setBulkPrice(e.target.value)} inputMode="decimal" placeholder="set all to"
+          onKeyDown={e => { if (e.key === 'Enter') applyBulk(); }}
+          className="w-24 rounded-md border border-sw-border bg-sw-bg px-2 py-1 text-[13px] text-sw-text" />
+        <Button variant="secondary" onClick={applyBulk} disabled={!bulkPrice.trim()}>Set all</Button>
+      </div>
+
+      <ul className="space-y-2 mb-4 max-h-[280px] overflow-y-auto">
+        {rows.map(r => (
+          <li key={r.id} className="flex items-center gap-2">
+            <input type="checkbox" checked={r.selected} onChange={e => setRow(r.id, { selected: e.target.checked })} />
+            <span className="flex-1 min-w-0 truncate text-[13px] text-sw-text">{r.name}</span>
+            <span className="text-[var(--text-muted)] text-[13px]">$</span>
+            <input value={r.price} onChange={e => setRow(r.id, { price: e.target.value })} inputMode="decimal" placeholder="0.00"
+              disabled={!r.selected}
+              className={`w-20 rounded-md border bg-sw-bg px-2 py-1 text-[13px] text-sw-text ${r.selected ? 'border-sw-border' : 'border-sw-border/40 opacity-50'}`} />
+          </li>
+        ))}
+      </ul>
+
+      {result ? (
+        result.error
+          ? <Alert type="error">{result.error}</Alert>
+          : <Alert type={result.failed ? 'warning' : 'success'}>
+              Copied to {result.created} store{result.created === 1 ? '' : 's'}{result.failed ? `, ${result.failed} failed` : ''}.
+              {result.failed > 0 && (
+                <ul className="mt-2 text-[12px] list-disc pl-4">
+                  {result.results.filter(r => !r.ok).map(r => <li key={r.store_id}>{r.store}: {r.error}</li>)}
+                </ul>
+              )}
+            </Alert>
+      ) : null}
+
+      <div className="flex gap-2 justify-end mt-4">
+        <Button variant="secondary" onClick={onClose}>{result && !result.error ? 'Close' : 'Cancel'}</Button>
+        {!(result && !result.error) && (
+          <Button variant="primary" disabled={!canSubmit || submitting} onClick={submit}>
+            {submitting ? 'Copying…' : `Copy to ${selectedRows.length || ''} store${selectedRows.length === 1 ? '' : 's'}`.trim()}
+          </Button>
+        )}
+      </div>
+    </Modal>
   );
 }
 
