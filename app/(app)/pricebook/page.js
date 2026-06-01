@@ -389,57 +389,49 @@ function SearchPanel({ storeId, stores, pending, onStage }) {
       )}
 
       {!loading && items.length > 0 && (
-        <div className="overflow-x-auto">
-          <table className="w-full text-[13px]">
-            <thead>
-              <tr className="text-left text-[var(--text-muted)] border-b border-sw-border">
-                <th className="py-2 pr-2 w-6">
-                  <input type="checkbox" className="w-4 h-4 shrink-0 accent-amber-500" checked={allSelected} onChange={toggleAll} aria-label="Select all" />
-                </th>
-                <th className="py-2 pr-2 font-semibold">Item</th>
-                <th className="py-2 px-2 font-semibold">Current</th>
-                <th className="py-2 pl-2 font-semibold">New price</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((it) => {
-                const staged = pending[it.upc];
-                const checked = selected.has(it.upc);
-                return (
-                  <tr key={it.upc} className={`border-b border-sw-border/50 ${checked ? 'bg-amber-500/5' : ''}`}>
-                    <td className="py-2 pr-2">
-                      <input type="checkbox" className="w-4 h-4 shrink-0 accent-amber-500" checked={checked} onChange={() => toggleRow(it.upc)} aria-label={`Select ${it.name || it.upc}`} />
-                    </td>
-                    <td className="py-2 pr-2">
-                      <div className="font-medium text-sw-text">{it.name || it.desc || '—'}</div>
-                      <div className="text-[11px] text-[var(--text-muted)]">{it.upc}{it.dept ? ` · ${it.dept}` : ''}</div>
-                      {stores?.length > 1 && (
-                        <button onClick={() => setCopyItem(it)} className="text-[11px] text-amber-500 hover:underline mt-0.5">
-                          Copy to other stores →
-                        </button>
-                      )}
-                    </td>
-                    <td className="py-2 px-2 whitespace-nowrap text-sw-text">{fmtCents(it.cents)}</td>
-                    <td className="py-2 pl-2">
-                      <div className="flex items-center gap-1">
-                        <span className="text-[var(--text-muted)]">$</span>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          value={draft[it.upc] ?? (it.cents / 100).toFixed(2)}
-                          onChange={(e) => editPrice(it, e.target.value)}
-                          className={`w-20 rounded-md border bg-sw-bg px-2 py-1 text-[13px] text-sw-text ${staged ? 'border-amber-500' : 'border-sw-border'}`}
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div>
+          {/* Select-all header (replaces a table header so it works on mobile). */}
+          <label className="flex items-center gap-2 py-2 border-b border-sw-border text-[12px] font-semibold text-[var(--text-muted)] cursor-pointer">
+            <input type="checkbox" className="w-4 h-4 shrink-0 accent-amber-500" checked={allSelected} onChange={toggleAll} aria-label="Select all" />
+            Select all ({visible.length})
+          </label>
+
+          <ul>
+            {visible.map((it) => {
+              const staged = pending[it.upc];
+              const checked = selected.has(it.upc);
+              return (
+                <li key={it.upc} className={`flex items-center gap-3 py-2.5 border-b border-sw-border/50 ${checked ? 'bg-amber-500/5' : ''}`}>
+                  <input type="checkbox" className="w-4 h-4 shrink-0 accent-amber-500" checked={checked} onChange={() => toggleRow(it.upc)} aria-label={`Select ${it.name || it.upc}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-sw-text truncate">{it.name || it.desc || '—'}</div>
+                    <div className="text-[11px] text-[var(--text-muted)] truncate">{it.upc}{it.dept ? ` · ${it.dept}` : ''}</div>
+                    {stores?.length > 1 && (
+                      <button onClick={() => setCopyItem(it)} className="text-[11px] text-amber-500 hover:underline mt-0.5">
+                        Copy to other stores →
+                      </button>
+                    )}
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <div className="text-[11px] text-[var(--text-muted)] mb-0.5">was {fmtCents(it.cents)}</div>
+                    <div className="flex items-center gap-1 justify-end">
+                      <span className="text-[var(--text-muted)]">$</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={draft[it.upc] ?? (it.cents / 100).toFixed(2)}
+                        onChange={(e) => editPrice(it, e.target.value)}
+                        className={`w-[72px] rounded-md border bg-sw-bg px-2 py-1.5 text-[13px] text-sw-text ${staged ? 'border-amber-500' : 'border-sw-border'}`}
+                      />
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
 
           {items.length < total && (
-            <div className="flex items-center gap-2 mt-3">
+            <div className="flex flex-wrap items-center gap-2 mt-3">
               <Button variant="secondary" onClick={() => loadMore(false)} disabled={loadingMore}>
                 {loadingMore ? 'Loading…' : `Load more (${total - items.length} left)`}
               </Button>
