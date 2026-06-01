@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAuth } from '@/components/AuthProvider';
-import { PageHeader, Button, Alert, Loading, EmptyState, ConfirmModal } from '@/components/UI';
+import { PageHeader, Button, Alert, Loading, EmptyState, ConfirmModal, Field } from '@/components/UI';
 
 const fmtCents = (c) => `$${(Number(c || 0) / 100).toFixed(2)}`;
 // "29.99" / "$29.99" / "2999¢"? → integer cents. Returns null if unparseable.
@@ -16,6 +16,7 @@ export default function PricebookPage() {
   const [stores, setStores] = useState([]);
   const [storeId, setStoreId] = useState('');
   const [loadingStores, setLoadingStores] = useState(true);
+  const [tab, setTab] = useState('update'); // 'update' | 'add'
 
   // pending edits: upc -> { item, newCents }
   const [pending, setPending] = useState({});
@@ -97,30 +98,49 @@ export default function PricebookPage() {
     <div className="py-4 md:py-6 max-w-[1200px]">
       <PageHeader
         title="Pricebook"
-        subtitle="Search your live NRS pricebook and update item prices. Changes are written straight to your POS."
+        subtitle="Search and update prices, or add a brand-new item to your stores. Changes are written straight to your POS."
       />
 
-      <div className="flex flex-wrap items-center gap-2 mb-4">
-        <span className="text-[12px] font-semibold text-[var(--text-muted)]">Store</span>
-        <select
-          value={storeId}
-          onChange={(e) => onStoreChange(e.target.value)}
-          className="rounded-lg border border-sw-border bg-sw-card px-3 py-1.5 text-[13px] text-sw-text"
-        >
-          {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
+      {/* Tabs */}
+      <div className="flex gap-1 mb-4 border-b border-sw-border">
+        {[['update', 'Update prices'], ['add', 'Add new item']].map(([key, label]) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`px-4 py-2 text-[13px] font-semibold border-b-2 -mb-px ${tab === key ? 'border-amber-500 text-sw-text' : 'border-transparent text-[var(--text-muted)] hover:text-sw-text'}`}
+          >
+            {label}
+          </button>
+        ))}
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
-        <SearchPanel storeId={storeId} pending={pending} onStage={stageEdit} />
-        <ReviewPanel
-          pendingList={pendingList}
-          onRemove={removePending}
-          onApply={() => setConfirmOpen(true)}
-          applying={applying}
-          result={applyResult}
-        />
-      </div>
+      {tab === 'update' && (
+        <>
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <span className="text-[12px] font-semibold text-[var(--text-muted)]">Store</span>
+            <select
+              value={storeId}
+              onChange={(e) => onStoreChange(e.target.value)}
+              className="rounded-lg border border-sw-border bg-sw-card px-3 py-1.5 text-[13px] text-sw-text"
+            >
+              {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
+            <SearchPanel storeId={storeId} pending={pending} onStage={stageEdit} />
+            <ReviewPanel
+              pendingList={pendingList}
+              onRemove={removePending}
+              onApply={() => setConfirmOpen(true)}
+              applying={applying}
+              result={applyResult}
+            />
+          </div>
+        </>
+      )}
+
+      {tab === 'add' && <AddItemPanel stores={stores} />}
 
       {confirmOpen && (
         <ConfirmModal
@@ -479,6 +499,166 @@ function ReviewPanel({ pendingList, onRemove, onApply, applying, result }) {
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Add a new item to one or more stores ────────────────────────────────
+function AddItemPanel({ stores }) {
+  const [upc, setUpc] = useState('');
+  const [name, setName] = useState('');
+  const [size, setSize] = useState('');
+  const [cost, setCost] = useState('');
+  const [dept, setDept] = useState('');
+  const [departments, setDepartments] = useState([]);
+  const [deptError, setDeptError] = useState('');
+
+  // Per-store: selected flag + price string.
+  const [rows, setRows] = useState(() => stores.map(s => ({ id: s.id, name: s.name, selected: true, price: '' })));
+  const [bulkPrice, setBulkPrice] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState(null);
+  const upcRef = useRef(null);
+
+  // Load departments once (they match across stores).
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch('/api/pricebook/departments');
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Failed to load departments');
+        setDepartments(json.departments || []);
+      } catch (e) {
+        setDeptError(e.message);
+      }
+    })();
+    upcRef.current?.focus();
+  }, []);
+
+  const setRow = (id, patch) => setRows(rs => rs.map(r => r.id === id ? { ...r, ...patch } : r));
+  const applyBulkPrice = () => {
+    if (!bulkPrice.trim()) return;
+    const v = (parseFloat(bulkPrice.replace(/[^0-9.]/g, '')) || 0).toFixed(2);
+    setRows(rs => rs.map(r => r.selected ? { ...r, price: v } : r));
+  };
+
+  const selectedRows = rows.filter(r => r.selected);
+  const canSubmit = upc.trim() && name.trim() && dept && selectedRows.length > 0
+    && selectedRows.every(r => r.price.trim() && Number(r.price) >= 0);
+
+  const submit = async () => {
+    setSubmitting(true); setResult(null);
+    try {
+      const targets = selectedRows.map(r => ({ store_id: r.id, cents: Math.round(parseFloat(r.price) * 100) }));
+      const res = await fetch('/api/pricebook/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          item: { upc: upc.trim(), name: name.trim(), size: size.trim(), dept, costCents: cost ? Math.round(parseFloat(cost) * 100) : 0 },
+          targets,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Create failed');
+      setResult(json);
+      if (json.failed === 0) {
+        // Clear item fields for the next add; keep dept + store selection.
+        setUpc(''); setName(''); setSize(''); setCost('');
+        upcRef.current?.focus();
+      }
+    } catch (e) {
+      setResult({ error: e.message });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
+      {/* Item details */}
+      <div className="rounded-xl border border-sw-border bg-sw-card p-4">
+        <h3 className="text-sw-text text-[15px] font-bold mb-3">Item details</h3>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field label="UPC / barcode">
+            <input ref={upcRef} value={upc} onChange={e => setUpc(e.target.value)} placeholder="Scan or type…"
+              className="w-full rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text" />
+          </Field>
+          <Field label="Department">
+            <select value={dept} onChange={e => setDept(e.target.value)}
+              className="w-full rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text">
+              <option value="">Select department…</option>
+              {departments.map(d => <option key={d.dept} value={d.dept}>{d.label}</option>)}
+            </select>
+            {deptError && <span className="text-[11px] text-red-500">{deptError}</span>}
+          </Field>
+          <Field label="Item name">
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Zig Zag Orange"
+              className="w-full rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text" />
+          </Field>
+          <Field label="Size (optional)">
+            <input value={size} onChange={e => setSize(e.target.value)} placeholder="e.g. 1 ct"
+              className="w-full rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text" />
+          </Field>
+          <Field label="Cost (optional)">
+            <div className="flex items-center gap-1">
+              <span className="text-[var(--text-muted)]">$</span>
+              <input value={cost} onChange={e => setCost(e.target.value)} inputMode="decimal" placeholder="0.00"
+                className="w-full rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text" />
+            </div>
+          </Field>
+        </div>
+      </div>
+
+      {/* Stores + per-store price */}
+      <div className="rounded-xl border border-sw-border bg-sw-card p-4 h-fit lg:sticky lg:top-4">
+        <h3 className="text-sw-text text-[15px] font-bold mb-1">Add to stores</h3>
+        <p className="text-sw-sub text-[12px] mb-3">Tick stores and set each price. Use “set all” when the price is the same.</p>
+
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[var(--text-muted)] text-[13px]">$</span>
+          <input value={bulkPrice} onChange={e => setBulkPrice(e.target.value)} inputMode="decimal" placeholder="set all to"
+            onKeyDown={e => { if (e.key === 'Enter') applyBulkPrice(); }}
+            className="w-24 rounded-md border border-sw-border bg-sw-bg px-2 py-1 text-[13px] text-sw-text" />
+          <Button variant="secondary" onClick={applyBulkPrice} disabled={!bulkPrice.trim()}>Set all</Button>
+        </div>
+
+        <ul className="space-y-2 mb-4">
+          {rows.map(r => (
+            <li key={r.id} className="flex items-center gap-2">
+              <input type="checkbox" checked={r.selected} onChange={e => setRow(r.id, { selected: e.target.checked })} />
+              <span className="flex-1 min-w-0 truncate text-[13px] text-sw-text">{r.name}</span>
+              <span className="text-[var(--text-muted)] text-[13px]">$</span>
+              <input value={r.price} onChange={e => setRow(r.id, { price: e.target.value })} inputMode="decimal" placeholder="0.00"
+                disabled={!r.selected}
+                className={`w-20 rounded-md border bg-sw-bg px-2 py-1 text-[13px] text-sw-text ${r.selected ? 'border-sw-border' : 'border-sw-border/40 opacity-50'}`} />
+            </li>
+          ))}
+        </ul>
+
+        <Button variant="primary" className="w-full" disabled={!canSubmit || submitting} onClick={submit}>
+          {submitting ? 'Adding…' : `Add to ${selectedRows.length || ''} store${selectedRows.length === 1 ? '' : 's'}`.trim()}
+        </Button>
+
+        {result && (
+          <div className="mt-4">
+            {result.error ? (
+              <Alert type="error">{result.error}</Alert>
+            ) : (
+              <Alert type={result.failed ? 'warning' : 'success'}>
+                Added “{result.name}” to {result.created} store{result.created === 1 ? '' : 's'}
+                {result.failed ? `, ${result.failed} failed` : ''}.
+                {result.failed > 0 && (
+                  <ul className="mt-2 text-[12px] list-disc pl-4">
+                    {result.results.filter(r => !r.ok).map(r => (
+                      <li key={r.store_id}>{r.store}: {r.error}</li>
+                    ))}
+                  </ul>
+                )}
+              </Alert>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
