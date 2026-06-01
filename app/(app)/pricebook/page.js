@@ -145,6 +145,9 @@ function SearchPanel({ storeId, pending, onStage }) {
   const [searched, setSearched] = useState(false);
   const reqRef = useRef(0);
 
+  const [total, setTotal] = useState(0);       // recordsFiltered for the query
+  const [loadingMore, setLoadingMore] = useState(false);
+
   // Per-row editable text for the price box. Seeded from any staged change,
   // else the item's current price. Lets manual typing AND the bulk-set bar
   // both reflect in the inputs.
@@ -152,18 +155,31 @@ function SearchPanel({ storeId, pending, onStage }) {
   const [selected, setSelected] = useState(() => new Set()); // upc set
   const [bulkPrice, setBulkPrice] = useState('');
 
-  // Re-seed drafts whenever a fresh result set arrives.
-  useEffect(() => {
-    const next = {};
-    for (const it of items) {
-      next[it.upc] = pending[it.upc]
-        ? (pending[it.upc].newCents / 100).toFixed(2)
-        : (it.cents / 100).toFixed(2);
-    }
-    setDraft(next);
-    setSelected(new Set());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items]);
+  const PAGE = 100;
+
+  // Seed draft entries for rows that don't have one yet (keeps existing edits
+  // and selection intact when appending more pages).
+  const seedDrafts = useCallback((rows) => {
+    setDraft((d) => {
+      const next = { ...d };
+      for (const it of rows) {
+        if (next[it.upc] === undefined) {
+          next[it.upc] = pending[it.upc]
+            ? (pending[it.upc].newCents / 100).toFixed(2)
+            : (it.cents / 100).toFixed(2);
+        }
+      }
+      return next;
+    });
+  }, [pending]);
+
+  const fetchPage = useCallback(async (term, start) => {
+    const params = new URLSearchParams({ store_id: storeId, q: term, start: String(start), length: String(PAGE) });
+    const res = await fetch(`/api/pricebook/search?${params}`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Search failed');
+    return { items: json.items || [], total: json.recordsFiltered ?? 0 };
+  }, [storeId]);
 
   const editPrice = (it, value) => {
     setDraft((d) => ({ ...d, [it.upc]: value }));
@@ -189,21 +205,49 @@ function SearchPanel({ storeId, pending, onStage }) {
     });
   };
 
+  // Fresh search — resets the list, selection stays cleared.
   const runSearch = useCallback(async (term) => {
     const myReq = ++reqRef.current;
     setLoading(true); setError('');
     try {
-      const params = new URLSearchParams({ store_id: storeId, q: term, length: '50' });
-      const res = await fetch(`/api/pricebook/search?${params}`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Search failed');
-      if (myReq === reqRef.current) { setItems(json.items || []); setSearched(true); }
+      const { items: rows, total: t } = await fetchPage(term, 0);
+      if (myReq !== reqRef.current) return;
+      setItems(rows); setTotal(t); setSearched(true);
+      setSelected(new Set()); setDraft({});
+      seedDrafts(rows);
     } catch (e) {
       if (myReq === reqRef.current) setError(e.message);
     } finally {
       if (myReq === reqRef.current) setLoading(false);
     }
-  }, [storeId]);
+  }, [fetchPage, seedDrafts]);
+
+  // Append the next page (or keep going until everything is loaded).
+  const loadMore = useCallback(async (all = false) => {
+    const myReq = reqRef.current;
+    setLoadingMore(true); setError('');
+    try {
+      let start = items.length;
+      let acc = [];
+      do {
+        const { items: rows, total: t } = await fetchPage(q.trim(), start);
+        if (myReq !== reqRef.current) return; // a new search superseded us
+        acc = acc.concat(rows);
+        setTotal(t);
+        start += rows.length;
+        if (rows.length === 0) break;
+        if (!all) break;
+        if (start >= t || start >= 2000) break; // hard safety cap
+      } while (true);
+      if (myReq !== reqRef.current) return;
+      setItems((prev) => [...prev, ...acc]);
+      seedDrafts(acc);
+    } catch (e) {
+      if (myReq === reqRef.current) setError(e.message);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [items.length, q, fetchPage, seedDrafts]);
 
   // Debounced search as the owner types.
   useEffect(() => {
@@ -224,6 +268,12 @@ function SearchPanel({ storeId, pending, onStage }) {
       {loading && <Loading text="Searching pricebook…" />}
       {!loading && searched && items.length === 0 && (
         <EmptyState icon="🔍" title="No items found" message="Try a different name or UPC." />
+      )}
+
+      {!loading && items.length > 0 && (
+        <div className="text-[12px] text-[var(--text-muted)] mb-2">
+          Showing <span className="text-sw-text font-semibold">{items.length}</span> of {total} matching item{total === 1 ? '' : 's'}
+        </div>
       )}
 
       {/* Bulk-set bar: appears once rows are selected. */}
@@ -292,6 +342,17 @@ function SearchPanel({ storeId, pending, onStage }) {
               })}
             </tbody>
           </table>
+
+          {items.length < total && (
+            <div className="flex items-center gap-2 mt-3">
+              <Button variant="secondary" onClick={() => loadMore(false)} disabled={loadingMore}>
+                {loadingMore ? 'Loading…' : `Load more (${total - items.length} left)`}
+              </Button>
+              <Button variant="secondary" onClick={() => loadMore(true)} disabled={loadingMore}>
+                {loadingMore ? 'Loading…' : `Load all ${total}`}
+              </Button>
+            </div>
+          )}
         </div>
       )}
     </div>
