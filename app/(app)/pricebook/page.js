@@ -145,6 +145,50 @@ function SearchPanel({ storeId, pending, onStage }) {
   const [searched, setSearched] = useState(false);
   const reqRef = useRef(0);
 
+  // Per-row editable text for the price box. Seeded from any staged change,
+  // else the item's current price. Lets manual typing AND the bulk-set bar
+  // both reflect in the inputs.
+  const [draft, setDraft] = useState({}); // upc -> string
+  const [selected, setSelected] = useState(() => new Set()); // upc set
+  const [bulkPrice, setBulkPrice] = useState('');
+
+  // Re-seed drafts whenever a fresh result set arrives.
+  useEffect(() => {
+    const next = {};
+    for (const it of items) {
+      next[it.upc] = pending[it.upc]
+        ? (pending[it.upc].newCents / 100).toFixed(2)
+        : (it.cents / 100).toFixed(2);
+    }
+    setDraft(next);
+    setSelected(new Set());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
+
+  const editPrice = (it, value) => {
+    setDraft((d) => ({ ...d, [it.upc]: value }));
+    onStage(it, value);
+  };
+
+  const toggleRow = (upc) => setSelected((s) => {
+    const n = new Set(s); n.has(upc) ? n.delete(upc) : n.add(upc); return n;
+  });
+  const allSelected = items.length > 0 && selected.size === items.length;
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(items.map(i => i.upc)));
+
+  // Apply the bulk price to every selected row at once (stages, not applied).
+  const applyBulk = () => {
+    if (!bulkPrice.trim() || selected.size === 0) return;
+    const val = (parseFloat(bulkPrice.replace(/[^0-9.]/g, '')) || 0).toFixed(2);
+    setDraft((d) => {
+      const next = { ...d };
+      for (const it of items) {
+        if (selected.has(it.upc)) { next[it.upc] = val; onStage(it, val); }
+      }
+      return next;
+    });
+  };
+
   const runSearch = useCallback(async (term) => {
     const myReq = ++reqRef.current;
     setLoading(true); setError('');
@@ -181,11 +225,37 @@ function SearchPanel({ storeId, pending, onStage }) {
       {!loading && searched && items.length === 0 && (
         <EmptyState icon="🔍" title="No items found" message="Try a different name or UPC." />
       )}
+
+      {/* Bulk-set bar: appears once rows are selected. */}
+      {!loading && selected.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-3 rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5">
+          <span className="text-[12px] font-semibold text-sw-text">{selected.size} selected</span>
+          <span className="text-[12px] text-[var(--text-muted)]">→ set all to</span>
+          <div className="flex items-center gap-1">
+            <span className="text-[var(--text-muted)]">$</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={bulkPrice}
+              onChange={(e) => setBulkPrice(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') applyBulk(); }}
+              placeholder="27.49"
+              className="w-20 rounded-md border border-sw-border bg-sw-bg px-2 py-1 text-[13px] text-sw-text"
+            />
+          </div>
+          <Button variant="primary" onClick={applyBulk} disabled={!bulkPrice.trim()}>Apply to selected</Button>
+          <button onClick={() => setSelected(new Set())} className="text-[12px] text-[var(--text-muted)] hover:text-sw-text underline">Clear</button>
+        </div>
+      )}
+
       {!loading && items.length > 0 && (
         <div className="overflow-x-auto">
           <table className="w-full text-[13px]">
             <thead>
               <tr className="text-left text-[var(--text-muted)] border-b border-sw-border">
+                <th className="py-2 pr-2 w-6">
+                  <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Select all" />
+                </th>
                 <th className="py-2 pr-2 font-semibold">Item</th>
                 <th className="py-2 px-2 font-semibold">Current</th>
                 <th className="py-2 pl-2 font-semibold">New price</th>
@@ -194,8 +264,12 @@ function SearchPanel({ storeId, pending, onStage }) {
             <tbody>
               {items.map((it) => {
                 const staged = pending[it.upc];
+                const checked = selected.has(it.upc);
                 return (
-                  <tr key={it.upc} className="border-b border-sw-border/50">
+                  <tr key={it.upc} className={`border-b border-sw-border/50 ${checked ? 'bg-amber-500/5' : ''}`}>
+                    <td className="py-2 pr-2">
+                      <input type="checkbox" checked={checked} onChange={() => toggleRow(it.upc)} aria-label={`Select ${it.name || it.upc}`} />
+                    </td>
                     <td className="py-2 pr-2">
                       <div className="font-medium text-sw-text">{it.name || it.desc || '—'}</div>
                       <div className="text-[11px] text-[var(--text-muted)]">{it.upc}{it.dept ? ` · ${it.dept}` : ''}</div>
@@ -207,8 +281,8 @@ function SearchPanel({ storeId, pending, onStage }) {
                         <input
                           type="text"
                           inputMode="decimal"
-                          defaultValue={(it.cents / 100).toFixed(2)}
-                          onChange={(e) => onStage(it, e.target.value)}
+                          value={draft[it.upc] ?? (it.cents / 100).toFixed(2)}
+                          onChange={(e) => editPrice(it, e.target.value)}
                           className={`w-20 rounded-md border bg-sw-bg px-2 py-1 text-[13px] text-sw-text ${staged ? 'border-amber-500' : 'border-sw-border'}`}
                         />
                       </div>
