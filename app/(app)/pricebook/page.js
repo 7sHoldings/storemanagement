@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { PageHeader, Button, Alert, Loading, EmptyState, ConfirmModal } from '@/components/UI';
 
@@ -155,7 +155,29 @@ function SearchPanel({ storeId, pending, onStage }) {
   const [selected, setSelected] = useState(() => new Set()); // upc set
   const [bulkPrice, setBulkPrice] = useState('');
 
+  // View controls: sort order + filter to a single current price.
+  const [sort, setSort] = useState('name'); // 'name' | 'price_asc' | 'price_desc'
+  const [priceFilter, setPriceFilter] = useState(null); // cents | null
+
   const PAGE = 100;
+
+  // Distinct current prices among loaded items, with counts — rendered as
+  // clickable filter chips so a whole price group is one click to isolate.
+  const priceChips = useMemo(() => {
+    const counts = new Map();
+    for (const it of items) counts.set(it.cents, (counts.get(it.cents) || 0) + 1);
+    return [...counts.entries()].sort((a, b) => a[0] - b[0]).map(([cents, count]) => ({ cents, count }));
+  }, [items]);
+
+  // The rows actually shown: filtered by chip, then sorted.
+  const visible = useMemo(() => {
+    let v = priceFilter == null ? items : items.filter(it => it.cents === priceFilter);
+    const byName = (a, b) => (a.name || a.desc || '').localeCompare(b.name || b.desc || '');
+    if (sort === 'price_asc') v = [...v].sort((a, b) => a.cents - b.cents || byName(a, b));
+    else if (sort === 'price_desc') v = [...v].sort((a, b) => b.cents - a.cents || byName(a, b));
+    else v = [...v].sort(byName);
+    return v;
+  }, [items, priceFilter, sort]);
 
   // Seed draft entries for rows that don't have one yet (keeps existing edits
   // and selection intact when appending more pages).
@@ -189,8 +211,15 @@ function SearchPanel({ storeId, pending, onStage }) {
   const toggleRow = (upc) => setSelected((s) => {
     const n = new Set(s); n.has(upc) ? n.delete(upc) : n.add(upc); return n;
   });
-  const allSelected = items.length > 0 && selected.size === items.length;
-  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(items.map(i => i.upc)));
+  // Select-all targets the currently visible (filtered) rows, so "filter to
+  // $27.49 → select all" only grabs that group.
+  const allSelected = visible.length > 0 && visible.every(i => selected.has(i.upc));
+  const toggleAll = () => setSelected((s) => {
+    const n = new Set(s);
+    if (allSelected) visible.forEach(i => n.delete(i.upc));
+    else visible.forEach(i => n.add(i.upc));
+    return n;
+  });
 
   // Apply the bulk price to every selected row at once (stages, not applied).
   const applyBulk = () => {
@@ -271,8 +300,44 @@ function SearchPanel({ storeId, pending, onStage }) {
       )}
 
       {!loading && items.length > 0 && (
-        <div className="text-[12px] text-[var(--text-muted)] mb-2">
-          Showing <span className="text-sw-text font-semibold">{items.length}</span> of {total} matching item{total === 1 ? '' : 's'}
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <div className="text-[12px] text-[var(--text-muted)]">
+            Showing <span className="text-sw-text font-semibold">{visible.length}</span>
+            {priceFilter != null ? ` of ${items.length} loaded` : ` of ${total} matching`} item{visible.length === 1 ? '' : 's'}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] text-[var(--text-muted)]">Sort</span>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              className="rounded-md border border-sw-border bg-sw-bg px-2 py-1 text-[12px] text-sw-text"
+            >
+              <option value="name">Name</option>
+              <option value="price_asc">Price: low → high</option>
+              <option value="price_desc">Price: high → low</option>
+            </select>
+          </div>
+        </div>
+      )}
+
+      {/* Price filter chips — click a current price to isolate that group. */}
+      {!loading && priceChips.length > 1 && (
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          <button
+            onClick={() => setPriceFilter(null)}
+            className={`px-2.5 py-1 rounded-lg text-[12px] font-semibold border ${priceFilter == null ? 'bg-amber-500/15 border-amber-500/50 text-sw-text' : 'border-sw-border text-[var(--text-muted)] hover:text-sw-text'}`}
+          >
+            All ({items.length})
+          </button>
+          {priceChips.map(({ cents, count }) => (
+            <button
+              key={cents}
+              onClick={() => setPriceFilter(priceFilter === cents ? null : cents)}
+              className={`px-2.5 py-1 rounded-lg text-[12px] font-semibold border ${priceFilter === cents ? 'bg-amber-500/15 border-amber-500/50 text-sw-text' : 'border-sw-border text-[var(--text-muted)] hover:text-sw-text'}`}
+            >
+              {fmtCents(cents)} ({count})
+            </button>
+          ))}
         </div>
       )}
 
@@ -312,7 +377,7 @@ function SearchPanel({ storeId, pending, onStage }) {
               </tr>
             </thead>
             <tbody>
-              {items.map((it) => {
+              {visible.map((it) => {
                 const staged = pending[it.upc];
                 const checked = selected.has(it.upc);
                 return (
