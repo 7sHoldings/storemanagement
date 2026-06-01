@@ -164,6 +164,7 @@ function SearchPanel({ storeId, stores, pending, onStage }) {
   const [error, setError] = useState('');
   const [searched, setSearched] = useState(false);
   const [copyItem, setCopyItem] = useState(null); // item being cloned to other stores
+  const [scanOpen, setScanOpen] = useState(false);
   const reqRef = useRef(0);
 
   const [total, setTotal] = useState(0);       // recordsFiltered for the query
@@ -308,12 +309,15 @@ function SearchPanel({ storeId, stores, pending, onStage }) {
 
   return (
     <div className="rounded-xl border border-sw-border bg-sw-card p-4">
-      <input
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Search by name or UPC…"
-        className="w-full rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text mb-3"
-      />
+      <div className="flex gap-2 mb-3">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search by name or UPC…"
+          className="flex-1 min-w-0 rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text"
+        />
+        <Button variant="secondary" onClick={() => setScanOpen(true)} title="Scan a barcode to find the item">📷 Scan</Button>
+      </div>
       {error && <Alert type="error">{error}</Alert>}
       {loading && <Loading text="Searching pricebook…" />}
       {!loading && searched && items.length === 0 && (
@@ -449,6 +453,13 @@ function SearchPanel({ storeId, stores, pending, onStage }) {
 
       {copyItem && (
         <CopyToStoresModal item={copyItem} sourceStoreId={storeId} stores={stores} onClose={() => setCopyItem(null)} />
+      )}
+
+      {scanOpen && (
+        <BarcodeScanModal
+          onDetected={(code) => { setQ(code); setScanOpen(false); }}
+          onClose={() => setScanOpen(false)}
+        />
       )}
     </div>
   );
