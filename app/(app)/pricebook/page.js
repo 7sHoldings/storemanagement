@@ -514,7 +514,7 @@ function CopyToStoresModal({ item, sourceStoreId, stores, onClose }) {
         {rows.map(r => (
           <li key={r.id} className="flex items-center gap-2">
             <input type="checkbox" checked={r.selected} onChange={e => setRow(r.id, { selected: e.target.checked })} />
-            <span className="flex-1 min-w-0 truncate text-[13px] text-sw-text">{r.name}</span>
+            <span className="flex-1 min-w-0 truncate text-[13px] text-sw-text" title={r.name}>{r.name || r.id}</span>
             <span className="text-[var(--text-muted)] text-[13px]">$</span>
             <input value={r.price} onChange={e => setRow(r.id, { price: e.target.value })} inputMode="decimal" placeholder="0.00"
               disabled={!r.selected}
@@ -616,9 +616,12 @@ function AddItemPanel({ stores }) {
   const [dept, setDept] = useState('');
   const [departments, setDepartments] = useState([]);
   const [deptError, setDeptError] = useState('');
+  const [scanOpen, setScanOpen] = useState(false);
 
-  // Per-store: selected flag + price string.
-  const [rows, setRows] = useState(() => stores.map(s => ({ id: s.id, name: s.name, selected: true, price: '' })));
+  // Per-store selection + price, keyed by store id. Names are read live from
+  // the `stores` prop at render time (no snapshot) so they always show.
+  const [sel, setSel] = useState(() => new Set(stores.map(s => s.id)));
+  const [prices, setPrices] = useState({}); // id -> string
   const [bulkPrice, setBulkPrice] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
@@ -639,21 +642,22 @@ function AddItemPanel({ stores }) {
     upcRef.current?.focus();
   }, []);
 
-  const setRow = (id, patch) => setRows(rs => rs.map(r => r.id === id ? { ...r, ...patch } : r));
+  const toggleSel = (id) => setSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const setPrice = (id, v) => setPrices(p => ({ ...p, [id]: v }));
   const applyBulkPrice = () => {
     if (!bulkPrice.trim()) return;
     const v = (parseFloat(bulkPrice.replace(/[^0-9.]/g, '')) || 0).toFixed(2);
-    setRows(rs => rs.map(r => r.selected ? { ...r, price: v } : r));
+    setPrices(p => { const n = { ...p }; for (const s of stores) if (sel.has(s.id)) n[s.id] = v; return n; });
   };
 
-  const selectedRows = rows.filter(r => r.selected);
-  const canSubmit = upc.trim() && name.trim() && dept && selectedRows.length > 0
-    && selectedRows.every(r => r.price.trim() && Number(r.price) >= 0);
+  const selectedStores = stores.filter(s => sel.has(s.id));
+  const canSubmit = upc.trim() && name.trim() && dept && selectedStores.length > 0
+    && selectedStores.every(s => (prices[s.id] || '').trim() && Number(prices[s.id]) >= 0);
 
   const submit = async () => {
     setSubmitting(true); setResult(null);
     try {
-      const targets = selectedRows.map(r => ({ store_id: r.id, cents: Math.round(parseFloat(r.price) * 100) }));
+      const targets = selectedStores.map(s => ({ store_id: s.id, cents: Math.round(parseFloat(prices[s.id]) * 100) }));
       const res = await fetch('/api/pricebook/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -666,7 +670,7 @@ function AddItemPanel({ stores }) {
       if (!res.ok) throw new Error(json.error || 'Create failed');
       setResult(json);
       if (json.failed === 0) {
-        // Clear item fields for the next add; keep dept + store selection.
+        // Clear item fields for the next add; keep dept + store selection + prices.
         setUpc(''); setName(''); setSize(''); setCost('');
         upcRef.current?.focus();
       }
@@ -684,8 +688,11 @@ function AddItemPanel({ stores }) {
         <h3 className="text-sw-text text-[15px] font-bold mb-3">Item details</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="UPC / barcode">
-            <input ref={upcRef} value={upc} onChange={e => setUpc(e.target.value)} placeholder="Scan or type…"
-              className="w-full rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text" />
+            <div className="flex gap-2">
+              <input ref={upcRef} value={upc} onChange={e => setUpc(e.target.value)} placeholder="Scan or type…"
+                className="flex-1 min-w-0 rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text" />
+              <Button variant="secondary" onClick={() => setScanOpen(true)} title="Scan with camera">📷 Scan</Button>
+            </div>
           </Field>
           <Field label="Department">
             <select value={dept} onChange={e => setDept(e.target.value)}
@@ -727,20 +734,23 @@ function AddItemPanel({ stores }) {
         </div>
 
         <ul className="space-y-2 mb-4">
-          {rows.map(r => (
-            <li key={r.id} className="flex items-center gap-2">
-              <input type="checkbox" checked={r.selected} onChange={e => setRow(r.id, { selected: e.target.checked })} />
-              <span className="flex-1 min-w-0 truncate text-[13px] text-sw-text">{r.name}</span>
-              <span className="text-[var(--text-muted)] text-[13px]">$</span>
-              <input value={r.price} onChange={e => setRow(r.id, { price: e.target.value })} inputMode="decimal" placeholder="0.00"
-                disabled={!r.selected}
-                className={`w-20 rounded-md border bg-sw-bg px-2 py-1 text-[13px] text-sw-text ${r.selected ? 'border-sw-border' : 'border-sw-border/40 opacity-50'}`} />
-            </li>
-          ))}
+          {stores.map(s => {
+            const checked = sel.has(s.id);
+            return (
+              <li key={s.id} className="flex items-center gap-2">
+                <input type="checkbox" checked={checked} onChange={() => toggleSel(s.id)} />
+                <span className="flex-1 min-w-0 truncate text-[13px] text-sw-text" title={s.name}>{s.name || s.id}</span>
+                <span className="text-[var(--text-muted)] text-[13px]">$</span>
+                <input value={prices[s.id] ?? ''} onChange={e => setPrice(s.id, e.target.value)} inputMode="decimal" placeholder="0.00"
+                  disabled={!checked}
+                  className={`w-20 rounded-md border bg-sw-bg px-2 py-1 text-[13px] text-sw-text ${checked ? 'border-sw-border' : 'border-sw-border/40 opacity-50'}`} />
+              </li>
+            );
+          })}
         </ul>
 
         <Button variant="primary" className="w-full" disabled={!canSubmit || submitting} onClick={submit}>
-          {submitting ? 'Adding…' : `Add to ${selectedRows.length || ''} store${selectedRows.length === 1 ? '' : 's'}`.trim()}
+          {submitting ? 'Adding…' : `Add to ${selectedStores.length || ''} store${selectedStores.length === 1 ? '' : 's'}`.trim()}
         </Button>
 
         {result && (
@@ -763,6 +773,70 @@ function AddItemPanel({ stores }) {
           </div>
         )}
       </div>
+
+      {scanOpen && (
+        <BarcodeScanModal
+          onDetected={(code) => { setUpc(code); setScanOpen(false); upcRef.current?.focus(); }}
+          onClose={() => setScanOpen(false)}
+        />
+      )}
     </div>
+  );
+}
+
+// ── Camera barcode scanner (uses the browser's built-in BarcodeDetector) ──
+function BarcodeScanModal({ onDetected, onClose }) {
+  const videoRef = useRef(null);
+  const [err, setErr] = useState('');
+  const supported = typeof window !== 'undefined' && 'BarcodeDetector' in window;
+
+  useEffect(() => {
+    if (!supported) {
+      setErr('This browser has no built-in barcode scanner. A USB/Bluetooth scanner typed into the UPC box also works, or just type the number.');
+      return;
+    }
+    let stream, raf, stopped = false;
+    const detector = new window.BarcodeDetector({
+      formats: ['upc_a', 'upc_e', 'ean_13', 'ean_8', 'code_128', 'code_39', 'codabar', 'itf'],
+    });
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
+        if (stopped) { stream.getTracks().forEach(t => t.stop()); return; }
+        const v = videoRef.current;
+        if (v) { v.srcObject = stream; await v.play().catch(() => {}); }
+        const tick = async () => {
+          if (stopped || !videoRef.current) return;
+          try {
+            const codes = await detector.detect(videoRef.current);
+            const val = codes?.[0]?.rawValue;
+            if (val) { onDetected(String(val)); return; }
+          } catch { /* frame not ready */ }
+          raf = requestAnimationFrame(tick);
+        };
+        raf = requestAnimationFrame(tick);
+      } catch (e) {
+        setErr('Could not access the camera: ' + (e?.message || e));
+      }
+    })();
+    return () => {
+      stopped = true;
+      if (raf) cancelAnimationFrame(raf);
+      if (stream) stream.getTracks().forEach(t => t.stop());
+    };
+  }, [supported, onDetected]);
+
+  return (
+    <Modal title="Scan barcode" onClose={onClose}>
+      {err ? (
+        <Alert type="warning">{err}</Alert>
+      ) : (
+        <>
+          <video ref={videoRef} className="w-full rounded-lg bg-black aspect-video object-cover" muted playsInline />
+          <p className="text-[12px] text-[var(--text-muted)] mt-2">Point the camera at the barcode — it fills in automatically.</p>
+        </>
+      )}
+      <div className="flex justify-end mt-3"><Button variant="secondary" onClick={onClose}>Close</Button></div>
+    </Modal>
   );
 }
