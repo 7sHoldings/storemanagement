@@ -7,6 +7,7 @@ import {
   LayoutDashboard, TrendingUp, DollarSign, Coins, ShoppingCart, PackagePlus,
   FileText, CreditCard, Boxes, BarChart3, ArrowLeftRight, History, Download,
   UserCheck, UserCog, Mail, Zap, Bot, RefreshCw, Settings, Tag, Gamepad2,
+  ScanBarcode,
 } from 'lucide-react';
 import SidebarHeader from './layout/SidebarHeader';
 import SidebarSection from './layout/SidebarSection';
@@ -40,6 +41,7 @@ const I = {
   refresh:   <RefreshCw {...IP} />,
   settings:  <Settings {...IP} />,
   tag:       <Tag {...IP} />,
+  barcode:   <ScanBarcode {...IP} />,
   game:      <Gamepad2 {...IP} />,
 };
 
@@ -96,6 +98,7 @@ export default function Sidebar({ selectedStore, onStoreChange }) {
       { path: '/expenses',   icon: I.expense,   label: 'Expenses' },
       { path: '/inventory',  icon: I.inventory, label: 'Inventory' },
       { path: '/warehouse-prices', icon: I.tag,  label: 'Warehouse Prices' },
+      { path: '/pricebook',  icon: I.barcode,   label: 'Pricebook' },
     ]},
     { title: 'Reports', items: [
       { path: '/reports',  icon: I.pl,       label: 'P&L Report' },
