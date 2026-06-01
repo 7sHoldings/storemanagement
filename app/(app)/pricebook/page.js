@@ -1,0 +1,284 @@
+'use client';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useAuth } from '@/components/AuthProvider';
+import { PageHeader, Button, Alert, Loading, EmptyState, ConfirmModal } from '@/components/UI';
+
+const fmtCents = (c) => `$${(Number(c || 0) / 100).toFixed(2)}`;
+// "29.99" / "$29.99" / "2999¢"? → integer cents. Returns null if unparseable.
+const dollarsToCents = (s) => {
+  const n = parseFloat(String(s).replace(/[^0-9.]/g, ''));
+  if (!Number.isFinite(n)) return null;
+  return Math.round(n * 100);
+};
+
+export default function PricebookPage() {
+  const { supabase, isOwner } = useAuth();
+  const [stores, setStores] = useState([]);
+  const [storeId, setStoreId] = useState('');
+  const [loadingStores, setLoadingStores] = useState(true);
+
+  // pending edits: upc -> { item, newCents }
+  const [pending, setPending] = useState({});
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [applyResult, setApplyResult] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from('stores').select('id, name, nrs_store_id').order('created_at');
+      const nrs = (data || []).filter(s => s.nrs_store_id);
+      setStores(nrs);
+      if (nrs.length) setStoreId(nrs[0].id);
+      setLoadingStores(false);
+    })();
+  }, [supabase]);
+
+  // Changing store clears the basket to avoid cross-store mixups.
+  const onStoreChange = (id) => {
+    setStoreId(id);
+    setPending({});
+    setApplyResult(null);
+  };
+
+  const stageEdit = useCallback((item, dollars) => {
+    const newCents = dollarsToCents(dollars);
+    setPending((prev) => {
+      const next = { ...prev };
+      if (newCents == null || newCents === item.cents) {
+        delete next[item.upc];
+      } else {
+        next[item.upc] = { item, newCents };
+      }
+      return next;
+    });
+  }, []);
+
+  const removePending = (upc) => setPending((prev) => {
+    const next = { ...prev }; delete next[upc]; return next;
+  });
+
+  const pendingList = Object.values(pending);
+
+  const applyUpdates = async () => {
+    setConfirmOpen(false);
+    setApplying(true);
+    setApplyResult(null);
+    try {
+      const res = await fetch('/api/pricebook/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          store_id: storeId,
+          updates: pendingList.map(p => ({ upc: p.item.upc, cents: p.newCents })),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Update failed');
+      setApplyResult(json);
+      // Clear successfully-updated items from the basket.
+      const failedUpcs = new Set((json.results || []).filter(r => !r.ok).map(r => r.upc));
+      setPending((prev) => {
+        const next = {};
+        for (const [upc, v] of Object.entries(prev)) if (failedUpcs.has(upc)) next[upc] = v;
+        return next;
+      });
+    } catch (e) {
+      setApplyResult({ error: e.message });
+    } finally {
+      setApplying(false);
+    }
+  };
+
+  if (!isOwner) return <Alert type="warning">Owner only.</Alert>;
+  if (loadingStores) return <Loading />;
+  if (!stores.length) return <Alert type="warning">No stores with an NRS ID configured.</Alert>;
+
+  return (
+    <div className="py-4 md:py-6 max-w-[1200px]">
+      <PageHeader
+        title="Pricebook"
+        subtitle="Search your live NRS pricebook and update item prices. Changes are written straight to your POS."
+      />
+
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <span className="text-[12px] font-semibold text-[var(--text-muted)]">Store</span>
+        <select
+          value={storeId}
+          onChange={(e) => onStoreChange(e.target.value)}
+          className="rounded-lg border border-sw-border bg-sw-card px-3 py-1.5 text-[13px] text-sw-text"
+        >
+          {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
+        <SearchPanel storeId={storeId} pending={pending} onStage={stageEdit} />
+        <ReviewPanel
+          pendingList={pendingList}
+          onRemove={removePending}
+          onApply={() => setConfirmOpen(true)}
+          applying={applying}
+          result={applyResult}
+        />
+      </div>
+
+      {confirmOpen && (
+        <ConfirmModal
+          title="Apply price changes?"
+          message={`This will update ${pendingList.length} item price${pendingList.length === 1 ? '' : 's'} in your live NRS pricebook. This takes effect immediately at the register.`}
+          confirmLabel="Update prices"
+          confirmVariant="primary"
+          onCancel={() => setConfirmOpen(false)}
+          onConfirm={applyUpdates}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Search + results with inline price editing ──────────────────────────
+function SearchPanel({ storeId, pending, onStage }) {
+  const [q, setQ] = useState('');
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [searched, setSearched] = useState(false);
+  const reqRef = useRef(0);
+
+  const runSearch = useCallback(async (term) => {
+    const myReq = ++reqRef.current;
+    setLoading(true); setError('');
+    try {
+      const params = new URLSearchParams({ store_id: storeId, q: term, length: '50' });
+      const res = await fetch(`/api/pricebook/search?${params}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Search failed');
+      if (myReq === reqRef.current) { setItems(json.items || []); setSearched(true); }
+    } catch (e) {
+      if (myReq === reqRef.current) setError(e.message);
+    } finally {
+      if (myReq === reqRef.current) setLoading(false);
+    }
+  }, [storeId]);
+
+  // Debounced search as the owner types.
+  useEffect(() => {
+    if (!storeId) return;
+    const t = setTimeout(() => runSearch(q.trim()), 350);
+    return () => clearTimeout(t);
+  }, [q, storeId, runSearch]);
+
+  return (
+    <div className="rounded-xl border border-sw-border bg-sw-card p-4">
+      <input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Search by name or UPC…"
+        className="w-full rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text mb-3"
+      />
+      {error && <Alert type="error">{error}</Alert>}
+      {loading && <Loading text="Searching pricebook…" />}
+      {!loading && searched && items.length === 0 && (
+        <EmptyState icon="🔍" title="No items found" message="Try a different name or UPC." />
+      )}
+      {!loading && items.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-[13px]">
+            <thead>
+              <tr className="text-left text-[var(--text-muted)] border-b border-sw-border">
+                <th className="py-2 pr-2 font-semibold">Item</th>
+                <th className="py-2 px-2 font-semibold">Current</th>
+                <th className="py-2 pl-2 font-semibold">New price</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((it) => {
+                const staged = pending[it.upc];
+                return (
+                  <tr key={it.upc} className="border-b border-sw-border/50">
+                    <td className="py-2 pr-2">
+                      <div className="font-medium text-sw-text">{it.name || it.desc || '—'}</div>
+                      <div className="text-[11px] text-[var(--text-muted)]">{it.upc}{it.dept ? ` · ${it.dept}` : ''}</div>
+                    </td>
+                    <td className="py-2 px-2 whitespace-nowrap text-sw-text">{fmtCents(it.cents)}</td>
+                    <td className="py-2 pl-2">
+                      <div className="flex items-center gap-1">
+                        <span className="text-[var(--text-muted)]">$</span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          defaultValue={(it.cents / 100).toFixed(2)}
+                          onChange={(e) => onStage(it, e.target.value)}
+                          className={`w-20 rounded-md border bg-sw-bg px-2 py-1 text-[13px] text-sw-text ${staged ? 'border-amber-500' : 'border-sw-border'}`}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Basket of staged changes + apply ────────────────────────────────────
+function ReviewPanel({ pendingList, onRemove, onApply, applying, result }) {
+  return (
+    <div className="rounded-xl border border-sw-border bg-sw-card p-4 h-fit lg:sticky lg:top-4">
+      <h3 className="text-sw-text text-[15px] font-bold mb-1">Pending changes</h3>
+      <p className="text-sw-sub text-[12px] mb-3">Review before applying. Nothing is sent until you click Update.</p>
+
+      {pendingList.length === 0 ? (
+        <div className="text-[13px] text-[var(--text-muted)] py-6 text-center">
+          Edit a price in the list to stage a change.
+        </div>
+      ) : (
+        <ul className="space-y-2 mb-4">
+          {pendingList.map(({ item, newCents }) => (
+            <li key={item.upc} className="flex items-center justify-between gap-2 text-[13px]">
+              <div className="min-w-0">
+                <div className="font-medium text-sw-text truncate">{item.name || item.desc || item.upc}</div>
+                <div className="text-[11px] text-[var(--text-muted)]">
+                  {fmtCents(item.cents)} → <span className="text-amber-500 font-semibold">{fmtCents(newCents)}</span>
+                </div>
+              </div>
+              <button onClick={() => onRemove(item.upc)} className="text-[var(--text-muted)] hover:text-red-500 text-[16px] leading-none">×</button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Button
+        variant="primary"
+        className="w-full"
+        disabled={pendingList.length === 0 || applying}
+        onClick={onApply}
+      >
+        {applying ? 'Updating…' : `Update ${pendingList.length || ''} price${pendingList.length === 1 ? '' : 's'}`.trim()}
+      </Button>
+
+      {result && (
+        <div className="mt-4">
+          {result.error ? (
+            <Alert type="error">{result.error}</Alert>
+          ) : (
+            <Alert type={result.failed ? 'warning' : 'success'}>
+              Updated {result.updated} price{result.updated === 1 ? '' : 's'}
+              {result.failed ? `, ${result.failed} failed` : ''}.
+              {result.failed > 0 && (
+                <ul className="mt-2 text-[12px] list-disc pl-4">
+                  {result.results.filter(r => !r.ok).map(r => (
+                    <li key={r.upc}>{r.upc}: {r.error}</li>
+                  ))}
+                </ul>
+              )}
+            </Alert>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
