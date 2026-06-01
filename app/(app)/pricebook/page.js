@@ -380,7 +380,7 @@ function SearchPanel({ storeId, stores, pending, onStage }) {
               onChange={(e) => setBulkPrice(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') applyBulk(); }}
               placeholder="27.49"
-              className="w-20 rounded-md border border-sw-border bg-sw-bg px-2 py-1 text-[13px] text-sw-text"
+              style={{ width: '5rem' }} className="w-20 rounded-md border border-sw-border bg-sw-bg px-2 py-1 text-[13px] text-sw-text"
             />
           </div>
           <Button variant="primary" onClick={applyBulk} disabled={!bulkPrice.trim()}>Apply to selected</Button>
@@ -421,7 +421,7 @@ function SearchPanel({ storeId, stores, pending, onStage }) {
                         inputMode="decimal"
                         value={draft[it.upc] ?? (it.cents / 100).toFixed(2)}
                         onChange={(e) => editPrice(it, e.target.value)}
-                        className={`w-[72px] rounded-md border bg-sw-bg px-2 py-1.5 text-[13px] text-sw-text ${staged ? 'border-amber-500' : 'border-sw-border'}`}
+                        style={{ width: '4.75rem' }} className={`w-[72px] rounded-md border bg-sw-bg px-2 py-1.5 text-[13px] text-sw-text ${staged ? 'border-amber-500' : 'border-sw-border'}`}
                       />
                     </div>
                   </div>
@@ -509,7 +509,7 @@ function CopyToStoresModal({ item, sourceStoreId, stores, onClose }) {
         <span className="text-[var(--text-muted)] text-[13px]">$</span>
         <input value={bulkPrice} onChange={e => setBulkPrice(e.target.value)} inputMode="decimal" placeholder="set all to"
           onKeyDown={e => { if (e.key === 'Enter') applyBulk(); }}
-          className="w-24 rounded-md border border-sw-border bg-sw-bg px-2 py-1 text-[13px] text-sw-text" />
+          style={{ width: '6rem' }} className="w-24 rounded-md border border-sw-border bg-sw-bg px-2 py-1 text-[13px] text-sw-text" />
         <Button variant="secondary" onClick={applyBulk} disabled={!bulkPrice.trim()}>Set all</Button>
       </div>
 
@@ -521,7 +521,7 @@ function CopyToStoresModal({ item, sourceStoreId, stores, onClose }) {
             <span className="text-[var(--text-muted)] text-[13px]">$</span>
             <input value={r.price} onChange={e => setRow(r.id, { price: e.target.value })} inputMode="decimal" placeholder="0.00"
               disabled={!r.selected}
-              className={`w-20 rounded-md border bg-sw-bg px-2 py-1 text-[13px] text-sw-text ${r.selected ? 'border-sw-border' : 'border-sw-border/40 opacity-50'}`} />
+              style={{ width: '5rem' }} className={`w-20 rounded-md border bg-sw-bg px-2 py-1 text-[13px] text-sw-text ${r.selected ? 'border-sw-border' : 'border-sw-border/40 opacity-50'}`} />
           </li>
         ))}
       </ul>
@@ -773,7 +773,7 @@ function AddItemPanel({ stores }) {
           <span className="text-[var(--text-muted)] text-[13px]">$</span>
           <input value={bulkPrice} onChange={e => setBulkPrice(e.target.value)} inputMode="decimal" placeholder="set all to"
             onKeyDown={e => { if (e.key === 'Enter') applyBulkPrice(); }}
-            className="w-24 rounded-md border border-sw-border bg-sw-bg px-2 py-1 text-[13px] text-sw-text" />
+            style={{ width: '6rem' }} className="w-24 rounded-md border border-sw-border bg-sw-bg px-2 py-1 text-[13px] text-sw-text" />
           <Button variant="secondary" onClick={applyBulkPrice} disabled={!bulkPrice.trim()}>Set all</Button>
         </div>
 
@@ -787,7 +787,7 @@ function AddItemPanel({ stores }) {
                 <span className="text-[var(--text-muted)] text-[13px]">$</span>
                 <input value={prices[s.id] ?? ''} onChange={e => setPrice(s.id, e.target.value)} inputMode="decimal" placeholder="0.00"
                   disabled={!checked}
-                  className={`w-20 rounded-md border bg-sw-bg px-2 py-1 text-[13px] text-sw-text ${checked ? 'border-sw-border' : 'border-sw-border/40 opacity-50'}`} />
+                  style={{ width: '5rem' }} className={`w-20 rounded-md border bg-sw-bg px-2 py-1 text-[13px] text-sw-text ${checked ? 'border-sw-border' : 'border-sw-border/40 opacity-50'}`} />
               </li>
             );
           })}
