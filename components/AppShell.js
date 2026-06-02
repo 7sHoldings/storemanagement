@@ -23,7 +23,7 @@ export default function AppShell({ children }) {
       // Inventory + Restock temporarily disabled for employees. Add them
       // back to this list (and to the Sidebar nav) once those flows are
       // ready for the employee role.
-      const allowed = ['/sales'];
+      const allowed = ['/sales', '/stock-count'];
       const path = window.location.pathname;
       if (!allowed.some(p => path === p || path.startsWith(p + '/'))) {
         router.replace('/sales');

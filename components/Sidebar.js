@@ -94,6 +94,7 @@ export default function Sidebar({ selectedStore, onStoreChange }) {
       { path: '/game-machines', icon: I.game,   label: 'Game Machines' },
       { path: '/purchases',  icon: I.cart,      label: 'Product Buying' },
       { path: '/restock',    icon: I.restock,   label: 'Restock' },
+      { path: '/stock-count', icon: I.inventory, label: 'Stock Count' },
       { path: '/auto-reorder', icon: I.refresh, label: 'Auto Reorder' },
       { path: '/invoices',   icon: I.invoice,   label: 'Invoices' },
       { path: '/expenses',   icon: I.expense,   label: 'Expenses' },
@@ -123,6 +124,7 @@ export default function Sidebar({ selectedStore, onStoreChange }) {
   ] : [
     { title: null, items: [
       { path: '/sales', icon: I.sales, label: 'Enter Sales' },
+      { path: '/stock-count', icon: I.inventory, label: 'Stock Count' },
       // Inventory and Restock temporarily hidden for employees — re-enable
       // here (and in AppShell's allowed[] list) once the inventory flow is
       // ready for them.
