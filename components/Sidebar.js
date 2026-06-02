@@ -94,6 +94,7 @@ export default function Sidebar({ selectedStore, onStoreChange }) {
       { path: '/game-machines', icon: I.game,   label: 'Game Machines' },
       { path: '/purchases',  icon: I.cart,      label: 'Product Buying' },
       { path: '/restock',    icon: I.restock,   label: 'Restock' },
+      { path: '/auto-reorder', icon: I.refresh, label: 'Auto Reorder' },
       { path: '/invoices',   icon: I.invoice,   label: 'Invoices' },
       { path: '/expenses',   icon: I.expense,   label: 'Expenses' },
       { path: '/inventory',  icon: I.inventory, label: 'Inventory' },
