@@ -95,6 +95,14 @@ export default function DashboardPage() {
         if (storeId) cashQ = cashQ.eq('store_id', storeId);
         const { data: cashRows } = await cashQ;
 
+        // Game-machine income — "other income" added to net profit, same as
+        // the P&L Report. Kept out of sales revenue (totalRevenue) so sales
+        // metrics stay sales-only; only net profit & margin include it.
+        let gmQ = supabase.from('game_machine_collections').select('amount, store_id')
+          .gte('date', range.start).lte('date', range.end);
+        if (storeId) gmQ = gmQ.eq('store_id', storeId);
+        const { data: gmRows } = await gmQ;
+
         const totalGross = sales?.reduce((s, r) => s + (r.gross_sales ?? r.total_sales ?? 0), 0) || 0;
         // Cash counted = what was actually dropped in the safe across both
         // registers. Falls back to cash_sales + register2_cash for legacy
@@ -113,46 +121,32 @@ export default function DashboardPage() {
         const totalShortOver = sales?.reduce((s, r) => s + (r.short_over || 0), 0) || 0;
         const totalTax = sales?.reduce((s, r) => s + (r.tax_collected || 0), 0) || 0;
         const totalPurch = purch?.reduce((s, r) => s + (r.total_cost || r.unit_cost || 0), 0) || 0;
-        // Pro-rate monthly expenses by the fraction of days in the range
-        // that fall within each expense's month. A "This Week" pick that
-        // straddles two months should not subtract both full months of
-        // expenses against six days of sales.
-        const totalExp = (() => {
-          if (!exps?.length) return 0;
-          const start = new Date(range.start + 'T12:00:00');
-          const end   = new Date(range.end   + 'T12:00:00');
-          let total = 0;
-          exps.forEach(e => {
-            if (!e?.month) { total += (e?.amount || 0); return; }
-            const [yy, mm] = e.month.split('-').map(Number);
-            if (!yy || !mm) { total += (e.amount || 0); return; }
-            const monthStart = new Date(yy, mm - 1, 1, 12, 0, 0);
-            const monthEnd   = new Date(yy, mm,     0, 12, 0, 0);
-            const daysInMonth = monthEnd.getDate();
-            const overlapStart = start > monthStart ? start : monthStart;
-            const overlapEnd   = end   < monthEnd   ? end   : monthEnd;
-            const overlapDays  = Math.max(0, Math.round((overlapEnd - overlapStart) / 86400000) + 1);
-            total += (overlapDays / daysInMonth) * (e.amount || 0);
-          });
-          return total;
-        })();
+        // Sum the full month-amount of every expense whose month overlaps the
+        // range (the query already scopes to overlapping months). Matches the
+        // P&L Report exactly so the dashboard's Net Profit reconciles with it.
+        const totalExp = exps?.reduce((s, r) => s + (r.amount || 0), 0) || 0;
+        const totalGameMachine = gmRows?.reduce((s, r) => s + (r.amount || 0), 0) || 0;
         const cashInHand = cashRows?.reduce((s, r) => s + (r.cash_collected || 0), 0) || 0;
-        // P&L still uses revenue (cash flow = total_sales) so margin lines
-        // up with how the P&L Report and ledger compute things.
-        const netProfit = totalRevenue - totalPurch - totalExp;
-        const margin = totalRevenue > 0 ? (netProfit / totalRevenue * 100) : 0;
+        // Net Profit formula mirrors the P&L Report: sales revenue plus
+        // game-machine income, less purchases and expenses. Margin uses total
+        // income (revenue + games) as the denominator, same as the P&L.
+        const totalIncome = totalRevenue + totalGameMachine;
+        const netProfit = totalRevenue + totalGameMachine - totalPurch - totalExp;
+        const margin = totalIncome > 0 ? (netProfit / totalIncome * 100) : 0;
 
-        setStats({ totalGross, totalNet, totalNonTax, totalCash, totalCard, totalShortOver, totalTax, totalPurch, totalExp, cashInHand, netProfit, margin });
+        setStats({ totalGross, totalNet, totalNonTax, totalCash, totalCard, totalShortOver, totalTax, totalPurch, totalExp, totalGameMachine, totalIncome, cashInHand, netProfit, margin });
 
         if (storeData?.length && !storeId) {
           const perf = storeData.map(st => {
             const rev = (sales || []).filter(r => r.store_id === st.id).reduce((s, r) => s + (r.total_sales ?? r.net_sales ?? 0), 0);
             const cogs = (purch || []).filter(r => r.store_id === st.id).reduce((s, r) => s + (r.total_cost || r.unit_cost || 0), 0);
             const exp = (exps || []).filter(r => r.store_id === st.id).reduce((s, r) => s + (r.amount || 0), 0);
+            const games = (gmRows || []).filter(r => r.store_id === st.id).reduce((s, r) => s + (r.amount || 0), 0);
             const so = (sales || []).filter(r => r.store_id === st.id).reduce((s, r) => s + (r.short_over || 0), 0);
-            const profit = rev - cogs - exp;
-            const mg = rev > 0 ? (profit / rev * 100) : 0;
-            return { ...st, revenue: rev, buying: cogs, expenses: exp, profit, margin: mg, shortOver: so };
+            const income = rev + games;
+            const profit = rev + games - cogs - exp;
+            const mg = income > 0 ? (profit / income * 100) : 0;
+            return { ...st, revenue: rev, games, buying: cogs, expenses: exp, profit, margin: mg, shortOver: so };
           }).sort((a, b) => b.revenue - a.revenue);
           setStorePerf(perf);
         } else {
