@@ -42,6 +42,7 @@ export default function CashPage() {
   const [loadError, setLoadError] = useState('');
   const [modal, setModal] = useState(null);
   const [editRow, setEditRow] = useState(null);
+  const [matchingId, setMatchingId] = useState(null);
 
   // Page-level filters
   const [storeFilter, setStoreFilter] = useState(effectiveStoreId ? [effectiveStoreId] : []);
@@ -208,6 +209,28 @@ export default function CashPage() {
     setModal(null);
     setEditRow(null);
     load();
+  };
+
+  // One-click "Match": record the collection with collected = expected,
+  // skipping the modal entirely. Same upsert path as handleSave.
+  const handleQuickMatch = async (r) => {
+    if (matchingId) return;
+    setMatchingId(r.id);
+    try {
+      const { error } = await supabase.from('cash_collections').upsert({
+        store_id: r.store_id, date: r.date, cash_collected: r.expected, note: r.note || '', collected_by: profile?.id,
+      }, { onConflict: 'store_id,date' });
+      if (error) { alert(error.message); return; }
+      await logActivity(supabase, profile, {
+        action: 'create',
+        entityType: 'cash_collection',
+        description: `${profile?.name} matched cash collection of ${fmtMoney(r.expected)} to expected for ${r.store_name} on ${shortDate(r.date)}`,
+        storeName: r.store_name,
+      });
+      await load();
+    } finally {
+      setMatchingId(null);
+    }
   };
 
   // Delete the cash_collections row entirely so the day flips back to
@@ -422,13 +445,26 @@ export default function CashPage() {
                 📊 Daily Sales
               </button>
               {r.status === 'pending' ? (
-                <button
-                  onClick={() => openEdit(r)}
-                  className="inline-flex items-center gap-1 px-3 rounded-md bg-sw-greenD border border-sw-green/30 text-[var(--color-success)] text-[12px] font-semibold"
-                  style={{ minHeight: 32 }}
-                >
-                  💰 Collect
-                </button>
+                <>
+                  {r.expected > 0 && (
+                    <button
+                      onClick={() => handleQuickMatch(r)}
+                      disabled={matchingId === r.id}
+                      className="inline-flex items-center gap-1 px-3 rounded-md bg-sw-blueD border border-sw-blue/30 text-[var(--color-info)] text-[12px] font-semibold disabled:opacity-50"
+                      style={{ minHeight: 32 }}
+                      title={`Record collected = expected (${fmt(r.expected)}) in one click`}
+                    >
+                      {matchingId === r.id ? '…' : '✓ Match'}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => openEdit(r)}
+                    className="inline-flex items-center gap-1 px-3 rounded-md bg-sw-greenD border border-sw-green/30 text-[var(--color-success)] text-[12px] font-semibold"
+                    style={{ minHeight: 32 }}
+                  >
+                    💰 Collect
+                  </button>
+                </>
               ) : (
                 <button
                   onClick={() => openEdit(r)}
@@ -498,12 +534,24 @@ export default function CashPage() {
       )}
 
       <Field label="Cash Collected">
-        <input
-          type="number"
-          value={form.cash_collected}
-          onChange={e => setForm({...form, cash_collected: e.target.value})}
-          className="!text-lg !py-3 !font-mono !font-bold"
-        />
+        <div className="flex gap-2 items-stretch">
+          <input
+            type="number"
+            value={form.cash_collected}
+            onChange={e => setForm({...form, cash_collected: e.target.value})}
+            className="!text-lg !py-3 !font-mono !font-bold flex-1"
+          />
+          {expectedBreakdown.total > 0 && (
+            <button
+              type="button"
+              onClick={() => setForm({ ...form, cash_collected: String(+expectedBreakdown.total.toFixed(2)) })}
+              className="shrink-0 px-3 rounded-md bg-sw-blueD border border-sw-blue/30 text-[var(--color-info)] text-[12px] font-semibold whitespace-nowrap"
+              title="Fill with the expected amount"
+            >
+              ✓ Match ({fmt(expectedBreakdown.total)})
+            </button>
+          )}
+        </div>
       </Field>
 
       {/* Live short/over indicator */}
