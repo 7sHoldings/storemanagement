@@ -100,6 +100,11 @@ export default function ReportsPage() {
         // so sales metrics, payment-mix %s, and shareholder profit stay
         // sales-only). Margin denominator includes it so the % math holds.
         const totalGameMachine = (gmCur || []).reduce((s, r) => s + (r.amount || 0), 0);
+        // Expenses paid out of collected cash (paid_from = 'cash_collection',
+        // e.g. cash payroll) — deducted from the Cash in Hand card only; they
+        // are already counted in totalExpenses for the P&L.
+        const cashPaidOut = (expCur || []).reduce((s, r) =>
+          s + (r.paid_from === 'cash_collection' && r.expense_date && r.expense_date >= range.start && r.expense_date <= range.end ? (r.amount || 0) : 0), 0);
         const grossProfit = totalRevenue - totalPurchases;
         const netProfit = totalRevenue + totalGameMachine - totalPurchases - totalExpenses;
         const totalIncome = totalRevenue + totalGameMachine;
@@ -122,7 +127,7 @@ export default function ReportsPage() {
         setSummary({
           totalGross, totalRevenue, totalGameMachine, totalIncome,
           totalCash, totalCard, totalCheck, totalTax,
-          totalPurchases, totalExpenses,
+          totalPurchases, totalExpenses, cashPaidOut,
           grossProfit, netProfit, margin, cashPct, cardPct, checkPct,
           revenueChange: prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : null,
         });
@@ -660,13 +665,14 @@ export default function ReportsPage() {
               <V2StatCard
                 className="h-full"
                 label="Cash in Hand"
-                value={fmt((cashRecon?.collected || 0) + (summary.totalGameMachine || 0))}
+                value={fmt((cashRecon?.collected || 0) + (summary.totalGameMachine || 0) - (summary.cashPaidOut || 0))}
                 variant="info"
                 icon="🏦"
                 sub={
                   <TwoLineSub lines={[
                     { label: '💵 Sales', value: fmt(cashRecon?.collected || 0), color: 'text-[var(--text-primary)]' },
                     { label: '🎮 Games', value: fmt(summary.totalGameMachine || 0), color: 'text-[var(--text-primary)]' },
+                    ...(summary.cashPaidOut > 0 ? [{ label: '📋 Paid Out', value: `−${fmt(summary.cashPaidOut)}`, color: 'text-[var(--color-danger)]' }] : []),
                   ]} />
                 }
               />

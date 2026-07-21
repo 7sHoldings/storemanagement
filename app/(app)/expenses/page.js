@@ -52,8 +52,9 @@ export default function ExpensesPage() {
     { label: 'Amount (low-high)', key: 'amount', dir: 'asc' },
   ];
 
-  // Single-expense form
-  const [form, setForm] = useState({ store_id: '', date: today(), category: 'power', customCategory: '', amount: '', note: '' });
+  // Single-expense form. paid_from: 'bank' (default) or 'cash_collection' —
+  // cash-paid expenses are deducted from Cash in Hand on the Cash page.
+  const [form, setForm] = useState({ store_id: '', date: today(), category: 'power', customCategory: '', amount: '', note: '', paid_from: 'bank' });
   const [errors, setErrors] = useState({});
 
   // Receipt images
@@ -177,6 +178,9 @@ export default function ExpensesPage() {
 
       const image_urls = [...existingReceipts, ...newUrls];
 
+      // Paid From only applies to payroll — every other category is bank-paid.
+      const paidFrom = form.category === 'payroll' ? (form.paid_from || 'bank') : 'bank';
+
       const payload = {
         store_id: form.store_id,
         month: monthKey,
@@ -185,6 +189,7 @@ export default function ExpensesPage() {
         amount,
         note: (form.note || '').trim(),
         image_urls,
+        paid_from: paidFrom,
       };
 
       let inserted, error;
@@ -200,13 +205,13 @@ export default function ExpensesPage() {
         action: editItem ? 'update' : 'create',
         entityType: 'expense',
         entityId: inserted?.id,
-        description: `${profile?.name} ${editItem ? 'updated' : 'added'} expense ${catLabel(category)?.label || category} of ${fmtMoney(amount)} for ${storeName} (${form.date})`,
+        description: `${profile?.name} ${editItem ? 'updated' : 'added'} expense ${catLabel(category)?.label || category} of ${fmtMoney(amount)} for ${storeName} (${form.date})${paidFrom === 'cash_collection' ? ' — paid from cash in hand' : ''}`,
         storeName,
         metadata: editItem ? { before: editItem, after: payload } : null,
       });
       setModal(false);
       setEditItem(null);
-      setForm({ store_id: pageStoreId || '', date: today(), category: 'power', customCategory: '', amount: '', note: '' });
+      setForm({ store_id: pageStoreId || '', date: today(), category: 'power', customCategory: '', amount: '', note: '', paid_from: 'bank' });
       setPendingReceipts([]);
       setExistingReceipts([]);
       setRemovedReceipts([]);
@@ -433,7 +438,7 @@ export default function ExpensesPage() {
 
   const tryOpenAdd = () => {
     setEditItem(null);
-    setForm({ store_id: pageStoreId || '', date: today(), category: 'power', customCategory: '', amount: '', note: '' });
+    setForm({ store_id: pageStoreId || '', date: today(), category: 'power', customCategory: '', amount: '', note: '', paid_from: 'bank' });
     setPendingReceipts([]);
     setExistingReceipts([]);
     setRemovedReceipts([]);
@@ -450,6 +455,7 @@ export default function ExpensesPage() {
       customCategory: isFixed ? '' : row.category,
       amount: String(row.amount ?? ''),
       note: row.note || '',
+      paid_from: row.paid_from || 'bank',
     });
     setPendingReceipts([]);
     setExistingReceipts(Array.isArray(row.image_urls) ? row.image_urls : []);
@@ -500,7 +506,7 @@ export default function ExpensesPage() {
   return (
     <div>
       <PageHeader title="📋 Expenses" subtitle={pageStoreId ? selectedStoreName : 'All Stores'}>
-        <Button variant="secondary" onClick={() => downloadCSV('expenses.csv', ['Month','Store','Category','Amount','Note'], visibleItems.map(e => [e.month, e.stores?.name, catLabel(e.category)?.label || e.category, e.amount, e.note]))} className="!text-[11px]">📥 CSV</Button>
+        <Button variant="secondary" onClick={() => downloadCSV('expenses.csv', ['Month','Store','Category','Amount','Paid From','Note'], visibleItems.map(e => [e.month, e.stores?.name, catLabel(e.category)?.label || e.category, e.amount, e.paid_from === 'cash_collection' ? 'Cash in Hand' : 'Bank', e.note]))} className="!text-[11px]">📥 CSV</Button>
         <Button variant="secondary" onClick={() => openTemplate()}>📝 Fill Monthly</Button>
         <Button onClick={tryOpenAdd}>+ Add</Button>
       </PageHeader>
@@ -554,7 +560,14 @@ export default function ExpensesPage() {
               return monthLabel(r.month);
             }, sortValue: r => r.expense_date || r.month },
             { key: 'store_id', label: 'Store', render: (_,r) => <StoreBadge name={r.stores?.name} color={r.stores?.color} />, sortValue: r => r.stores?.name || '' },
-            { key: 'category', label: 'Type', render: renderCatInTable, sortValue: r => catLabel(r.category)?.label || r.category },
+            { key: 'category', label: 'Type', render: (v, r) => (
+              <span className="inline-flex items-center gap-1.5">
+                {renderCatInTable(v)}
+                {r.paid_from === 'cash_collection' && (
+                  <span title="Paid from Cash in Hand — deducted on the Cash Collection page" className="bg-sw-greenD text-[var(--color-success)] border border-sw-green/30 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">💵 Cash</span>
+                )}
+              </span>
+            ), sortValue: r => catLabel(r.category)?.label || r.category },
             { key: 'amount', label: 'Amount', align: 'right', mono: true, render: v => <span className="text-[var(--color-danger)]">{fmt(v)}</span>, sortValue: r => Number(r.amount || 0) },
             { key: '_images', label: 'Image', align: 'center', sortable: false, render: (_, r) => {
               const urls = Array.isArray(r.image_urls) ? r.image_urls : [];
@@ -623,6 +636,19 @@ export default function ExpensesPage() {
             )}
             {errors.customCategory && <p className="text-[var(--color-danger)] text-[11px] mt-1">{errors.customCategory}</p>}
           </Field>
+          {form.category === 'payroll' && (
+            <Field label="Paid From">
+              <select value={form.paid_from} onChange={e => setForm({...form, paid_from: e.target.value})}>
+                <option value="bank">🏦 Bank / Card</option>
+                <option value="cash_collection">💵 Cash in Hand (collected cash)</option>
+              </select>
+              {form.paid_from === 'cash_collection' && (
+                <p className="text-[var(--color-warning)] text-[11px] mt-1">
+                  💵 This amount will be deducted from Cash in Hand on the Cash Collection page.
+                </p>
+              )}
+            </Field>
+          )}
           <Field label="Amount">
             <input type="number" min="0" step="0.01" placeholder="0.00" value={form.amount}
               onChange={e => setForm({...form, amount: e.target.value.replace(/^-/, '')})}

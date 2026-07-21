@@ -38,6 +38,7 @@ export default function CashPage() {
   const [recon, setRecon] = useState([]);
   const [stores, setStores] = useState([]);
   const [gameMachineCash, setGameMachineCash] = useState(0);
+  const [cashPaidOut, setCashPaidOut] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [modal, setModal] = useState(null);
@@ -92,15 +93,25 @@ export default function CashPage() {
         .from('game_machine_collections')
         .select('amount')
         .gte('date', range.start).lte('date', range.end);
+      // Expenses paid out of the collected cash (e.g. payroll handed to an
+      // employee from the safe) — deducted from the Cash in Hand card.
+      let paidOutQ = supabase
+        .from('expenses')
+        .select('amount, store_id, expense_date')
+        .eq('paid_from', 'cash_collection')
+        .gte('expense_date', range.start).lte('expense_date', range.end);
       if (storeFilter.length) {
         salesQ = salesQ.in('store_id', storeFilter);
         cashQ = cashQ.in('store_id', storeFilter);
         gmQ = gmQ.in('store_id', storeFilter);
+        paidOutQ = paidOutQ.in('store_id', storeFilter);
       }
       const { data: sales } = await salesQ;
       const { data: cash } = await cashQ;
       const { data: gm } = await gmQ;
+      const { data: paidOut } = await paidOutQ;
       setGameMachineCash((gm || []).reduce((s, r) => s + (r.amount || 0), 0));
+      setCashPaidOut((paidOut || []).reduce((s, r) => s + (r.amount || 0), 0));
 
       const map = {};
       sales?.forEach(s => {
@@ -377,7 +388,7 @@ export default function CashPage() {
           <V2StatCard label="Expected Cash" value={fmt(totalExpected)} sub="From sales" icon="💵" variant="warning" />
           <V2StatCard
             label="Cash in Hand"
-            value={fmt(totalCashInHand + gameMachineCash)}
+            value={fmt(totalCashInHand + gameMachineCash - cashPaidOut)}
             icon="💰"
             variant="info"
             sub={
@@ -390,6 +401,12 @@ export default function CashPage() {
                   <span className="text-[var(--text-muted)]">🎮 Games</span>
                   <span className="font-semibold tabular-nums text-[var(--text-primary)]">{fmt(gameMachineCash)}</span>
                 </span>
+                {cashPaidOut > 0 && (
+                  <span className="flex items-baseline justify-between gap-2">
+                    <span className="text-[var(--text-muted)]">📋 Paid Out</span>
+                    <span className="font-semibold tabular-nums text-[var(--color-danger)]">−{fmt(cashPaidOut)}</span>
+                  </span>
+                )}
               </span>
             }
           />
