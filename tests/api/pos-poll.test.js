@@ -267,3 +267,47 @@ describe('POST /api/cron/pos-poll — run time', () => {
     expect(res.results[0].store).toBe('Reno');
   });
 });
+
+// Per-store caps bound one store, not a run. Five stores clearing a backlog
+// together is minutes of Telegram time — well past a scheduler's ceiling.
+describe('POST /api/cron/pos-poll — announce budget', () => {
+  // The suite runs on frozen fake timers, so a slow send is simulated by
+  // advancing the clock rather than actually waiting.
+  const slowSends = (msEach) => {
+    vi.mocked(sendTelegram).mockImplementation(async () => {
+      vi.setSystemTime(Date.now() + msEach);
+      return { sent: true };
+    });
+  };
+  const backlog = (n) => Array.from({ length: n }, (_, i) => ({ id: `e${i}`, kind: 'no_sale', cashier: 'A' }));
+
+  it('stops announcing once the run has spent its budget', async () => {
+    mockDb({ pendingEvents: backlog(12) });
+    vi.mocked(fetchBasketLines).mockResolvedValue([]);
+    slowSends(5000);
+
+    const res = await body();
+    expect(sendTelegram.mock.calls.length).toBeLessThan(12);
+    expect(sendTelegram.mock.calls.length).toBeGreaterThan(0);
+    expect(res.truncated).toBe(true);
+  });
+
+  it('leaves the unsent ones unmarked so the next poll picks them up', async () => {
+    mockDb({ pendingEvents: backlog(12) });
+    vi.mocked(fetchBasketLines).mockResolvedValue([]);
+    slowSends(5000);
+
+    await body();
+    // Exactly the sent ones are stamped notified — never more.
+    const stamped = db.updates.filter(u => u.table === 'pos_events').length;
+    expect(stamped).toBe(sendTelegram.mock.calls.length);
+  });
+
+  it('does not truncate a quiet poll', async () => {
+    mockDb();
+    vi.mocked(fetchBasketLines).mockResolvedValue([line()]);
+    const res = await body();
+    expect(res.truncated).toBe(false);
+    expect(sendTelegram).toHaveBeenCalledTimes(1);
+  });
+});
