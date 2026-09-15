@@ -166,6 +166,9 @@ async function pollStore(admin, store, businessDate, deadline = Infinity) {
   // ── Announce ─────────────────────────────────────────────────────────
   if (!store.telegram_chat_id) return result;
 
+  // Running cancelled/voided totals ride along only where switched on.
+  const footerOpts = { showCancelled: !!store.notify_cancel_totals };
+
   if (store.notify_events !== false) {
     const { data: pending } = await admin
       .from('pos_events')
@@ -177,7 +180,7 @@ async function pollStore(admin, store, businessDate, deadline = Infinity) {
 
     for (const ev of pending || []) {
       if (Date.now() > deadline) { result.truncated = true; break; }
-      const { sent } = await sendTelegram(buildEventMessage(store, ev), store.telegram_chat_id);
+      const { sent } = await sendTelegram(buildEventMessage(store, ev, dayTotals, footerOpts), store.telegram_chat_id);
       if (!sent) break; // Telegram is unhappy; leave the rest for the next poll.
       await admin.from('pos_events').update({ notified_at: new Date().toISOString() }).eq('id', ev.id);
       result.notified_events++;
@@ -199,7 +202,7 @@ async function pollStore(admin, store, businessDate, deadline = Infinity) {
 
     for (const basket of ready.filter(b => unnotified.has(b.basket_no)).slice(0, MAX_BASKET_MESSAGES)) {
       if (Date.now() > deadline) { result.truncated = true; break; }
-      const { sent } = await sendTelegram(buildBasketMessage(store, basket, dayTotals), store.telegram_chat_id);
+      const { sent } = await sendTelegram(buildBasketMessage(store, basket, dayTotals, footerOpts), store.telegram_chat_id);
       if (!sent) break;
       await admin.from('pos_baskets')
         .update({ notified_at: new Date().toISOString() })
@@ -215,7 +218,7 @@ async function runPoll(admin, businessDate, storeFilter = null) {
   const startMs = Date.now();
   let q = admin
     .from('stores')
-    .select('id, name, nrs_store_id, telegram_chat_id, notify_sales, notify_events')
+    .select('id, name, nrs_store_id, telegram_chat_id, notify_sales, notify_events, notify_cancel_totals')
     .not('nrs_store_id', 'is', null);
   // Narrowing to one store keeps a run to a single pair of NRS calls, for
   // schedulers that hang up before five stores can finish.

@@ -280,3 +280,45 @@ describe('extractDayTotals', () => {
     expect(t.baskets).toBe(0);
   });
 });
+
+// NRS reports no running total for cancellations — only the events — so they
+// are summed from the same arrays the alerts are built from.
+describe('extractDayTotals — cancelled and voided', () => {
+  // The two cancellations Bells actually had on the morning of 2026-09-15.
+  const stats = { data: {
+    byday: { baskets: 3, sales: 6996 },
+    payamts: { total: 7573, cash: 0, credit_debit: 7573 },
+    cancelbasketinfo: [
+      { logged: '2026-09-15 12:11:00-05', user: 'Elias', amount: '27059', lines: '2' },
+      { logged: '2026-09-15 12:18:00-05', user: 'Elias', amount: '10824', lines: '1' },
+    ],
+    voiditeminfo: [{ logged: '2026-09-15 11:00:00-05', user: 'Elias', desc: 'x', amount: '3499' }],
+    nosalesinfo: [],
+  } };
+
+  it('totals the day’s cancelled baskets', () => {
+    const t = extractDayTotals(stats);
+    expect(t.cancelled_cents).toBe(37883);
+    expect(t.cancelled_count).toBe(2);
+  });
+
+  it('totals voided items separately from cancelled sales', () => {
+    const t = extractDayTotals(stats);
+    expect(t.voided_cents).toBe(3499);
+    expect(t.voided_count).toBe(1);
+  });
+
+  it('reports zero rather than nothing when a day is clean', () => {
+    const t = extractDayTotals({ data: { byday: { sales: 100, baskets: 1 }, payamts: { total: 100 } } });
+    expect(t.cancelled_cents).toBe(0);
+    expect(t.cancelled_count).toBe(0);
+  });
+
+  // The sum and the alerts come from one array, so they cannot disagree.
+  it('counts exactly the cancellations the alerts are built from', () => {
+    const t = extractDayTotals(stats);
+    const events = extractEvents(stats, '2026-09-15').filter(e => e.kind === 'cancel_basket');
+    expect(t.cancelled_count).toBe(events.length);
+    expect(t.cancelled_cents).toBe(events.reduce((s, e) => s + e.amount_cents, 0));
+  });
+});
