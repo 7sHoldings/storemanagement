@@ -32,6 +32,7 @@ let db;
 function builder(data, hooks = {}) {
   const b = {
     select: () => b, eq: () => b, is: () => b, not: () => b, order: () => b, limit: () => b,
+    ilike: () => b,
     upsert: async (rows) => { hooks.onUpsert?.(rows); return { error: null }; },
     update: (patch) => { hooks.onUpdate?.(patch); return b; },
     then: (res, rej) => Promise.resolve({ data, error: null }).then(res, rej),
@@ -220,5 +221,49 @@ describe('POST /api/cron/pos-poll — failures', () => {
     const res = await GET({ url: 'https://app.test/api/cron/pos-poll', headers: { get: () => null } });
     expect(res.status).toBe(401);
     process.env.NODE_ENV = prev;
+  });
+});
+
+// NRS is slow enough that doing the two calls in sequence pushed a run past
+// what an external scheduler will wait for.
+describe('POST /api/cron/pos-poll — run time', () => {
+  it('overlaps the stats and baskets calls instead of sequencing them', async () => {
+    mockDb();
+    let statsStarted = false, basketsStartedBeforeStatsFinished = false;
+
+    vi.mocked(fetchNRSDailyStats).mockImplementation(async () => {
+      statsStarted = true;
+      await new Promise(r => setTimeout(r, 20));
+      return { data: {} };
+    });
+    vi.mocked(fetchBasketLines).mockImplementation(async () => {
+      // If these were sequential, stats would already have resolved.
+      if (statsStarted) basketsStartedBeforeStatsFinished = true;
+      return [];
+    });
+
+    await body();
+    expect(basketsStartedBeforeStatsFinished).toBe(true);
+  });
+
+  it('records sales even when the overlapping stats call rejects', async () => {
+    mockDb();
+    vi.mocked(fetchBasketLines).mockResolvedValue([line()]);
+    vi.mocked(fetchNRSDailyStats).mockRejectedValue(new Error('NRS 500'));
+
+    const res = await body();
+    expect(res.results[0]).toMatchObject({ baskets_seen: 1, events_new: 0 });
+    expect(db.upserts.pos_baskets[0].cashier).toBeNull();
+  });
+
+  it('polls a single store when one is named', async () => {
+    mockDb();
+    vi.mocked(fetchBasketLines).mockResolvedValue([]);
+    const res = await (await GET({
+      url: `https://app.test/api/cron/pos-poll?date=${DATE}&store=reno`,
+      headers: { get: (k) => (k === 'x-vercel-cron' ? '1' : null) },
+    })).json();
+    expect(res.results).toHaveLength(1);
+    expect(res.results[0].store).toBe('Reno');
   });
 });

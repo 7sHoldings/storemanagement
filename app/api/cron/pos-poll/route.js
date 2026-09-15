@@ -6,12 +6,18 @@ import { sendTelegram } from '@/lib/telegram';
 import { buildBasketMessage, buildEventMessage } from '@/lib/telegram-register';
 
 export const dynamic = 'force-dynamic';
+// Five stores, each a paged basket fetch plus the stats call — a busy day
+// runs tens of seconds. Without this the route takes the platform default
+// and a slow poll is cut off mid-store, losing that cycle's sales.
+export const maxDuration = 60;
 export const runtime = 'nodejs';
 
-// Stores are polled a couple at a time. They share one NRS token, and a
-// simultaneous five-way burst is what produced the empty-bodied 500s that
-// once failed every store's daily sync in the same second.
-const STORE_CONCURRENCY = 2;
+// Stores share one NRS token, so this stays well short of a five-way burst
+// — but NRS answers slowly (the nightly sync needs ~29s for five stats calls
+// alone) and an external scheduler will hang up at 30s, so two at a time is
+// too slow to finish. Three, with each store's two calls now overlapping,
+// keeps a run near 20s. Transient 5xx are retried with backoff either way.
+const STORE_CONCURRENCY = 3;
 
 // Telegram allows roughly 20 messages a minute to one group. A quiet poll
 // sends nothing; a backlog (first run, or after an outage) could send plenty,
@@ -39,23 +45,32 @@ async function pollStore(admin, store, businessDate) {
     events_new: 0, notified_baskets: 0, notified_events: 0, error: null,
   };
 
-  // ── Who was on the till, and what they did to it ─────────────────────
-  // Fetched first because the basket rows name no cashier: the day's
-  // register sessions are what attributes a sale to a person. The same call
-  // carries the voids and cancels, so it is one request for both.
+  // ── Fetch ────────────────────────────────────────────────────────────
+  // The two calls are independent, so they overlap: NRS is slow enough that
+  // doing them in sequence roughly doubled a run and pushed it past what an
+  // external scheduler will wait for.
+  //
+  // Stats carries the day's register sessions — which attribute a sale to a
+  // cashier, since basket rows name nobody — and the voids and cancels.
+  // Sales come from a different endpoint, so they still record if stats
+  // fails; they just land without a cashier name.
+  const [statsOutcome, lines] = await Promise.all([
+    fetchNRSDailyStats(store.nrs_store_id, businessDate).then(
+      (stats) => ({ ok: true, stats }),
+      (e) => ({ ok: false, error: e }),
+    ),
+    fetchBasketLines(store.nrs_store_id, businessDate, businessDate),
+  ]);
+
   let sessions = [], events = [];
-  try {
-    const stats = await fetchNRSDailyStats(store.nrs_store_id, businessDate);
-    sessions = extractSessions(stats);
-    events = extractEvents(stats, businessDate);
-  } catch (e) {
-    // Sales come from a different endpoint and are still worth recording;
-    // they just land without a cashier name attached.
-    console.warn(`[pos-poll] ${store.name} stats failed (no cashier, no events):`, e.message);
+  if (statsOutcome.ok) {
+    sessions = extractSessions(statsOutcome.stats);
+    events = extractEvents(statsOutcome.stats, businessDate);
+  } else {
+    console.warn(`[pos-poll] ${store.name} stats failed (no cashier, no events):`, statsOutcome.error.message);
   }
 
   // ── Sales ────────────────────────────────────────────────────────────
-  const lines = await fetchBasketLines(store.nrs_store_id, businessDate, businessDate);
   const baskets = groupIntoBaskets(lines, businessDate)
     .map(b => ({ ...b, cashier: resolveCashier(sessions, b.entered_at || b.opened_at) }));
   result.baskets_seen = baskets.length;
@@ -178,13 +193,16 @@ async function pollStore(admin, store, businessDate) {
   return result;
 }
 
-async function runPoll(admin, businessDate) {
+async function runPoll(admin, businessDate, storeFilter = null) {
   const startMs = Date.now();
-  const { data: stores } = await admin
+  let q = admin
     .from('stores')
     .select('id, name, nrs_store_id, telegram_chat_id, notify_sales, notify_events')
-    .not('nrs_store_id', 'is', null)
-    .order('created_at');
+    .not('nrs_store_id', 'is', null);
+  // Narrowing to one store keeps a run to a single pair of NRS calls, for
+  // schedulers that hang up before five stores can finish.
+  if (storeFilter) q = q.ilike('name', `%${storeFilter}%`);
+  const { data: stores } = await q.order('created_at');
 
   if (!stores?.length) {
     return { success: true, business_date: businessDate, results: [], duration_ms: Date.now() - startMs };
@@ -231,8 +249,10 @@ async function handle(request) {
   }
 
   try {
-    const date = new URL(request.url).searchParams.get('date') || todayCentral();
-    return NextResponse.json(await runPoll(createAdminClient(), date));
+    const params = new URL(request.url).searchParams;
+    const date = params.get('date') || todayCentral();
+    const store = params.get('store');
+    return NextResponse.json(await runPoll(createAdminClient(), date, store));
   } catch (e) {
     console.error('[pos-poll] fatal:', e);
     return NextResponse.json({ error: e.message || 'Poll failed', success: false }, { status: 500 });
