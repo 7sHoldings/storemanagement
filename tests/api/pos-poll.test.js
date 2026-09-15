@@ -284,7 +284,7 @@ describe('POST /api/cron/pos-poll — announce budget', () => {
   it('stops announcing once the run has spent its budget', async () => {
     mockDb({ pendingEvents: backlog(12) });
     vi.mocked(fetchBasketLines).mockResolvedValue([]);
-    slowSends(5000);
+    slowSends(12_000);
 
     const res = await body();
     expect(sendTelegram.mock.calls.length).toBeLessThan(12);
@@ -295,7 +295,7 @@ describe('POST /api/cron/pos-poll — announce budget', () => {
   it('leaves the unsent ones unmarked so the next poll picks them up', async () => {
     mockDb({ pendingEvents: backlog(12) });
     vi.mocked(fetchBasketLines).mockResolvedValue([]);
-    slowSends(5000);
+    slowSends(12_000);
 
     await body();
     // Exactly the sent ones are stamped notified — never more.
@@ -309,5 +309,36 @@ describe('POST /api/cron/pos-poll — announce budget', () => {
     const res = await body();
     expect(res.truncated).toBe(false);
     expect(sendTelegram).toHaveBeenCalledTimes(1);
+  });
+});
+
+// The deadline is measured from the start of the run, so it has to clear the
+// fetching that precedes announcing. Set below it, every run succeeds, sends
+// nothing, and looks exactly like a quiet till — which is what shipped.
+describe('POST /api/cron/pos-poll — a slow fetch must not starve announcing', () => {
+  it('still announces when fetching alone took 20 seconds', async () => {
+    mockDb();
+    vi.mocked(fetchNRSDailyStats).mockImplementation(async () => {
+      vi.setSystemTime(Date.now() + 20_000);
+      return { data: {} };
+    });
+    vi.mocked(fetchBasketLines).mockResolvedValue([line()]);
+
+    const res = await body();
+    expect(sendTelegram).toHaveBeenCalledTimes(1);
+    expect(res.truncated).toBe(false);
+  });
+
+  it('does not call a slow but complete run truncated', async () => {
+    mockDb();
+    vi.mocked(fetchNRSDailyStats).mockImplementation(async () => {
+      vi.setSystemTime(Date.now() + 25_000);
+      return { data: {} };
+    });
+    vi.mocked(fetchBasketLines).mockResolvedValue([line()]);
+
+    const res = await body();
+    expect(res.truncated).toBe(false);
+    expect(res.results[0].notified_baskets).toBe(1);
   });
 });
