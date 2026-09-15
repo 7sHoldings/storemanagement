@@ -7,7 +7,7 @@ process.env.NRS_USER_TOKEN = 'u00000-test-token';
 const {
   parseNrsTimestamp, entryMethod, normalizeBasketRow, groupIntoBaskets,
   extractEvents, dedupeKey, fetchBasketLines,
-  parseNrsSessionTime, extractSessions, resolveCashier,
+  parseNrsSessionTime, extractSessions, resolveCashier, extractDayTotals,
 } = await import('@/lib/nrs-baskets');
 
 const ok = (body) => ({ ok: true, status: 200, json: async () => body, text: async () => '' });
@@ -235,5 +235,48 @@ describe('cashier attribution', () => {
   it('copes with a stats payload that has no sessions', () => {
     expect(extractSessions({ data: {} })).toEqual([]);
     expect(extractSessions(null)).toEqual([]);
+  });
+});
+
+// Taken from the same stats call the events ride on, so it costs no extra
+// request — and it is NRS's own number, not a sum of what this app captured.
+describe('extractDayTotals', () => {
+  // Exactly the payload NRS returned for Bells on 2026-09-14.
+  const stats = { data: {
+    byday: { baskets: 30, items: 56, sales: 82016, avg_sale: 2733, scanrate: '50.0' },
+    payamts: { total: 88783, num_sales: 30, cash: 1800, credit_debit: 86383, check: 0 },
+  } };
+
+  it('reports the figure the POS prints as "Sales $"', () => {
+    // The portal showed $820.16 for this day.
+    expect(extractDayTotals(stats).sales_cents).toBe(82016);
+  });
+
+  it('reports the sale count and payment split', () => {
+    expect(extractDayTotals(stats)).toMatchObject({
+      baskets: 30, items: 56, cash_cents: 1800, card_cents: 86383,
+    });
+  });
+
+  // Net of tax vs collected: the drawer holds the larger number.
+  it('keeps the collected total separate from net sales', () => {
+    const t = extractDayTotals(stats);
+    expect(t.collected_cents).toBe(88783);
+    expect(t.collected_cents).toBeGreaterThan(t.sales_cents);
+  });
+
+  it('falls back to the payment count when byday has none', () => {
+    expect(extractDayTotals({ data: { payamts: { total: 500, num_sales: 3 } } }).baskets).toBe(3);
+  });
+
+  it('returns nothing rather than a zero total when NRS sent none', () => {
+    expect(extractDayTotals({ data: {} })).toBeNull();
+    expect(extractDayTotals(null)).toBeNull();
+  });
+
+  it('reports a genuine zero-sales day as zero', () => {
+    const t = extractDayTotals({ data: { byday: { sales: 0, baskets: 0 }, payamts: { total: 0 } } });
+    expect(t.sales_cents).toBe(0);
+    expect(t.baskets).toBe(0);
   });
 });

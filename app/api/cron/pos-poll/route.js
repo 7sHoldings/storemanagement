@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient, createClient } from '@/lib/supabase-server';
 import { fetchNRSDailyStats } from '@/lib/nrs-client';
-import { fetchBasketLines, groupIntoBaskets, extractEvents, extractSessions, resolveCashier } from '@/lib/nrs-baskets';
+import { fetchBasketLines, groupIntoBaskets, extractEvents, extractSessions, resolveCashier, extractDayTotals } from '@/lib/nrs-baskets';
 import { sendTelegram } from '@/lib/telegram';
 import { buildBasketMessage, buildEventMessage } from '@/lib/telegram-register';
 
@@ -70,10 +70,11 @@ async function pollStore(admin, store, businessDate, deadline = Infinity) {
     fetchBasketLines(store.nrs_store_id, businessDate, businessDate),
   ]);
 
-  let sessions = [], events = [];
+  let sessions = [], events = [], dayTotals = null;
   if (statsOutcome.ok) {
     sessions = extractSessions(statsOutcome.stats);
     events = extractEvents(statsOutcome.stats, businessDate);
+    dayTotals = extractDayTotals(statsOutcome.stats);
   } else {
     console.warn(`[pos-poll] ${store.name} stats failed (no cashier, no events):`, statsOutcome.error.message);
   }
@@ -83,6 +84,7 @@ async function pollStore(admin, store, businessDate, deadline = Infinity) {
     .map(b => ({ ...b, cashier: resolveCashier(sessions, b.entered_at || b.opened_at) }));
   result.baskets_seen = baskets.length;
   result.cashiers = [...new Set(baskets.map(b => b.cashier).filter(Boolean))];
+  result.day_sales_cents = dayTotals?.sales_cents ?? null;
 
   if (baskets.length) {
     // Upserting the header would clobber notified_at, so read first and only
@@ -191,7 +193,7 @@ async function pollStore(admin, store, businessDate, deadline = Infinity) {
 
     for (const basket of ready.filter(b => unnotified.has(b.basket_no)).slice(0, MAX_BASKET_MESSAGES)) {
       if (Date.now() > deadline) break;
-      const { sent } = await sendTelegram(buildBasketMessage(store, basket), store.telegram_chat_id);
+      const { sent } = await sendTelegram(buildBasketMessage(store, basket, dayTotals), store.telegram_chat_id);
       if (!sent) break;
       await admin.from('pos_baskets')
         .update({ notified_at: new Date().toISOString() })
