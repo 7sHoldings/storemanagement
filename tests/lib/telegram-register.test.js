@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildBasketMessage, buildEventMessage, escapeHtml, money, clockTime } from '@/lib/telegram-register';
+import { buildBasketMessage, buildEventMessage, basketTag, escapeHtml, money, clockTime } from '@/lib/telegram-register';
 
 const store = { name: '7s Vape Love - Reno' };
 
@@ -108,18 +108,19 @@ describe('buildEventMessage', () => {
     const msg = buildEventMessage(store, {
       kind: 'cancel_basket', cashier: 'Billy', amount_cents: 1081, lines: 1,
     });
-    expect(msg).toContain('Sale cancelled');
+    expect(msg).toContain('CANCELLED');
+    expect(msg).toContain('Whole sale cancelled');
     expect(msg).toContain('Lines: 1');
   });
 
   it('reports a no-sale drawer opening', () => {
     expect(buildEventMessage(store, { kind: 'no_sale', cashier: 'Billy' }))
-      .toContain('No sale — drawer opened');
+      .toContain('NO SALE');
   });
 
   it('still renders an event kind it has no wording for', () => {
     expect(buildEventMessage(store, { kind: 'something_new', cashier: 'Billy' }))
-      .toContain('something_new');
+      .toContain('SOMETHING_NEW');
   });
 
   it('omits fields NRS did not give us', () => {
@@ -161,5 +162,87 @@ describe('buildBasketMessage — cashier and entry method', () => {
 
   it('escapes a cashier name with markup in it', () => {
     expect(buildBasketMessage(store, { ...basket, cashier: '<b>Bob' })).toContain('&lt;b&gt;Bob');
+  });
+});
+
+// The heading has to say what the message is without opening it — that is
+// all a phone's notification list shows.
+describe('heading tags', () => {
+  const withItems = (items, counts = {}) => ({
+    ...basket, items, item_count: items.length,
+    manual_count: items.filter(i => i.entry_method === 'manual').length,
+    scanned_count: items.filter(i => i.entry_method === 'scanned').length,
+    ...counts,
+  });
+  const scanned = { entry_method: 'scanned', qty: 1, name: 'Sprite', amount_cents: 149 };
+  const manual = { entry_method: 'manual', qty: 1, name: null, dept: 'pre rolls', amount_cents: 1996 };
+  const heading = (b) => buildBasketMessage(store, b).split('\n')[0];
+
+  it('says SCANNED when nothing was keyed', () => {
+    expect(heading(withItems([scanned, scanned]))).toContain('<b>SCANNED</b>');
+  });
+
+  it('says MANUAL ENTRY when nothing was scanned', () => {
+    expect(heading(withItems([manual]))).toContain('<b>MANUAL ENTRY</b>');
+  });
+
+  it('says MANUAL & SCANNED for a mixed basket', () => {
+    expect(heading(withItems([scanned, manual]))).toContain('<b>MANUAL &amp; SCANNED</b>');
+  });
+
+  it('keeps the store and time in the heading', () => {
+    const h = heading(withItems([scanned]));
+    expect(h).toContain('7s Vape Love - Reno');
+    expect(h).toContain('11:09 AM');
+  });
+
+  it('falls back to counts when the caller passes no items', () => {
+    expect(basketTag({ manual_count: 2, scanned_count: 0 }).label).toBe('MANUAL ENTRY');
+    expect(basketTag({ manual_count: 0, scanned_count: 3 }).label).toBe('SCANNED');
+    expect(basketTag({ manual_count: 1, scanned_count: 1 }).label).toBe('MANUAL & SCANNED');
+  });
+
+  it('does not claim a method for an empty basket', () => {
+    expect(basketTag({ items: [] }).label).toBe('SALE');
+  });
+
+  for (const [kind, tag] of [
+    ['void_item', 'VOIDED'],
+    ['cancel_basket', 'CANCELLED'],
+    ['no_sale', 'NO SALE'],
+    ['override', 'PRICE OVERRIDE'],
+    ['refund', 'REFUND'],
+  ]) {
+    it(`heads a ${kind} with ${tag}`, () => {
+      const h = buildEventMessage(store, { kind, cashier: 'Billy' }).split('\n')[0];
+      expect(h).toContain(`<b>${tag}</b>`);
+      expect(h).toContain('7s Vape Love - Reno');
+    });
+  }
+
+  it('upper-cases an event kind it has no wording for', () => {
+    expect(buildEventMessage(store, { kind: 'something_new' }).split('\n')[0])
+      .toContain('<b>SOMETHING_NEW</b>');
+  });
+
+  it('explains the event under the tag', () => {
+    expect(buildEventMessage(store, { kind: 'no_sale', cashier: 'Billy' }))
+      .toContain('Drawer opened with no sale');
+  });
+});
+
+// Telegram rejects a whole message over one unescaped ampersand, which would
+// mean the sale is simply never announced.
+describe('no raw ampersand reaches Telegram', () => {
+  it('escapes the & in the mixed-basket tag', () => {
+    const msg = buildBasketMessage(store, {
+      ...basket, manual_count: 1, scanned_count: 1, item_count: 2,
+      items: [
+        { entry_method: 'scanned', qty: 1, name: 'Sprite', amount_cents: 149 },
+        { entry_method: 'manual', qty: 1, dept: 'pre rolls', amount_cents: 1996 },
+      ],
+    });
+    expect(msg).toContain('MANUAL &amp; SCANNED');
+    expect(msg).not.toMatch(/&(?!amp;|lt;|gt;)/);
   });
 });
