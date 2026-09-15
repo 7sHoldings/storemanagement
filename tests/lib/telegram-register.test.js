@@ -45,7 +45,7 @@ describe('buildBasketMessage', () => {
   });
 
   it('marks a scanned line', () => {
-    expect(buildBasketMessage(store, basket)).toContain('⊙ 2× Lost mary');
+    expect(buildBasketMessage(store, basket)).toContain('⊙ <b>SCANNED</b>  2× Lost mary');
   });
 
   // A hand-keyed line has no item name at all, which is the thing to see.
@@ -54,16 +54,16 @@ describe('buildBasketMessage', () => {
       ...basket, manual_count: 1, discount_cents: 0,
       items: [{ entry_method: 'manual', qty: 4, name: null, dept: 'pre rolls', amount_cents: 1996 }],
     });
-    expect(msg).toContain('✎ 4× pre rolls (keyed)');
-    expect(msg).toContain('1 item keyed by hand, not scanned');
+    expect(msg).toContain('✎ <b>MANUAL </b>  4× pre rolls');
+    expect(msg).toContain('1 of 1 item keyed by hand, not scanned');
   });
 
   it('pluralises the keyed-item warning', () => {
     const msg = buildBasketMessage(store, {
-      ...basket, manual_count: 3,
+      ...basket, manual_count: 3, item_count: 3,
       items: [{ entry_method: 'manual', qty: 1, dept: 'x', amount_cents: 100 }],
     });
-    expect(msg).toContain('3 items keyed by hand');
+    expect(msg).toContain('3 of 3 items keyed by hand');
   });
 
   it('says nothing about keying when everything was scanned', () => {
@@ -86,7 +86,7 @@ describe('buildBasketMessage', () => {
     const msg = buildBasketMessage(store, {
       ...basket, items: [{ entry_method: 'scanned', qty: 1, name: 'Sprite', amount_cents: 149 }],
     });
-    expect(msg).toContain('⊙ Sprite');
+    expect(msg).toContain('⊙ <b>SCANNED</b>  Sprite');
     expect(msg).not.toContain('1× Sprite');
   });
 });
@@ -131,5 +131,35 @@ describe('buildEventMessage', () => {
   it('escapes a cashier name with markup in it', () => {
     expect(buildEventMessage(store, { kind: 'void_item', cashier: '<b>Bob' }))
       .toContain('&lt;b&gt;Bob');
+  });
+});
+
+describe('buildBasketMessage — cashier and entry method', () => {
+  it('names the cashier who rang the sale', () => {
+    expect(buildBasketMessage(store, { ...basket, cashier: 'Billy' }))
+      .toContain('👤 Cashier: <b>Billy</b>');
+  });
+
+  it('leaves the line out when the cashier is unknown', () => {
+    expect(buildBasketMessage(store, basket)).not.toContain('Cashier:');
+  });
+
+  // Spelled out, not left to a glyph that is easy to miss on a phone.
+  it('labels each line SCANNED or MANUAL in words', () => {
+    const msg = buildBasketMessage(store, {
+      ...basket, cashier: 'Billy', manual_count: 1, item_count: 2,
+      items: [
+        { entry_method: 'scanned', qty: 1, name: 'Sprite', amount_cents: 149 },
+        { entry_method: 'manual', qty: 4, name: null, dept: 'pre rolls', amount_cents: 1996 },
+      ],
+    });
+    expect(msg).toContain('⊙ <b>SCANNED</b>');
+    expect(msg).toContain('✎ <b>MANUAL </b>');
+    expect(msg).toContain('pre rolls');
+    expect(msg).toContain('1 of 2 items keyed by hand, not scanned');
+  });
+
+  it('escapes a cashier name with markup in it', () => {
+    expect(buildBasketMessage(store, { ...basket, cashier: '<b>Bob' })).toContain('&lt;b&gt;Bob');
   });
 });
