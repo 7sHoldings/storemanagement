@@ -342,3 +342,56 @@ describe('POST /api/cron/pos-poll — a slow fetch must not starve announcing', 
     expect(res.results[0].notified_baskets).toBe(1);
   });
 });
+
+// The stores query selects a column added by a migration. If that migration
+// has not been applied, Supabase returns an error and a null list — and
+// swallowing it makes a schema problem look exactly like a quiet day: 200 OK
+// in two seconds, nothing sent, nothing to see. That is what shipped.
+describe('POST /api/cron/pos-poll — a database error must not read as "no stores"', () => {
+  const withStoresError = (message) => {
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: () => {
+        const b = {
+          select: () => b, eq: () => b, is: () => b, not: () => b, ilike: () => b, limit: () => b,
+          order: async () => ({ data: null, error: { message } }),
+          then: (res) => Promise.resolve({ data: [], error: null }).then(res),
+          upsert: async () => ({ error: null }),
+          update: () => b,
+        };
+        return b;
+      },
+    });
+  };
+
+  it('fails loudly when the stores query errors', async () => {
+    withStoresError('column stores.notify_cancel_totals does not exist');
+    const res = await GET(req());
+
+    expect(res.status).toBe(500);
+    const json = await res.json();
+    expect(json.success).toBe(false);
+    expect(json.error).toContain('notify_cancel_totals');
+  });
+
+  it('does not report success with an empty result set', async () => {
+    withStoresError('boom');
+    const json = await (await GET(req())).json();
+    expect(json.success).not.toBe(true);
+  });
+
+  // A genuinely empty configuration is different from a broken query.
+  it('says so when there really are no NRS stores', async () => {
+    vi.mocked(createAdminClient).mockReturnValue({
+      from: () => {
+        const b = {
+          select: () => b, eq: () => b, is: () => b, not: () => b, ilike: () => b, limit: () => b,
+          order: async () => ({ data: [], error: null }),
+        };
+        return b;
+      },
+    });
+    const json = await (await GET(req())).json();
+    expect(json.success).toBe(true);
+    expect(json.warning).toMatch(/no stores/i);
+  });
+});
