@@ -27,12 +27,17 @@ const MAX_BASKET_MESSAGES = 12;
 const MAX_EVENT_MESSAGES = 12;
 
 // Those per-store caps bound one store, not a run: five stores clearing a
-// backlog together is up to 120 sends, which is minutes of Telegram time and
-// far past what an external scheduler waits for. So announcing also stops on
-// a wall-clock budget, leaving the remainder for the next poll — nothing is
-// lost, because a basket is only marked notified once it has actually been
-// sent.
-const ANNOUNCE_BUDGET_MS = 18_000;
+// backlog together is up to 120 sends, which is minutes of Telegram time. So
+// announcing also stops on a wall-clock deadline, leaving the remainder for
+// the next poll — nothing is lost, because a basket is only marked notified
+// once it has actually been sent.
+//
+// The deadline is measured from the start of the run and so must clear the
+// fetching that precedes it: five stores against NRS is comfortably 20s, and
+// a ceiling below that silently starves announcing of its entire allowance —
+// every run succeeds, sends nothing, and looks exactly like a quiet till.
+// This sits above any realistic fetch and below maxDuration.
+const ANNOUNCE_DEADLINE_MS = 45_000;
 
 // A sale still being rung has no closing time yet. Announcing it would post a
 // half-finished basket and then never correct it.
@@ -50,7 +55,8 @@ function todayCentral() {
 async function pollStore(admin, store, businessDate, deadline = Infinity) {
   const result = {
     store: store.name, baskets_seen: 0, baskets_new: 0,
-    events_new: 0, notified_baskets: 0, notified_events: 0, error: null,
+    events_new: 0, notified_baskets: 0, notified_events: 0,
+    truncated: false, error: null,
   };
 
   // ── Fetch ────────────────────────────────────────────────────────────
@@ -170,7 +176,7 @@ async function pollStore(admin, store, businessDate, deadline = Infinity) {
       .limit(MAX_EVENT_MESSAGES);
 
     for (const ev of pending || []) {
-      if (Date.now() > deadline) break;
+      if (Date.now() > deadline) { result.truncated = true; break; }
       const { sent } = await sendTelegram(buildEventMessage(store, ev), store.telegram_chat_id);
       if (!sent) break; // Telegram is unhappy; leave the rest for the next poll.
       await admin.from('pos_events').update({ notified_at: new Date().toISOString() }).eq('id', ev.id);
@@ -192,7 +198,7 @@ async function pollStore(admin, store, businessDate, deadline = Infinity) {
     const unnotified = new Set((rows || []).map(r => r.basket_no));
 
     for (const basket of ready.filter(b => unnotified.has(b.basket_no)).slice(0, MAX_BASKET_MESSAGES)) {
-      if (Date.now() > deadline) break;
+      if (Date.now() > deadline) { result.truncated = true; break; }
       const { sent } = await sendTelegram(buildBasketMessage(store, basket, dayTotals), store.telegram_chat_id);
       if (!sent) break;
       await admin.from('pos_baskets')
@@ -226,7 +232,7 @@ async function runPoll(admin, businessDate, storeFilter = null) {
     while (next < stores.length) {
       const store = stores[next++];
       try {
-        results.push(await pollStore(admin, store, businessDate, startMs + ANNOUNCE_BUDGET_MS));
+        results.push(await pollStore(admin, store, businessDate, startMs + ANNOUNCE_DEADLINE_MS));
       } catch (e) {
         console.error(`[pos-poll] ${store.name} failed:`, e.message);
         results.push({ store: store.name, error: e.message });
@@ -237,9 +243,9 @@ async function runPoll(admin, businessDate, storeFilter = null) {
 
   const failed = results.filter(r => r.error).length;
   const durationMs = Date.now() - startMs;
-  // A run that ran out of budget still did its job; the backlog drains over
-  // the next few polls rather than in one oversized run.
-  const truncated = durationMs > ANNOUNCE_BUDGET_MS;
+  // A run that ran out of time still did its job; the backlog drains over the
+  // next few polls rather than in one oversized run.
+  const truncated = results.some(r => r.truncated);
   console.log(`[pos-poll] ${businessDate}: ${results.length} stores, ${failed} failed, ${durationMs}ms${truncated ? ' (announce budget reached)' : ''}`);
   return { success: failed === 0, business_date: businessDate, results, duration_ms: durationMs, truncated };
 }
