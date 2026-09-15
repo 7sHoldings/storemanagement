@@ -7,6 +7,7 @@ process.env.NRS_USER_TOKEN = 'u00000-test-token';
 const {
   parseNrsTimestamp, entryMethod, normalizeBasketRow, groupIntoBaskets,
   extractEvents, dedupeKey, fetchBasketLines,
+  parseNrsSessionTime, extractSessions, resolveCashier,
 } = await import('@/lib/nrs-baskets');
 
 const ok = (body) => ({ ok: true, status: 200, json: async () => body, text: async () => '' });
@@ -164,5 +165,75 @@ describe('fetchBasketLines', () => {
   it('returns nothing for a day with no sales', async () => {
     fetch.mockResolvedValue(page([], 0));
     expect(await fetchBasketLines(58968, '2026-09-15', '2026-09-15')).toEqual([]);
+  });
+});
+
+// The basket rows carry no cashier; the day's register sessions do.
+describe('cashier attribution', () => {
+  // NRS stamps session times with a Z they are not in — this store's session
+  // opens 11:02:40 and its first basket opens 11:03 on the same clock.
+  it('reads a session time as store-local despite the Z', () => {
+    expect(parseNrsSessionTime('2026-09-14T11:02:40Z')).toBe('2026-09-14T16:02:40.000Z');
+  });
+
+  it('lines a session up with the sales it rang', () => {
+    const sessions = extractSessions({ data: { sessions: [
+      { name: 'Billy', opened: '2026-09-14T11:02:40Z', closed: '2026-09-14T22:01:28Z' },
+    ] } });
+    // First basket of the day, entered 11:09 local.
+    expect(resolveCashier(sessions, parseNrsTimestamp('2026-09-14 11:09'))).toBe('Billy');
+  });
+
+  it('reads the single-session shape too', () => {
+    const s = extractSessions({ data: { sessionstats: { name: 'Billy', opened: '2026-09-14T11:02:40Z', closed: null } } });
+    expect(s).toHaveLength(1);
+    expect(s[0].name).toBe('Billy');
+  });
+
+  it('picks the cashier whose shift covers the sale', () => {
+    const sessions = extractSessions({ data: { sessions: [
+      { name: 'Billy', opened: '2026-09-14T08:00:00Z', closed: '2026-09-14T14:00:00Z' },
+      { name: 'Ana', opened: '2026-09-14T14:00:00Z', closed: '2026-09-14T22:00:00Z' },
+    ] } });
+    expect(resolveCashier(sessions, parseNrsTimestamp('2026-09-14 09:30'))).toBe('Billy');
+    expect(resolveCashier(sessions, parseNrsTimestamp('2026-09-14 17:30'))).toBe('Ana');
+  });
+
+  it('treats a session with no close as still open', () => {
+    const sessions = extractSessions({ data: { sessions: [
+      { name: 'Billy', opened: '2026-09-14T08:00:00Z', closed: null },
+    ] } });
+    expect(resolveCashier(sessions, parseNrsTimestamp('2026-09-14 23:00'))).toBe('Billy');
+  });
+
+  it('gives the sale to the later shift when two overlap', () => {
+    const sessions = extractSessions({ data: { sessions: [
+      { name: 'Billy', opened: '2026-09-14T08:00:00Z', closed: null },
+      { name: 'Ana', opened: '2026-09-14T12:00:00Z', closed: null },
+    ] } });
+    expect(resolveCashier(sessions, parseNrsTimestamp('2026-09-14 13:00'))).toBe('Ana');
+  });
+
+  // Guessing a name onto a sale would be worse than leaving it blank.
+  it('returns nothing rather than guessing', () => {
+    const sessions = extractSessions({ data: { sessions: [
+      { name: 'Billy', opened: '2026-09-14T14:00:00Z', closed: '2026-09-14T22:00:00Z' },
+    ] } });
+    expect(resolveCashier(sessions, parseNrsTimestamp('2026-09-14 09:00'))).toBeNull();
+    expect(resolveCashier([], '2026-09-14T16:00:00.000Z')).toBeNull();
+    expect(resolveCashier(sessions, null)).toBeNull();
+  });
+
+  it('ignores a session with no name or no open time', () => {
+    const s = extractSessions({ data: { sessions: [
+      { name: null, opened: '2026-09-14T08:00:00Z' },
+      { name: 'Ghost', opened: null },
+    ] } });
+    expect(s).toEqual([]);
+  });
+
+  it('copes with a stats payload that has no sessions', () => {
+    expect(extractSessions({ data: {} })).toEqual([]);
+    expect(extractSessions(null)).toEqual([]);
   });
 });

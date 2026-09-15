@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient, createClient } from '@/lib/supabase-server';
 import { fetchNRSDailyStats } from '@/lib/nrs-client';
-import { fetchBasketLines, groupIntoBaskets, extractEvents } from '@/lib/nrs-baskets';
+import { fetchBasketLines, groupIntoBaskets, extractEvents, extractSessions, resolveCashier } from '@/lib/nrs-baskets';
 import { sendTelegram } from '@/lib/telegram';
 import { buildBasketMessage, buildEventMessage } from '@/lib/telegram-register';
 
@@ -39,10 +39,27 @@ async function pollStore(admin, store, businessDate) {
     events_new: 0, notified_baskets: 0, notified_events: 0, error: null,
   };
 
+  // ── Who was on the till, and what they did to it ─────────────────────
+  // Fetched first because the basket rows name no cashier: the day's
+  // register sessions are what attributes a sale to a person. The same call
+  // carries the voids and cancels, so it is one request for both.
+  let sessions = [], events = [];
+  try {
+    const stats = await fetchNRSDailyStats(store.nrs_store_id, businessDate);
+    sessions = extractSessions(stats);
+    events = extractEvents(stats, businessDate);
+  } catch (e) {
+    // Sales come from a different endpoint and are still worth recording;
+    // they just land without a cashier name attached.
+    console.warn(`[pos-poll] ${store.name} stats failed (no cashier, no events):`, e.message);
+  }
+
   // ── Sales ────────────────────────────────────────────────────────────
   const lines = await fetchBasketLines(store.nrs_store_id, businessDate, businessDate);
-  const baskets = groupIntoBaskets(lines, businessDate);
+  const baskets = groupIntoBaskets(lines, businessDate)
+    .map(b => ({ ...b, cashier: resolveCashier(sessions, b.entered_at || b.opened_at) }));
   result.baskets_seen = baskets.length;
+  result.cashiers = [...new Set(baskets.map(b => b.cashier).filter(Boolean))];
 
   if (baskets.length) {
     // Upserting the header would clobber notified_at, so read first and only
@@ -68,6 +85,7 @@ async function pollStore(admin, store, businessDate) {
         scanned_count: b.scanned_count,
         manual_count: b.manual_count,
         discount_cents: b.discount_cents,
+        cashier: b.cashier,
         updated_at: new Date().toISOString(),
       }));
 
@@ -102,16 +120,6 @@ async function pollStore(admin, store, businessDate) {
   }
 
   // ── Till events ──────────────────────────────────────────────────────
-  // The same daily stats call the nightly sync already makes; voids, cancels
-  // and no-sales ride along on it.
-  let events = [];
-  try {
-    const stats = await fetchNRSDailyStats(store.nrs_store_id, businessDate);
-    events = extractEvents(stats, businessDate);
-  } catch (e) {
-    console.warn(`[pos-poll] ${store.name} stats failed (events skipped):`, e.message);
-  }
-
   if (events.length) {
     // The unique index on (store_id, dedupe_key) makes re-polling a no-op;
     // ignoreDuplicates keeps notified_at on rows we have already announced.
