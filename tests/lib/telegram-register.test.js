@@ -279,3 +279,49 @@ describe('running day total', () => {
       .not.toContain('Cash');
   });
 });
+
+describe('running cancelled total', () => {
+  const totals = {
+    sales_cents: 6996, baskets: 3, cash_cents: 0, card_cents: 7573,
+    cancelled_cents: 37883, cancelled_count: 2, voided_cents: 3499, voided_count: 1,
+  };
+
+  it('shows the day’s cancelled total where it is switched on', () => {
+    const msg = buildBasketMessage(store, basket, totals, { showCancelled: true });
+    expect(msg).toContain('❌ <b>Cancelled today: $378.83</b> · 2 sales');
+    expect(msg).toContain('🚫 Voided: $34.99 · 1 item');
+  });
+
+  // Elsewhere it would be a line of noise on every single message.
+  it('leaves it out where it is not', () => {
+    const msg = buildBasketMessage(store, basket, totals);
+    expect(msg).not.toContain('Cancelled today');
+    expect(msg).toContain('Today: $69.96');
+  });
+
+  it('still shows the sales total without the cancelled line', () => {
+    expect(buildBasketMessage(store, basket, totals, { showCancelled: false }))
+      .toContain('📊 <b>Today: $69.96</b> · 3 sales');
+  });
+
+  // "No cancellations today" is itself the thing being checked.
+  it('shows a clean day as zero rather than hiding the line', () => {
+    const clean = { ...totals, cancelled_cents: 0, cancelled_count: 0, voided_count: 0 };
+    const msg = buildBasketMessage(store, basket, clean, { showCancelled: true });
+    expect(msg).toContain('❌ <b>Cancelled today: $0.00</b> · 0 sales');
+    expect(msg).not.toContain('Voided:');
+  });
+
+  it('puts the running total on a cancellation alert too', () => {
+    const msg = buildEventMessage(store,
+      { kind: 'cancel_basket', cashier: 'Elias', amount_cents: 10824, lines: 1 },
+      totals, { showCancelled: true });
+    expect(msg).toContain('CANCELLED');
+    expect(msg).toContain('Cancelled today: $378.83');
+  });
+
+  it('does not put a footer on an alert for a store without totals', () => {
+    expect(buildEventMessage(store, { kind: 'no_sale', cashier: 'Elias' }))
+      .not.toContain('Today:');
+  });
+});
