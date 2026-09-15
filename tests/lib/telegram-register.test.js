@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildBasketMessage, buildEventMessage, basketTag, escapeHtml, money, clockTime } from '@/lib/telegram-register';
+import { buildBasketMessage, buildEventMessage, basketTag, buildTotalsFooter, escapeHtml, money, clockTime } from '@/lib/telegram-register';
 
 const store = { name: '7s Vape Love - Reno' };
 
@@ -246,5 +246,36 @@ describe('no raw ampersand reaches Telegram', () => {
     });
     expect(msg).toContain('MANUAL &amp; SCANNED');
     expect(msg).not.toMatch(/&(?!amp;|lt;|gt;)/);
+  });
+});
+
+describe('running day total', () => {
+  const totals = { sales_cents: 82016, baskets: 30, cash_cents: 1800, card_cents: 86383 };
+
+  it('puts the day so far at the foot of a sale', () => {
+    const msg = buildBasketMessage(store, basket, totals);
+    expect(msg).toContain('📊 <b>Today: $820.16</b> · 30 sales');
+    expect(msg).toContain('💵 Cash $18.00 · 💳 Card $863.83');
+  });
+
+  it('comes after the sale, not before it', () => {
+    const msg = buildBasketMessage(store, basket, totals);
+    expect(msg.indexOf('Total $40.00')).toBeLessThan(msg.indexOf('Today: $820.16'));
+  });
+
+  it('omits the footer when NRS gave us no totals', () => {
+    expect(buildBasketMessage(store, basket, null)).not.toContain('Today:');
+    expect(buildBasketMessage(store, basket)).not.toContain('Today:');
+  });
+
+  it('says "1 sale" for the day’s first', () => {
+    const footer = buildTotalsFooter({ sales_cents: 1499, baskets: 1 });
+    expect(footer).toContain('· 1 sale');
+    expect(footer).not.toContain('1 sales');
+  });
+
+  it('drops the payment split when there is none yet', () => {
+    expect(buildTotalsFooter({ sales_cents: 0, baskets: 0, cash_cents: 0, card_cents: 0 }))
+      .not.toContain('Cash');
   });
 });
