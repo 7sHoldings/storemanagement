@@ -236,3 +236,37 @@ describe('nrs-sync cron — sync_log insert resilience', () => {
     expect(stored[0].error_message).toContain('NRS daily stats → 500');
   });
 });
+
+// cron-job.org rejects an oversized response and records the run as FAILED
+// even when the sync itself worked, which hides real failures among noise.
+describe('nrs-sync cron — response size', () => {
+  it('keeps the whole daily_sales row out of the response body', async () => {
+    vi.mocked(fetchNRSDailyStats).mockResolvedValue({ data: {} });
+    vi.mocked(createAdminClient).mockReturnValue(makeSupabase());
+
+    const body = await (await GET(cronReq())).json();
+    expect(body.results).toHaveLength(3);
+    for (const r of body.results) {
+      expect(r).not.toHaveProperty('salesData');
+      expect(Object.keys(r).sort()).toEqual(['daily_sales_id', 'error', 'ms', 'status', 'store_name']);
+    }
+  });
+
+  it('truncates a long error instead of returning the whole thing', async () => {
+    const err = new Error('x'.repeat(5000));
+    err.detail = { tries: Array.from({ length: 3 }, () => ({ body: 'y'.repeat(500) })) };
+    vi.mocked(fetchNRSDailyStats).mockRejectedValue(err);
+    vi.mocked(createAdminClient).mockReturnValue(makeSupabase());
+
+    const body = await (await GET(cronReq())).json();
+    expect(body.results[0].error.length).toBeLessThanOrEqual(200);
+    expect(body.results[0]).not.toHaveProperty('detail');
+  });
+
+  it('stays small enough for a cron runner to accept', async () => {
+    vi.mocked(fetchNRSDailyStats).mockResolvedValue({ data: {} });
+    vi.mocked(createAdminClient).mockReturnValue(makeSupabase());
+    const body = await (await GET(cronReq())).json();
+    expect(JSON.stringify(body).length).toBeLessThan(4096);
+  });
+});

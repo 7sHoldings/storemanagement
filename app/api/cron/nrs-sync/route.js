@@ -264,7 +264,16 @@ async function runSync(supabase, targetDate) {
     success: failed === 0,
     date_synced: targetDate,
     summary: { total_stores: stores.length, created, updated, skipped, failed },
-    results,
+    // Each result carries the whole daily_sales row for the Telegram summary
+    // and the full per-attempt error detail, which together run to tens of
+    // kilobytes across five stores — enough for cron-job.org to reject the
+    // response as "output too large" and record a successful sync as failed.
+    // Both are already persisted (daily_sales, nrs_sync_log.error_detail), so
+    // the HTTP body only needs what a human reads at a glance.
+    results: results.map(({ store_name, status, daily_sales_id, error, ms }) => ({
+      store_name, status, daily_sales_id, ms,
+      error: error ? String(error).slice(0, 200) : null,
+    })),
     duration_ms: durationMs,
     short_over_alerts: shortOverAlerts.length,
     recovery,
