@@ -223,10 +223,23 @@ async function runPoll(admin, businessDate, storeFilter = null) {
   // Narrowing to one store keeps a run to a single pair of NRS calls, for
   // schedulers that hang up before five stores can finish.
   if (storeFilter) q = q.ilike('name', `%${storeFilter}%`);
-  const { data: stores } = await q.order('created_at');
+  const { data: stores, error: storesErr } = await q.order('created_at');
+
+  // Never swallow this. A missing column — this query selects one added by a
+  // migration — makes Supabase return an error and a null list, which without
+  // this check reads as "no stores configured": the poll returns 200 in two
+  // seconds, sends nothing, and looks exactly like a quiet day. Failing
+  // loudly is what makes a schema problem visible in the scheduler.
+  if (storesErr) {
+    throw new Error(`Could not read stores: ${storesErr.message}`);
+  }
 
   if (!stores?.length) {
-    return { success: true, business_date: businessDate, results: [], duration_ms: Date.now() - startMs };
+    console.warn('[pos-poll] no stores have an NRS ID configured');
+    return {
+      success: true, business_date: businessDate, results: [],
+      warning: 'no stores with an NRS ID', duration_ms: Date.now() - startMs,
+    };
   }
 
   const results = [];
