@@ -38,7 +38,7 @@ describe('helpers', () => {
 describe('buildBasketMessage', () => {
   it('names the store, time, item and total', () => {
     const msg = buildBasketMessage(store, basket);
-    expect(msg).toContain('7s Vape Love - Reno');
+    expect(msg).toContain('Reno');
     expect(msg).toContain('11:09 AM');
     expect(msg).toContain('Lost mary blue razz ice 35000');
     expect(msg).toContain('Total $40.00');
@@ -192,7 +192,9 @@ describe('heading tags', () => {
 
   it('keeps the store and time in the heading', () => {
     const h = heading(withItems([scanned]));
-    expect(h).toContain('7s Vape Love - Reno');
+    expect(h).toContain('Reno');
+    // The group is already per store; the full name only wraps the heading.
+    expect(h).not.toContain('7s Vape Love -');
     expect(h).toContain('11:09 AM');
   });
 
@@ -216,7 +218,7 @@ describe('heading tags', () => {
     it(`heads a ${kind} with ${tag}`, () => {
       const h = buildEventMessage(store, { kind, cashier: 'Billy' }).split('\n')[0];
       expect(h).toContain(`<b>${tag}</b>`);
-      expect(h).toContain('7s Vape Love - Reno');
+      expect(h).toContain('Reno');
     });
   }
 
