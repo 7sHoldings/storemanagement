@@ -26,6 +26,14 @@ const STORE_CONCURRENCY = 3;
 const MAX_BASKET_MESSAGES = 12;
 const MAX_EVENT_MESSAGES = 12;
 
+// Those per-store caps bound one store, not a run: five stores clearing a
+// backlog together is up to 120 sends, which is minutes of Telegram time and
+// far past what an external scheduler waits for. So announcing also stops on
+// a wall-clock budget, leaving the remainder for the next poll — nothing is
+// lost, because a basket is only marked notified once it has actually been
+// sent.
+const ANNOUNCE_BUDGET_MS = 18_000;
+
 // A sale still being rung has no closing time yet. Announcing it would post a
 // half-finished basket and then never correct it.
 const isComplete = (b) => !!(b.closed_at || b.entered_at);
@@ -39,7 +47,7 @@ function todayCentral() {
   return `${y}-${m}-${d}`;
 }
 
-async function pollStore(admin, store, businessDate) {
+async function pollStore(admin, store, businessDate, deadline = Infinity) {
   const result = {
     store: store.name, baskets_seen: 0, baskets_new: 0,
     events_new: 0, notified_baskets: 0, notified_events: 0, error: null,
@@ -160,6 +168,7 @@ async function pollStore(admin, store, businessDate) {
       .limit(MAX_EVENT_MESSAGES);
 
     for (const ev of pending || []) {
+      if (Date.now() > deadline) break;
       const { sent } = await sendTelegram(buildEventMessage(store, ev), store.telegram_chat_id);
       if (!sent) break; // Telegram is unhappy; leave the rest for the next poll.
       await admin.from('pos_events').update({ notified_at: new Date().toISOString() }).eq('id', ev.id);
@@ -181,6 +190,7 @@ async function pollStore(admin, store, businessDate) {
     const unnotified = new Set((rows || []).map(r => r.basket_no));
 
     for (const basket of ready.filter(b => unnotified.has(b.basket_no)).slice(0, MAX_BASKET_MESSAGES)) {
+      if (Date.now() > deadline) break;
       const { sent } = await sendTelegram(buildBasketMessage(store, basket), store.telegram_chat_id);
       if (!sent) break;
       await admin.from('pos_baskets')
@@ -214,7 +224,7 @@ async function runPoll(admin, businessDate, storeFilter = null) {
     while (next < stores.length) {
       const store = stores[next++];
       try {
-        results.push(await pollStore(admin, store, businessDate));
+        results.push(await pollStore(admin, store, businessDate, startMs + ANNOUNCE_BUDGET_MS));
       } catch (e) {
         console.error(`[pos-poll] ${store.name} failed:`, e.message);
         results.push({ store: store.name, error: e.message });
@@ -224,8 +234,12 @@ async function runPoll(admin, businessDate, storeFilter = null) {
   await Promise.all(Array.from({ length: Math.min(STORE_CONCURRENCY, stores.length) }, worker));
 
   const failed = results.filter(r => r.error).length;
-  console.log(`[pos-poll] ${businessDate}: ${results.length} stores, ${failed} failed, ${Date.now() - startMs}ms`);
-  return { success: failed === 0, business_date: businessDate, results, duration_ms: Date.now() - startMs };
+  const durationMs = Date.now() - startMs;
+  // A run that ran out of budget still did its job; the backlog drains over
+  // the next few polls rather than in one oversized run.
+  const truncated = durationMs > ANNOUNCE_BUDGET_MS;
+  console.log(`[pos-poll] ${businessDate}: ${results.length} stores, ${failed} failed, ${durationMs}ms${truncated ? ' (announce budget reached)' : ''}`);
+  return { success: failed === 0, business_date: businessDate, results, duration_ms: durationMs, truncated };
 }
 
 async function handle(request) {
