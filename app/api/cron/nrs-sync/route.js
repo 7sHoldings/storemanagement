@@ -5,6 +5,10 @@ import { extractShiftsFromNRS } from '@/lib/extract-shifts';
 import { sendTelegram, buildSyncSummaryMessage } from '@/lib/telegram';
 
 export const dynamic = 'force-dynamic';
+// The nightly sync took ~29s before the recovery pass was added, and that
+// pass re-attempts up to 12 store/dates on top. Pin the ceiling rather
+// than leaving it to the platform default.
+export const maxDuration = 60;
 
 function yesterdayCentral() {
   const now = new Date();
