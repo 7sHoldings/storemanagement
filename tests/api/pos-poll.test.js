@@ -109,7 +109,9 @@ describe('POST /api/cron/pos-poll — storing sales', () => {
 describe('POST /api/cron/pos-poll — announcing', () => {
   it('sends one message per basket, not per line', async () => {
     mockDb();
-    vi.mocked(fetchBasketLines).mockResolvedValue([line(), line({ item_no: 2 }), line({ item_no: 3 })]);
+    vi.mocked(fetchBasketLines).mockResolvedValue([
+      line({ entry_method: 'manual' }), line({ item_no: 2 }), line({ item_no: 3 }),
+    ]);
     await body();
     expect(sendTelegram).toHaveBeenCalledTimes(1);
     expect(sentTexts()[0]).toContain('Total');
@@ -117,7 +119,7 @@ describe('POST /api/cron/pos-poll — announcing', () => {
 
   it('sends to that store’s own channel', async () => {
     mockDb({ store: { telegram_chat_id: '-100999' } });
-    vi.mocked(fetchBasketLines).mockResolvedValue([line()]);
+    vi.mocked(fetchBasketLines).mockResolvedValue([line({ entry_method: 'manual' })]);
     await body();
     expect(vi.mocked(sendTelegram).mock.calls[0][1]).toBe('-100999');
   });
@@ -305,7 +307,7 @@ describe('POST /api/cron/pos-poll — announce budget', () => {
 
   it('does not truncate a quiet poll', async () => {
     mockDb();
-    vi.mocked(fetchBasketLines).mockResolvedValue([line()]);
+    vi.mocked(fetchBasketLines).mockResolvedValue([line({ entry_method: 'manual' })]);
     const res = await body();
     expect(res.truncated).toBe(false);
     expect(sendTelegram).toHaveBeenCalledTimes(1);
@@ -322,7 +324,7 @@ describe('POST /api/cron/pos-poll — a slow fetch must not starve announcing', 
       vi.setSystemTime(Date.now() + 20_000);
       return { data: {} };
     });
-    vi.mocked(fetchBasketLines).mockResolvedValue([line()]);
+    vi.mocked(fetchBasketLines).mockResolvedValue([line({ entry_method: 'manual' })]);
 
     const res = await body();
     expect(sendTelegram).toHaveBeenCalledTimes(1);
@@ -335,7 +337,7 @@ describe('POST /api/cron/pos-poll — a slow fetch must not starve announcing', 
       vi.setSystemTime(Date.now() + 25_000);
       return { data: {} };
     });
-    vi.mocked(fetchBasketLines).mockResolvedValue([line()]);
+    vi.mocked(fetchBasketLines).mockResolvedValue([line({ entry_method: 'manual' })]);
 
     const res = await body();
     expect(res.truncated).toBe(false);
@@ -393,5 +395,65 @@ describe('POST /api/cron/pos-poll — a database error must not read as "no stor
     const json = await (await GET(req())).json();
     expect(json.success).toBe(true);
     expect(json.warning).toMatch(/no stores/i);
+  });
+});
+
+// A sale rung entirely through the scanner is the ordinary case; the keyed
+// ones are the exception the feed exists to surface.
+describe('POST /api/cron/pos-poll — only sales with a keyed item are announced', () => {
+  const scannedLine = (over = {}) => line({ entry_method: 'scanned', upc: '123', ...over });
+  const keyedLine = (over = {}) => line({ entry_method: 'manual', upc: null, name: null, dept: 'Vape', ...over });
+
+  it('stays silent on a fully scanned sale', async () => {
+    mockDb();
+    vi.mocked(fetchBasketLines).mockResolvedValue([scannedLine(), scannedLine({ item_no: 2 })]);
+
+    const res = await body();
+    expect(sendTelegram).not.toHaveBeenCalled();
+    expect(res.results[0]).toMatchObject({ baskets_seen: 1, fully_scanned: 1, notified_baskets: 0 });
+  });
+
+  it('announces a sale where everything was keyed', async () => {
+    mockDb();
+    vi.mocked(fetchBasketLines).mockResolvedValue([keyedLine()]);
+    await body();
+    expect(sendTelegram).toHaveBeenCalledTimes(1);
+    expect(sentTexts()[0]).toContain('MANUAL ENTRY');
+  });
+
+  it('announces a mixed sale', async () => {
+    mockDb();
+    vi.mocked(fetchBasketLines).mockResolvedValue([scannedLine(), keyedLine({ item_no: 2 })]);
+    await body();
+    expect(sendTelegram).toHaveBeenCalledTimes(1);
+    expect(sentTexts()[0]).toContain('MANUAL &amp; SCANNED');
+  });
+
+  // Skipping the message must not skip the record.
+  it('still stores a fully scanned sale and its lines', async () => {
+    mockDb();
+    vi.mocked(fetchBasketLines).mockResolvedValue([scannedLine(), scannedLine({ item_no: 2 })]);
+
+    await body();
+    expect(db.upserts.pos_baskets).toHaveLength(1);
+    expect(db.upserts.pos_baskets[0]).toMatchObject({ scanned_count: 2, manual_count: 0 });
+    expect(db.upserts.pos_basket_items).toHaveLength(2);
+  });
+
+  it('does not mark a skipped sale as notified', async () => {
+    mockDb();
+    vi.mocked(fetchBasketLines).mockResolvedValue([scannedLine()]);
+    await body();
+    expect(db.updates.filter(u => u.table === 'pos_baskets')).toHaveLength(0);
+  });
+
+  // Voids and cancels are unaffected — they are not sales.
+  it('still alerts on till events during a fully scanned day', async () => {
+    mockDb({ pendingEvents: [{ id: 'e1', kind: 'void_item', cashier: 'Billy', amount_cents: 3499 }] });
+    vi.mocked(fetchBasketLines).mockResolvedValue([scannedLine()]);
+
+    await body();
+    expect(sendTelegram).toHaveBeenCalledTimes(1);
+    expect(sentTexts()[0]).toContain('VOIDED');
   });
 });

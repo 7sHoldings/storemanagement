@@ -43,6 +43,15 @@ const ANNOUNCE_DEADLINE_MS = 45_000;
 // half-finished basket and then never correct it.
 const isComplete = (b) => !!(b.closed_at || b.entered_at);
 
+// A sale rung entirely through the scanner is the ordinary case and is not
+// worth an interruption. Only baskets containing a hand-keyed line are
+// announced — that is the exception the feed exists to surface, and it is
+// what keeps the channel readable.
+//
+// Every basket is still recorded either way: this filters what is announced,
+// not what is captured, so the totals and the stored history stay complete.
+const hasKeyedItem = (b) => (b.manual_count || 0) > 0;
+
 function todayCentral() {
   const now = new Date();
   const central = new Date(now.toLocaleString('en-US', { timeZone: 'America/Chicago' }));
@@ -91,6 +100,9 @@ async function pollStore(admin, store, businessDate, deadline = Infinity) {
   result.baskets_seen = baskets.length;
   result.cashiers = [...new Set(baskets.map(b => b.cashier).filter(Boolean))];
   result.day_sales_cents = dayTotals?.sales_cents ?? null;
+  // Split out so a quiet channel can be told from a broken one: a run that
+  // saw sales but announced none should show them here.
+  result.fully_scanned = baskets.filter(b => !hasKeyedItem(b)).length;
 
   if (baskets.length) {
     // Upserting the header would clobber notified_at, so read first and only
@@ -188,7 +200,7 @@ async function pollStore(admin, store, businessDate, deadline = Infinity) {
   }
 
   if (store.notify_sales) {
-    const ready = baskets.filter(isComplete).sort(
+    const ready = baskets.filter(b => isComplete(b) && hasKeyedItem(b)).sort(
       (a, b) => String(a.entered_at || '').localeCompare(String(b.entered_at || '')),
     );
 
