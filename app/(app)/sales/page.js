@@ -407,15 +407,13 @@ export default function SalesPage() {
     // ── Validation ─────────────────────────────────────────────
     const errs = {};
     if (simpleR2Save) {
-      if (form.r2_net === '') errs.r2_net = true;
+      // R2 sales are derived from the safe drop now, so there is nothing
+      // for an R2-store employee to type — only receipts and credits.
     } else if (simpleSingleSave) {
       // Single-register employees only enter credits — nothing else is required.
     } else {
       const r1Required = ['r1_gross', 'r1_net', 'cash_sales', 'card_sales', 'r1_canceled_basket', 'r1_safe_drop', 'r1_sales_tax'];
       r1Required.forEach(k => { if (form[k] === '') errs[k] = true; });
-      if (usesReg2) {
-        if (form.r2_net === '') errs.r2_net = true;
-      }
     }
     // House Account name is required whenever an amount > 0 is entered, on
     // either the R1 tab (full form) or the R2 tab (simpleR2 employees).
@@ -536,8 +534,10 @@ export default function SalesPage() {
       // Register 2 (manual cash register at Bells/Kerens). The user enters
       // only R2 Net Sales — R2 is cash-only, no separate cash/safe-drop
       // input. Zeros for single-register stores (Reno/Denison/Troup).
-      r2_net: usesReg2 ? num(form.r2_net) : 0,
-      r2_gross: usesReg2 ? num(form.r2_net) : 0, // legacy column kept in sync with net
+      // Derived by the database from the safe drop at R2 stores; sent as
+      // zero so nothing here can contradict it.
+      r2_net: 0,
+      r2_gross: 0,
       register2_cash: 0,
       r2_safe_drop: 0,
       register2_card: 0,
@@ -817,6 +817,8 @@ export default function SalesPage() {
   // cash-only manual register, so r2 cash == r2 net; safe drop is rolled
   // into the single R1 safe drop number.
   const r2Net      = num(form.r2_net);
+  // Mirrors the database rule so the tab shows what will actually be stored.
+  const derivedR2  = Math.max(num(form.r1_safe_drop) - num(form.cash_sales), 0);
   const r2Cash     = currentUsesReg2 ? r2Net : 0;
 
   // Short/Over and Basket vs R2 diff. House Account / Employee Credit is
@@ -1173,14 +1175,21 @@ export default function SalesPage() {
         {activeTab === 'r2' && usesReg2 && (
           <div>
             <div className="bg-sw-blueD/40 border border-sw-blue/20 rounded-lg p-2.5 mb-3 text-[11px] text-sw-sub">
-              R2 is the manual cash-only register. Enter R2 Net Sales from the
-              R2 shift report and upload the receipt photo. Cash drop is
-              counted together with R1 on the Register&nbsp;1 tab.
+              R2 is the cash-only register and its sales are now worked out
+              for you: whatever was dropped above the cash R1 rang came from
+              R2. Nothing to type here — just upload the R2 receipt photo.
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <Field label={<>R2 Net Sales {reqMark}</>}>
-                <input type="number" min="0" step="0.01" placeholder="0.00" value={form.r2_net} onChange={onNum('r2_net')} className={errCls('r2_net')} />
-                {errHint('r2_net')}
+              <Field label="R2 Net Sales (worked out)">
+                <div className="rounded-lg border border-sw-border bg-sw-card2 px-3 py-2 text-[15px] font-mono text-sw-text">
+                  {fmt(derivedR2)}
+                </div>
+                <div className="mt-1 text-[11px] text-sw-sub">
+                  Safe drop {fmt(num(form.r1_safe_drop))} − R1 cash {fmt(num(form.cash_sales))}
+                  {num(form.r1_safe_drop) < num(form.cash_sales)
+                    ? ' — drop is under R1 cash, so R2 is counted as zero and the shortfall shows as short.'
+                    : ''}
+                </div>
               </Field>
             </div>
 
