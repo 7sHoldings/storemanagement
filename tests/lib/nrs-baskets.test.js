@@ -322,3 +322,55 @@ describe('extractDayTotals — cancelled and voided', () => {
     expect(t.cancelled_cents).toBe(events.reduce((s, e) => s + e.amount_cents, 0));
   });
 });
+
+// The POS only knows its own till. At a two-register store the drop holds
+// both, so a notification quoting NRS alone is R1 only — most of the day
+// missing at the stores where R2 takes the cash.
+describe('extractDayTotals — Register 2 and tax', () => {
+  // Bells, 2026-09-14, exactly as NRS returned it.
+  const stats = { data: {
+    byday: { baskets: 30, items: 56, sales: 82016 },
+    payamts: { total: 88783, num_sales: 30, cash: 1800, credit_debit: 86383 },
+    taxable_amt: { amt: 82016 },
+    collections: { 'Tax': { amt: 6767 } },
+    drops: { amt: 18700 },
+  } };
+
+  it('quotes the POS figure alone at a single-register store', () => {
+    const t = extractDayTotals(stats);
+    expect(t.sales_cents).toBe(82016);
+    expect(t.r2_sales_cents).toBe(0);
+  });
+
+  it('adds what the drop implies R2 took at a two-register store', () => {
+    const t = extractDayTotals(stats, { hasRegister2: true });
+    // drop 187.00 − POS cash 18.00 = 169.00 of R2 cash, tax stripped at
+    // R1's own rate (6767/82016 ≈ 8.25%) → ~156.12
+    expect(t.r2_sales_cents).toBe(15612);
+    expect(t.sales_cents).toBe(82016 + 15612);
+    expect(t.r1_sales_cents).toBe(82016);
+  });
+
+  // The whole point of the change: the figure must exclude the state's money.
+  it('never reports the collected total as sales', () => {
+    const t = extractDayTotals(stats, { hasRegister2: true });
+    expect(t.r1_sales_cents).toBe(82016);
+    expect(t.collected_cents).toBe(88783);
+    expect(t.r1_sales_cents).toBeLessThan(t.collected_cents);
+  });
+
+  it('counts no R2 when the drop is under POS cash', () => {
+    const short = { data: { ...stats.data, drops: { amt: 1000 } } };
+    const t = extractDayTotals(short, { hasRegister2: true });
+    expect(t.r2_sales_cents).toBe(0);
+    expect(t.sales_cents).toBe(82016);
+  });
+
+  it('takes R2 at face value when there is no rate to derive', () => {
+    const noTax = { data: {
+      byday: { sales: 0, baskets: 0 }, payamts: { total: 0, cash: 0 },
+      drops: { amt: 5000 },
+    } };
+    expect(extractDayTotals(noTax, { hasRegister2: true }).r2_sales_cents).toBe(5000);
+  });
+});
