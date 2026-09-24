@@ -89,7 +89,7 @@ async function pollStore(admin, store, businessDate, deadline = Infinity) {
   if (statsOutcome.ok) {
     sessions = extractSessions(statsOutcome.stats);
     events = extractEvents(statsOutcome.stats, businessDate);
-    dayTotals = extractDayTotals(statsOutcome.stats);
+    dayTotals = extractDayTotals(statsOutcome.stats, { hasRegister2: !!store.has_register2 });
   } else {
     console.warn(`[pos-poll] ${store.name} stats failed (no cashier, no events):`, statsOutcome.error.message);
   }
@@ -230,7 +230,7 @@ async function runPoll(admin, businessDate, storeFilter = null) {
   const startMs = Date.now();
   let q = admin
     .from('stores')
-    .select('id, name, nrs_store_id, telegram_chat_id, notify_sales, notify_events, notify_cancel_totals')
+    .select('id, name, nrs_store_id, has_register2, telegram_chat_id, notify_sales, notify_events, notify_cancel_totals')
     .not('nrs_store_id', 'is', null);
   // Narrowing to one store keeps a run to a single pair of NRS calls, for
   // schedulers that hang up before five stores can finish.
