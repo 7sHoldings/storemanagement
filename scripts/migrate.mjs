@@ -21,9 +21,11 @@
 // For a brand-new empty database use `--fresh` (runs schema.sql first,
 // then every migration, in alphabetical order).
 //
-// NOTE: new migration files run in ALPHABETICAL order among pending ones —
-// prefix related sequential changes with a date (e.g. 2026-07-21-add-x.sql)
-// if ordering between them matters.
+// NOTE: new migration files run in ALPHABETICAL order among pending ones.
+// When two files change the same object, the LATER one alphabetically wins,
+// so name the newer file so it sorts after the older one. A date prefix does
+// NOT achieve this — digits sort before letters, so 2026-07-21-add-x.sql runs
+// before every add-*.sql file, not after.
 // ═══════════════════════════════════════════════════════════
 
 import { readFileSync, readdirSync, existsSync } from 'fs';
