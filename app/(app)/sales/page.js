@@ -146,6 +146,7 @@ export default function SalesPage() {
     cash_sales: '', card_sales: '',
     cashapp_check: '',
     r1_canceled_basket: '', r1_safe_drop: '', r1_sales_tax: '',
+    non_tax_sales: '',
     r2_net: '', r2_override: '',
     register2_cash: '',
     r2_safe_drop: '',
@@ -159,6 +160,7 @@ export default function SalesPage() {
     cash_sales: '', card_sales: '',
     cashapp_check: '',
     r1_canceled_basket: '', r1_safe_drop: '', r1_sales_tax: '',
+    non_tax_sales: '',
     r2_net: '', r2_override: '',
     register2_cash: '',
     r2_safe_drop: '',
@@ -360,7 +362,7 @@ export default function SalesPage() {
 
   // Live duplicate check: whenever date or store changes in the modal, re-check
   // whether a sale already exists for that combination and show/clear the error.
-  const modalStoreIdForDupe = editItem?.store_id || effectiveStoreId || formStoreId;
+  const modalStoreIdForDupe = formStoreId || editItem?.store_id || effectiveStoreId;
   useEffect(() => {
     if (!modal || modal === 'edit') return;
     if (!modalStoreIdForDupe || !form.date) { setModalError(''); return; }
@@ -391,7 +393,7 @@ export default function SalesPage() {
     // entries, the sidebar or a form-local picked store is used.
     const storeIdToUse = isEmployee
       ? profile.store_id
-      : (editItem?.store_id || effectiveStoreId || formStoreId);
+      : (formStoreId || editItem?.store_id || effectiveStoreId);
     if (!storeIdToUse) {
       setFormError('Please select a store');
       return;
@@ -539,6 +541,11 @@ export default function SalesPage() {
       // zero so nothing here can contradict it.
       r2_net: 0,
       r2_gross: 0,
+      // Goes straight into the day's sales with no tax taken out, so an owner
+      // needs to be able to correct it. The key is omitted entirely on an
+      // employee's simple save: they never see the field, and sending their
+      // blank would wipe whatever the NRS sync had already filled in.
+      ...(simpleSave ? {} : { non_tax_sales: num(form.non_tax_sales) }),
       // An owner's hand correction. Blank means "work it out from the drop",
       // which is the normal case. Only owners send this key at all, so an
       // employee's entry can never quietly clear a correction.
@@ -611,7 +618,16 @@ export default function SalesPage() {
 
     if (modal === 'edit' && editItem) {
       const { error } = await supabase.from('daily_sales').update(data).eq('id', editItem.id);
-      if (error) { setMsg(error.message); return; }
+      if (error) {
+        // One row per store per day. Moving a sale onto a date the target
+        // store already has is the reachable case, so name it plainly
+        // instead of surfacing the raw constraint error.
+        setModalError(error.code === '23505' || /duplicate key|unique/i.test(error.message)
+          ? `${storeName || 'That store'} already has an entry for ${shortDate(data.date)}. Edit that one instead, or delete it first.`
+          : error.message);
+        setSaving(false);
+        return;
+      }
       await upsertShortOver(editItem.id);
       await syncCashCollection();
       await logActivity(supabase, profile, {
@@ -719,6 +735,7 @@ export default function SalesPage() {
       r1_canceled_basket: r.r1_canceled_basket ?? '',
       r1_safe_drop: r.r1_safe_drop ?? '',
       r1_sales_tax: r.r1_sales_tax ?? r.tax_collected ?? '',
+      non_tax_sales: r.non_tax_sales ?? '',
       r2_net: r.r2_net ?? '',
       r2_override: r.r2_override ?? '',
       register2_cash: r.register2_cash ?? '',
@@ -763,6 +780,10 @@ export default function SalesPage() {
       setHouseAccounts([]);
     }
     setEditItem(r);
+    // formStoreId is what the Store selector reads and what the save uses, so
+    // it has to start on this row's own store. Without this, a store left over
+    // from a previous add would silently move the sale.
+    setFormStoreId(r.store_id);
     setActiveTab('r1');
     setFieldErrors({});
     setModalError('');
@@ -814,10 +835,12 @@ export default function SalesPage() {
   // banner label, save destination). Order of precedence:
   //   - employees: always their own assigned store
   //   - when editing a row: the row's store_id
-  //   - otherwise: sidebar-selected store, then the form-local picked store
+  //   - otherwise: the form-local picked store (seeded from the row when
+  //     editing, so it reflects a store the owner has moved the sale to),
+  //     then the row's own store, then the sidebar selection
   const currentStoreId = isEmployee
     ? profile?.store_id
-    : (editItem?.store_id || effectiveStoreId || formStoreId);
+    : (formStoreId || editItem?.store_id || effectiveStoreId);
   const currentStoreObj = stores.find(s => s.id === currentStoreId);
   const currentUsesReg2 = !!currentStoreObj?.has_register2;
 
@@ -1095,6 +1118,13 @@ export default function SalesPage() {
               <Field label={<>Sales Tax {reqMark}</>}>
                 <input type="number" min="0" step="0.01" placeholder="0.00" value={form.r1_sales_tax} onChange={onNum('r1_sales_tax')} className={errCls('r1_sales_tax')} />
                 {errHint('r1_sales_tax')}
+              </Field>
+              <Field label="Non-Tax Sales">
+                <input type="number" min="0" step="0.01" placeholder="0.00" value={form.non_tax_sales} onChange={onNum('non_tax_sales')} />
+                <div className="mt-1 text-[11px] text-sw-sub">
+                  Added to the day's sales as-is — no tax comes out of it.
+                  Normally filled by the NRS sync; type here to correct it.
+                </div>
               </Field>
             </div>
 
@@ -1754,11 +1784,12 @@ export default function SalesPage() {
   if (loading && !hasLoadedOnce) return <Loading />;
 
   const hasStore = !!effectiveStoreId;
-  // Display name in the modal: when editing, prefer the row's store; otherwise
-  // the sidebar-selected store, then the form-local picked store.
-  const storeName = stores.find(s => s.id === (editItem?.store_id || effectiveStoreId || formStoreId))?.name;
+  // Display name in the modal: the form-local picked store wins (it is seeded
+  // from the row on edit, and an owner may have moved the sale), then the row's
+  // own store, then the sidebar selection.
+  const storeName = stores.find(s => s.id === (formStoreId || editItem?.store_id || effectiveStoreId))?.name;
 
-  const modalStoreObj = stores.find(s => s.id === (editItem?.store_id || effectiveStoreId || formStoreId));
+  const modalStoreObj = stores.find(s => s.id === (formStoreId || editItem?.store_id || effectiveStoreId));
   const ownerUsesReg2 = !!modalStoreObj?.has_register2;
 
   const resetReceipts = () => {
@@ -2088,15 +2119,19 @@ export default function SalesPage() {
             </div>
           )}
           <Field label="Store">
+            {/* Editable on an existing entry for owners, so a sale filed under
+                the wrong store can be moved. Employees never reach this modal,
+                but the entry stays pinned for anyone who is not an owner
+                rather than relying on that. */}
             <select
-              value={editItem?.store_id || formStoreId || ''}
+              value={formStoreId || editItem?.store_id || ''}
               onChange={e => {
                 setFormStoreId(e.target.value);
                 setFormError('');
                 setActiveTab('r1');
               }}
               style={formError ? { borderColor: '#F87171' } : undefined}
-              disabled={!!editItem}
+              disabled={!!editItem && !isOwner}
             >
               <option value="">Select store…</option>
               {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
