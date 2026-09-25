@@ -9,6 +9,7 @@ import { logActivity, fmtMoney, shortDate } from '@/lib/activity';
 import { uploadReceipt, compressImage } from '@/lib/storage';
 import { clampShiftHours } from '@/lib/shift-hours';
 import { effectiveR2, derivedR2 as deriveR2, hasOverride } from '@/lib/sales-r2';
+import { missingColumn } from '@/lib/postgrest-errors';
 import NRSSyncModal from '@/components/NRSSyncModal';
 import DailySalesHeader from '@/components/daily-sales/DailySalesHeader';
 import DailySalesKpis from '@/components/daily-sales/DailySalesKpis';
@@ -616,8 +617,26 @@ export default function SalesPage() {
     // NRS-synced days where r1_safe_drop = 0.
     const syncCashCollection = async () => { /* intentionally a no-op */ };
 
+    // PostgREST rejects an entire write when it carries a column it does not
+    // know about, so a migration that has not been applied yet would block the
+    // whole day's entry — not just the new field. Drop the column it names and
+    // retry once, so the sale still saves and the owner is told exactly which
+    // field did not stick instead of losing everything they typed.
+    let droppedColumn = null;
+    const writeTolerantly = async (attempt) => {
+      let res = await attempt(data);
+      const miss = missingColumn(res.error);
+      if (miss && Object.prototype.hasOwnProperty.call(data, miss)) {
+        droppedColumn = miss;
+        const { [miss]: _pending, ...rest } = data;
+        res = await attempt(rest);
+      }
+      return res;
+    };
+
     if (modal === 'edit' && editItem) {
-      const { error } = await supabase.from('daily_sales').update(data).eq('id', editItem.id);
+      const { error } = await writeTolerantly(
+        (payload) => supabase.from('daily_sales').update(payload).eq('id', editItem.id));
       if (error) {
         // One row per store per day. Moving a sale onto a date the target
         // store already has is the reachable case, so name it plainly
@@ -655,7 +674,8 @@ export default function SalesPage() {
         }
       }
 
-      const { data: inserted, error } = await supabase.from('daily_sales').insert(data).select().single();
+      const { data: inserted, error } = await writeTolerantly(
+        (payload) => supabase.from('daily_sales').insert(payload).select().single());
       if (error) {
         // Postgres unique_violation. Translate the raw error into a clear message.
         if (error.code === '23505' || /duplicate key|unique/i.test(error.message)) {
@@ -679,7 +699,13 @@ export default function SalesPage() {
 
     setSaving(false);
     setModal(null); setEditItem(null);
-    setMsg('success'); setTimeout(() => setMsg(''), 2500);
+    if (droppedColumn) {
+      // Left on screen rather than auto-cleared: the sale saved, but a figure
+      // the owner typed did not, and that needs to be read.
+      setMsg(`Saved — but "${droppedColumn}" could not be stored because that database migration has not been applied yet. Everything else was saved.`);
+    } else {
+      setMsg('success'); setTimeout(() => setMsg(''), 2500);
+    }
     setForm(blankForm());
     setHouseAccounts([]);
     setActiveTab('r1');
