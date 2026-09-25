@@ -8,6 +8,7 @@ import { fmt, fK, dayLabel, today, downloadCSV } from '@/lib/utils';
 import { logActivity, fmtMoney, shortDate } from '@/lib/activity';
 import { uploadReceipt, compressImage } from '@/lib/storage';
 import { clampShiftHours } from '@/lib/shift-hours';
+import { effectiveR2, derivedR2 as deriveR2, hasOverride } from '@/lib/sales-r2';
 import NRSSyncModal from '@/components/NRSSyncModal';
 import DailySalesHeader from '@/components/daily-sales/DailySalesHeader';
 import DailySalesKpis from '@/components/daily-sales/DailySalesKpis';
@@ -145,7 +146,7 @@ export default function SalesPage() {
     cash_sales: '', card_sales: '',
     cashapp_check: '',
     r1_canceled_basket: '', r1_safe_drop: '', r1_sales_tax: '',
-    r2_net: '',
+    r2_net: '', r2_override: '',
     register2_cash: '',
     r2_safe_drop: '',
     notes: '',
@@ -158,7 +159,7 @@ export default function SalesPage() {
     cash_sales: '', card_sales: '',
     cashapp_check: '',
     r1_canceled_basket: '', r1_safe_drop: '', r1_sales_tax: '',
-    r2_net: '',
+    r2_net: '', r2_override: '',
     register2_cash: '',
     r2_safe_drop: '',
     notes: '',
@@ -538,6 +539,12 @@ export default function SalesPage() {
       // zero so nothing here can contradict it.
       r2_net: 0,
       r2_gross: 0,
+      // An owner's hand correction. Blank means "work it out from the drop",
+      // which is the normal case. Only owners send this key at all, so an
+      // employee's entry can never quietly clear a correction.
+      ...(isOwner
+        ? { r2_override: String(form.r2_override).trim() === '' ? null : num(form.r2_override) }
+        : {}),
       register2_cash: 0,
       r2_safe_drop: 0,
       register2_card: 0,
@@ -713,6 +720,7 @@ export default function SalesPage() {
       r1_safe_drop: r.r1_safe_drop ?? '',
       r1_sales_tax: r.r1_sales_tax ?? r.tax_collected ?? '',
       r2_net: r.r2_net ?? '',
+      r2_override: r.r2_override ?? '',
       register2_cash: r.register2_cash ?? '',
       r2_safe_drop: r.r2_safe_drop ?? '',
       notes: r.notes || '',
@@ -813,13 +821,18 @@ export default function SalesPage() {
   const currentStoreObj = stores.find(s => s.id === currentStoreId);
   const currentUsesReg2 = !!currentStoreObj?.has_register2;
 
-  // Register 2 (Bells/Kerens): user only enters R2 Net Sales. R2 is a
-  // cash-only manual register, so r2 cash == r2 net; safe drop is rolled
-  // into the single R1 safe drop number.
-  const r2Net      = num(form.r2_net);
-  // Mirrors the database rule so the tab shows what will actually be stored.
-  const derivedR2  = Math.max(num(form.r1_safe_drop) - num(form.cash_sales), 0);
-  const r2Cash     = currentUsesReg2 ? r2Net : 0;
+  // Register 2 (Bells/Kerens). R2 is a cash-only manual register the POS
+  // cannot see, so r2 cash == r2 net and its drop is rolled into the single
+  // R1 safe drop figure. Nobody types the sales any more — they are worked
+  // out from that drop, and only an owner can override the result.
+  // Both figures come from lib/sales-r2.js, which mirrors the database
+  // trigger, so the form always shows the number that will actually be
+  // stored. `derivedR2` is what the safe-drop rule works out; `r2Net` is
+  // that unless the owner has corrected the day by hand.
+  const derivedR2     = deriveR2(form);
+  const hasR2Override = currentUsesReg2 && hasOverride(form.r2_override);
+  const r2Net         = effectiveR2(form, { usesRegister2: currentUsesReg2 }).amount;
+  const r2Cash        = currentUsesReg2 ? r2Net : 0;
 
   // Short/Over and Basket vs R2 diff. House Account / Employee Credit is
   // money the cashier handed out as credit, so it counts as a draw against
@@ -1177,19 +1190,59 @@ export default function SalesPage() {
             <div className="bg-sw-blueD/40 border border-sw-blue/20 rounded-lg p-2.5 mb-3 text-[11px] text-sw-sub">
               R2 is the cash-only register and its sales are now worked out
               for you: whatever was dropped above the cash R1 rang came from
-              R2. Nothing to type here — just upload the R2 receipt photo.
+              R2.{' '}
+              {isOwner
+                ? 'Leave the box below empty to keep that figure, or type a number to correct the day by hand.'
+                : 'Nothing to type here — just upload the R2 receipt photo.'}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <Field label="R2 Net Sales (worked out)">
-                <div className="rounded-lg border border-sw-border bg-sw-card2 px-3 py-2 text-[15px] font-mono text-sw-text">
-                  {fmt(derivedR2)}
-                </div>
-                <div className="mt-1 text-[11px] text-sw-sub">
-                  Safe drop {fmt(num(form.r1_safe_drop))} − R1 cash {fmt(num(form.cash_sales))}
-                  {num(form.r1_safe_drop) < num(form.cash_sales)
-                    ? ' — drop is under R1 cash, so R2 is counted as zero and the shortfall shows as short.'
-                    : ''}
-                </div>
+              <Field label={isOwner ? 'R2 Net Sales' : 'R2 Net Sales (worked out)'}>
+                {isOwner ? (
+                  <>
+                    <input
+                      type="number" min="0" step="0.01"
+                      placeholder={fmt(derivedR2)}
+                      value={form.r2_override}
+                      onChange={onNum('r2_override')}
+                      className={errCls('r2_override')}
+                    />
+                    <div className="mt-1 text-[11px] text-sw-sub">
+                      {hasR2Override ? (
+                        <>
+                          Using your figure of{' '}
+                          <span className="font-mono text-sw-text">{fmt(r2Net)}</span>{' '}
+                          instead of the worked-out {fmt(derivedR2)}.{' '}
+                          <button
+                            type="button"
+                            onClick={() => setForm(f => ({ ...f, r2_override: '' }))}
+                            className="underline text-sw-blue"
+                          >
+                            Use the worked-out figure
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          Worked out as{' '}
+                          <span className="font-mono text-sw-text">{fmt(derivedR2)}</span>
+                          {' '}— safe drop {fmt(num(form.r1_safe_drop))} − R1 cash {fmt(num(form.cash_sales))}.
+                          Type a number only to correct it.
+                        </>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="rounded-lg border border-sw-border bg-sw-card2 px-3 py-2 text-[15px] font-mono text-sw-text">
+                      {fmt(r2Net)}
+                    </div>
+                    <div className="mt-1 text-[11px] text-sw-sub">
+                      Safe drop {fmt(num(form.r1_safe_drop))} − R1 cash {fmt(num(form.cash_sales))}
+                      {num(form.r1_safe_drop) < num(form.cash_sales)
+                        ? ' — drop is under R1 cash, so R2 is counted as zero and the shortfall shows as short.'
+                        : ''}
+                    </div>
+                  </>
+                )}
               </Field>
             </div>
 
