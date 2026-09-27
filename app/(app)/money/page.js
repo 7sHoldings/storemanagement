@@ -7,7 +7,7 @@ import {
 } from '@/components/UI';
 import { fmt, today, storeShortName } from '@/lib/utils';
 import { logActivity } from '@/lib/activity';
-import { profitSummary, cashSummary, runningCashBalance } from '@/lib/profit';
+import { profitSummary, cashSummary, safeBalance, handBalance } from '@/lib/profit';
 
 // ── Building blocks ────────────────────────────────────────
 // Each section is a card with one headline figure and the lines that make
@@ -68,6 +68,20 @@ function Row({ label, hint, value, sign = '', tone = 'plain', emphasis = false }
   );
 }
 
+// One pile of cash: what was there at the start, what moved, what is there
+// now. Written as a block so both piles read identically and the date range
+// obviously drives the middle rows.
+function Balance({ title, opening, openingLabel, closing, closingLabel, rows }) {
+  return (
+    <div className="mt-3 first:mt-1">
+      <div className="text-[10px] font-bold uppercase tracking-wide text-sw-dim mb-0.5">{title}</div>
+      <Row label={openingLabel} value={opening} />
+      {rows.map((r, i) => <Row key={i} {...r} />)}
+      <Row label={closingLabel} value={closing} emphasis />
+    </div>
+  );
+}
+
 export default function MoneyPage() {
   const { supabase, isOwner, profile, effectiveStoreId } = useAuth();
   const { range, preset, selectPreset, setStart, setEnd } = useDateRange('thismonth');
@@ -98,7 +112,7 @@ export default function MoneyPage() {
     const scope = (q) => (activeStore ? q.eq('store_id', activeStore) : q);
     try {
       const [sales, purchases, expenses, collections, games, cashExp, outs,
-             priorColl, priorOuts, priorCashExp, priorGames] = await Promise.all([
+             priorColl, priorOuts, priorCashExp, priorGames, priorDrops] = await Promise.all([
         scope(supabase.from('daily_sales')
           .select('date, store_id, gross_sales, total_sales, tax_collected, cash_sales, r2_net, card_sales, register2_card, r1_safe_drop, r2_safe_drop, short_over')
           .gte('date', range.start).lte('date', range.end)),
@@ -132,12 +146,15 @@ export default function MoneyPage() {
         scope(supabase.from('expenses').select('amount')
           .eq('paid_from', 'cash_collection').lt('expense_date', range.start)),
         scope(supabase.from('game_machine_collections').select('amount').lt('date', range.start)),
+        // Safe drops before the period: the safe carries forward as much as
+        // the hand does, so its balance needs its own history.
+        scope(supabase.from('daily_sales').select('r1_safe_drop, r2_safe_drop').lt('date', range.start)),
       ]);
 
       // A discarded error reads as "nothing happened" and shows a confident
       // zero, which is worse than saying so.
       for (const r of [sales, purchases, expenses, collections, games, cashExp, outs,
-                       priorColl, priorOuts, priorCashExp, priorGames]) {
+                       priorColl, priorOuts, priorCashExp, priorGames, priorDrops]) {
         if (r.error) throw new Error(r.error.message);
       }
 
@@ -148,12 +165,15 @@ export default function MoneyPage() {
       }));
       // Takeouts are group-level, so a single-store view cannot carry a
       // meaningful held balance; the page says so rather than showing one.
-      const opening = runningCashBalance({
-        collections: priorColl.data,
-        takeouts: activeStore ? [] : priorOuts.data,
-        cashExpenses: priorCashExp.data,
-        games: priorGames.data,
-      });
+      const opening = {
+        safe: safeBalance({ sales: priorDrops.data, collections: priorColl.data }),
+        hand: handBalance({
+          collections: priorColl.data,
+          games: priorGames.data,
+          takeouts: activeStore ? [] : priorOuts.data,
+          cashExpenses: priorCashExp.data,
+        }),
+      };
       setCash(cashSummary({
         sales: sales.data,
         collections: collections.data,
@@ -295,8 +315,8 @@ export default function MoneyPage() {
                 carries its share of the month rather than all of it.
               </div>
             )}
-            {cash.paidInCash > 0 && (
-              <Row label="Of which paid in cash" hint="Settled out of collected cash, not the bank" value={cash.paidInCash} />
+            {cash.hand.paidInCash > 0 && (
+              <Row label="Of which paid in cash" hint="Settled out of collected cash, not the bank" value={cash.hand.paidInCash} />
             )}
           </Section>
 
@@ -319,73 +339,85 @@ export default function MoneyPage() {
           {/* ── 5. CASH ── */}
           <Section
             title="Cash"
-            badge={activeStore ? 'balance shown for All Stores' : undefined}
-            headline={activeStore ? undefined : cash.inHand}
-            headlineLabel={activeStore ? undefined : `Should be in hand at ${range.end}`}
-            tone={cash.inHand >= 0 ? 'plain' : 'bad'}
+            badge={activeStore ? 'balances shown for All Stores' : `on ${range.end}`}
+            headline={activeStore ? undefined : cash.totalHeld}
+            headlineLabel={activeStore ? undefined : 'All cash held — in the safes and in your hand'}
+            tone={cash.totalHeld >= 0 ? 'plain' : 'bad'}
             action={isOwner && !activeStore && (
               <Button onClick={() => setModal(true)} className="!py-1 !px-2.5 !text-[11px] !rounded-lg">
                 Take out cash
               </Button>
             )}
           >
-            <div className="text-[10px] font-bold uppercase tracking-wide text-sw-dim mt-1 mb-0.5">
-              What the stores took · this period
-            </div>
-            <Row label="Cash sales" hint="Both tills — Register 2 is cash only" value={cash.salesCash} />
-            {cash.gameCash > 0 && (
-              <Row
-                label="Game machine cash"
-                hint="Real cash, but not a sale — nothing left the shelves"
-                value={cash.gameCash}
-              />
-            )}
-            {cash.gameCash > 0 && (
-              <Row label="Total cash taken" value={cash.totalCashTaken} emphasis />
-            )}
-            <Row label="Put in the safe" hint="Safe drops recorded by staff" value={cash.safeDrop} />
-            {Math.abs(cash.notDropped) >= 0.01 && (
-              <Row
-                label={cash.notDropped > 0 ? 'Rung up but not dropped' : 'Dropped above what was rung'}
-                hint={cash.notDropped > 0
-                  ? 'Sales cash the registers counted that never reached the safe'
-                  : 'More in the safe than the registers rang — often a drop covering another day'}
-                value={cash.notDropped}
-                sign={cash.notDropped > 0 ? '−' : '+'}
-                tone={cash.notDropped > 0 ? 'minus' : 'plus'}
-              />
-            )}
-            {Math.abs(cash.awaitingPickup) >= 0.01 && (
-              <Row label="Still in the safe" hint="Dropped but not yet picked up" value={cash.awaitingPickup} />
-            )}
-
             {activeStore ? (
-              <div className="mt-3 text-[10.5px] text-sw-dim leading-snug">
-                Cash taken out is recorded for the business as a whole, not per
-                store, so the held balance only makes sense with every store in
-                view. Choose All Stores to see it.
-              </div>
+              <>
+                <Row label="Cash sales" hint="Both tills — Register 2 is cash only" value={cash.salesCash} />
+                <Row label="Put in the safe" value={cash.putInSafe} />
+                <div className="mt-3 text-[10.5px] text-sw-dim leading-snug">
+                  Cash taken out is recorded for the business as a whole, not
+                  per store, so the held balances only make sense with every
+                  store in view. Choose All Stores to see them.
+                </div>
+              </>
             ) : (
               <>
-                <div className="text-[10px] font-bold uppercase tracking-wide text-sw-dim mt-3 mb-0.5">
-                  Cash in hand · running balance
-                </div>
-                <Row
-                  label="Brought forward"
-                  hint={`Held on ${range.start} from earlier collections`}
-                  value={cash.openingBalance}
+                {/* Two piles. Each is a balance carried forward, with this
+                    period's movement in between, so changing the date range
+                    changes the movement rows and the closing figure while
+                    "brought forward" absorbs everything before it. */}
+                <Balance
+                  title="In the stores' safes"
+                  opening={cash.safe.opening}
+                  openingLabel={`Held on ${range.start}`}
+                  closing={cash.safe.closing}
+                  closingLabel={`In the safes on ${range.end}`}
+                  rows={[
+                    { label: 'Put in by staff', value: cash.safe.putIn, sign: '+', tone: 'plus' },
+                    { label: 'You collected', value: cash.safe.collected, sign: '−', tone: 'minus' },
+                  ]}
                 />
-                <Row label="Collected from the safe" value={cash.collected} sign="+" tone="plus" />
-                {cash.gameCash > 0 && (
-                  <Row label="Game machine cash" value={cash.gameCash} sign="+" tone="plus" />
-                )}
-                <Row label="Taken out" value={cash.takenOut} sign="−" tone="minus" />
-                <Row label="Paid out in cash" hint="Expenses settled from cash" value={cash.paidInCash} sign="−" tone="minus" />
-                <Row label={`In hand on ${range.end}`} value={cash.inHand} emphasis />
-                <div className="mt-2 text-[10.5px] text-sw-dim leading-snug">
-                  Cash does not belong to a month. Money collected earlier is
-                  still here, so taking it out now reduces the balance without
-                  touching this period&apos;s own collections.
+
+                <Balance
+                  title="In your hand"
+                  opening={cash.hand.opening}
+                  openingLabel={`Held on ${range.start}`}
+                  closing={cash.hand.closing}
+                  closingLabel={`In hand on ${range.end}`}
+                  rows={[
+                    { label: 'Collected from the safes', value: cash.hand.collected, sign: '+', tone: 'plus' },
+                    ...(cash.hand.gameCash > 0
+                      ? [{ label: 'Game machine cash', value: cash.hand.gameCash, sign: '+', tone: 'plus' }]
+                      : []),
+                    ...(cash.hand.takenOut > 0
+                      ? [{ label: 'Taken out', value: cash.hand.takenOut, sign: '−', tone: 'minus' }]
+                      : []),
+                    ...(cash.hand.paidInCash > 0
+                      ? [{ label: 'Paid out in cash', value: cash.hand.paidInCash, sign: '−', tone: 'minus' }]
+                      : []),
+                  ]}
+                />
+
+                {/* An integrity check, not a balance — about this period only. */}
+                <div className="mt-4 pt-3 border-t border-sw-border">
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-sw-dim mb-0.5">
+                    Did the cash reach the safe? · {range.start} → {range.end}
+                  </div>
+                  <Row label="Cash sales rung up" hint="Both tills" value={cash.salesCash} />
+                  {cash.gameCash > 0 && (
+                    <Row label="Game machine cash" hint="Cash, but not a sale — does not go through a till" value={cash.gameCash} />
+                  )}
+                  <Row label="Put in the safe" value={cash.putInSafe} />
+                  <Row
+                    label={cash.notDropped > 0 ? 'Missing from the safe' : cash.notDropped < 0 ? 'Dropped above what was rung' : 'All accounted for'}
+                    hint={cash.notDropped > 0
+                      ? 'Sales cash the registers counted that never reached a safe'
+                      : cash.notDropped < 0
+                        ? 'More dropped than rung — usually a drop covering another day'
+                        : undefined}
+                    value={cash.notDropped}
+                    tone={cash.notDropped > 0 ? 'minus' : cash.notDropped < 0 ? 'plus' : 'plain'}
+                    emphasis
+                  />
                 </div>
               </>
             )}

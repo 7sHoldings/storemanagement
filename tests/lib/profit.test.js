@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   daysInMonth, monthOverlapDays, proratedExpenses,
-  coversWholeMonths, checkSalesIdentity, profitSummary, cashSummary, runningCashBalance,
+  coversWholeMonths, checkSalesIdentity, profitSummary, cashSummary, safeBalance, handBalance,
 } from '@/lib/profit';
 
 describe('daysInMonth', () => {
@@ -183,144 +183,108 @@ describe('profitSummary', () => {
   });
 });
 
-describe('runningCashBalance', () => {
-  it('is everything collected less everything that left', () => {
-    expect(runningCashBalance({
-      collections: [{ cash_collected: 1000 }, { cash_collected: 500 }],
+describe('safeBalance', () => {
+  it('is everything dropped less everything collected from the safe', () => {
+    expect(safeBalance({
+      sales: [{ r1_safe_drop: 400, r2_safe_drop: 100 }, { r1_safe_drop: 250 }],
+      collections: [{ cash_collected: 500 }],
+    })).toBe(250);
+  });
+  it('is zero with no history rather than NaN', () => {
+    expect(safeBalance({})).toBe(0);
+    expect(safeBalance()).toBe(0);
+  });
+});
+
+describe('handBalance', () => {
+  it('is everything collected and earned in cash, less what left', () => {
+    expect(handBalance({
+      collections: [{ cash_collected: 1000 }],
+      games: [{ amount: 300 }],
       takeouts: [{ cash_amount: 400 }],
       cashExpenses: [{ amount: 100 }],
-    })).toBe(1000);
+    })).toBe(800);
   });
-
   it('counts only the cash half of a part-card takeout', () => {
-    expect(runningCashBalance({
+    expect(handBalance({
       collections: [{ cash_collected: 1000 }],
       takeouts: [{ amount: 900, cash_amount: 200, card_amount: 700 }],
     })).toBe(800);
   });
-
   it('is zero with no history rather than NaN', () => {
-    expect(runningCashBalance({})).toBe(0);
-    expect(runningCashBalance()).toBe(0);
+    expect(handBalance({})).toBe(0);
   });
 });
 
-describe('cashSummary', () => {
-  const day = {
-    sales: [
-      { cash_sales: 0.18, r2_net: 396.82, r1_safe_drop: 397, r2_safe_drop: 0 },
-      { cash_sales: 221.92, r2_net: 0, r1_safe_drop: 200, r2_safe_drop: 0 },
-    ],
-    collections: [{ cash_collected: 500 }],
-    takeouts: [{ cash_amount: 300 }, { cash_amount: 0, card_amount: 900 }],
-    cashExpenses: [{ amount: 120 }],
+describe('cashSummary — two piles, both carrying forward', () => {
+  // September, from the owner's own screen.
+  const sept = {
+    sales: [{ cash_sales: 25519.37, r2_net: 0, r1_safe_drop: 24505, r2_safe_drop: 0 }],
+    collections: [{ cash_collected: 15077 }],
+    takeouts: [{ cash_amount: 37503 }],
+    cashExpenses: [],
+    games: [],
+    opening: { safe: 6000, hand: 43180.98 },
   };
 
-  it('counts both tills as cash sales', () => {
-    // Kerens 0.18 + 396.82, Reno 221.92. cash_sales alone would say 222.10.
-    expect(cashSummary(day).salesCash).toBe(618.92);
+  it('reproduces the hand balance the owner saw', () => {
+    const c = cashSummary(sept);
+    expect(c.hand.opening).toBe(43180.98);
+    expect(c.hand.change).toBe(-22426);        // 15077 − 37503
+    expect(c.hand.closing).toBe(20754.98);
   });
 
-  it('shows cash rung up but not put in the safe', () => {
-    expect(cashSummary(day).notDropped).toBe(21.92);   // 618.92 rung, 597 dropped
+  it('carries the safe forward too, which the old version did not', () => {
+    // The old page showed 24505 − 15077 = 9428 as "still in the safe",
+    // counting only this period and ignoring what August left behind.
+    const c = cashSummary(sept);
+    expect(c.safe.change).toBe(9428);          // the period's movement
+    expect(c.safe.closing).toBe(15428);        // 6000 brought forward + 9428
   });
 
-  it('shows cash in the safe not yet picked up', () => {
-    expect(cashSummary(day).awaitingPickup).toBe(97);  // 597 − 500
+  it('adds both piles into everything held', () => {
+    const c = cashSummary(sept);
+    expect(c.totalHeld).toBe(round(c.safe.closing + c.hand.closing));
+    expect(c.totalHeld).toBe(36182.98);
   });
 
-  it('carries a balance forward instead of treating the period as a closed box', () => {
-    // The bug this replaces. August collected 2,000 and none of it left, so
-    // September opens holding 2,000 even though September collected 500.
-    const c = cashSummary({ ...day, opening: 2000 });
-    expect(c.openingBalance).toBe(2000);
-    expect(c.collected).toBe(500);
-    expect(c.inHand).toBe(2080);   // 2000 + 500 − 300 − 120
+  it('shows collections leaving one pile and joining the other', () => {
+    const c = cashSummary(sept);
+    expect(c.safe.collected).toBe(c.hand.collected);
   });
 
-  it("lets August's money be taken out in September without September going negative", () => {
-    // $2,000 collected in August, nothing collected in September, $1,500
-    // taken out in September. The old model showed −$1,500 for September
-    // as though the month had lost money it never held.
-    const c = cashSummary({
-      opening: 2000,
-      collections: [],
-      takeouts: [{ cash_amount: 1500 }],
-    });
-    expect(c.collected).toBe(0);
-    expect(c.takenOut).toBe(1500);
-    expect(c.netChange).toBe(-1500);   // the period did lose 1,500
-    expect(c.inHand).toBe(500);        // but 500 is genuinely still there
+  it('keeps game cash out of sales cash but inside the hand balance', () => {
+    const c = cashSummary({ ...sept, games: [{ amount: 500 }] });
+    expect(c.salesCash).toBe(25519.37);
+    expect(c.gameCash).toBe(500);
+    expect(c.totalCashTaken).toBe(26019.37);
+    expect(c.hand.closing).toBe(21254.98);     // 500 more in hand
+    expect(c.safe.closing).toBe(15428);        // safe untouched by it
   });
 
-  it('separates what the period did from what is held', () => {
-    const c = cashSummary({ ...day, opening: 2000 });
-    // netChange is the period alone; inHand includes everything before it.
-    expect(c.netChange).toBe(80);
-    expect(c.inHand).toBe(c.openingBalance + c.netChange);
+  it('flags cash rung up that never reached a safe', () => {
+    expect(cashSummary(sept).notDropped).toBe(1014.37);
   });
 
-  it('ignores the card half of a takeout', () => {
-    const c = cashSummary({
-      opening: 1000,
-      takeouts: [{ amount: 1000, cash_amount: 250, card_amount: 750 }],
-    });
-    expect(c.takenOut).toBe(250);
-    expect(c.inHand).toBe(750);
+  it('is unaffected by the balances brought in when checking the drop', () => {
+    // The integrity check is about this period only; a big opening balance
+    // must not make a shortfall disappear.
+    const c = cashSummary({ ...sept, opening: { safe: 999999, hand: 999999 } });
+    expect(c.notDropped).toBe(1014.37);
   });
 
   it('can report a negative balance rather than hiding an overdraw', () => {
-    const c = cashSummary({ opening: 100, takeouts: [{ cash_amount: 400 }] });
-    expect(c.inHand).toBe(-300);
+    const c = cashSummary({ opening: { safe: 0, hand: 100 }, takeouts: [{ cash_amount: 400 }] });
+    expect(c.hand.closing).toBe(-300);
   });
 
   it('returns zeroes rather than NaN with nothing to show', () => {
     const c = cashSummary({});
-    expect(c.salesCash).toBe(0);
-    expect(c.inHand).toBe(0);
+    expect(c.hand.closing).toBe(0);
+    expect(c.safe.closing).toBe(0);
+    expect(c.totalHeld).toBe(0);
     expect(c.notDropped).toBe(0);
   });
 });
 
-describe('game machine cash', () => {
-  it('counts game money as cash but keeps it out of sales cash', () => {
-    // Game machines pay out in cash, but nothing left the shelves for it.
-    // Folding it into sales cash would flatter how the shops are trading.
-    const c = cashSummary({
-      sales: [{ cash_sales: 100, r2_net: 50 }],
-      games: [{ amount: 300 }, { amount: 200 }],
-    });
-    expect(c.salesCash).toBe(150);
-    expect(c.gameCash).toBe(500);
-    expect(c.totalCashTaken).toBe(650);
-  });
-
-  it('adds game cash to the running balance', () => {
-    const c = cashSummary({
-      opening: 1000,
-      collections: [{ cash_collected: 400 }],
-      games: [{ amount: 250 }],
-      takeouts: [{ cash_amount: 200 }],
-    });
-    expect(c.inHand).toBe(1450);      // 1000 + 400 + 250 − 200
-    expect(c.netChange).toBe(450);
-  });
-
-  it('carries game cash forward in the opening balance too', () => {
-    // Money from an August machine collection is still in hand in September.
-    expect(runningCashBalance({
-      collections: [{ cash_collected: 1000 }],
-      games: [{ amount: 400 }],
-      takeouts: [{ cash_amount: 200 }],
-    })).toBe(1200);
-  });
-
-  it('leaves sales, profit and the not-dropped check untouched', () => {
-    // Game money is not a sale, so it must not move the cash-vs-drop check.
-    const c = cashSummary({
-      sales: [{ cash_sales: 100, r2_net: 0, r1_safe_drop: 90 }],
-      games: [{ amount: 500 }],
-    });
-    expect(c.notDropped).toBe(10);
-  });
-});
+const round = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
