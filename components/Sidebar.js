@@ -89,19 +89,19 @@ export default function Sidebar({ selectedStore, onStoreChange }) {
       { path: '/dashboard', icon: I.dashboard, label: 'Dashboard' },
       { path: '/trends',    icon: I.trends,    label: 'Trends' },
     ]},
+    // Stock-side tools are hidden from the menu rather than removed: the
+    // pages and their data are untouched and still reachable by URL, so
+    // putting one back is a one-line change here. Hidden at the owner's
+    // request to keep the menu to what is used day to day.
     { title: 'Operations', items: [
       { path: '/sales',      icon: I.sales,     label: 'Daily Sales' },
       { path: '/cash',       icon: I.cash,      label: 'Cash Collection' },
       { path: '/game-machines', icon: I.game,   label: 'Game Machines' },
       { path: '/purchases',  icon: I.cart,      label: 'Product Buying' },
-      { path: '/restock',    icon: I.restock,   label: 'Restock' },
-      { path: '/stock-count', icon: I.inventory, label: 'Stock Count' },
-      { path: '/auto-reorder', icon: I.refresh, label: 'Auto Reorder' },
-      { path: '/invoices',   icon: I.invoice,   label: 'Invoices' },
       { path: '/expenses',   icon: I.expense,   label: 'Expenses' },
-      { path: '/inventory',  icon: I.inventory, label: 'Inventory' },
-      { path: '/warehouse-prices', icon: I.tag,  label: 'Warehouse Prices' },
       { path: '/pricebook',  icon: I.barcode,   label: 'Pricebook' },
+      // Hidden: /restock, /stock-count, /auto-reorder, /invoices,
+      //         /inventory, /warehouse-prices
     ]},
     { title: 'Reports', items: [
       { path: '/reports',  icon: I.pl,       label: 'P&L Report' },
@@ -138,7 +138,10 @@ export default function Sidebar({ selectedStore, onStoreChange }) {
   const nav = sections.flatMap(s => s.items);
 
   // Mobile bottom nav: 4 primary items + More (owner); employees get their pages.
-  const primaryPaths = ['/dashboard', '/sales', '/cash', '/inventory'];
+  // /inventory used to sit here, but it is no longer in the menu, so the
+  // filter below would have silently dropped a slot. Money takes its place —
+  // it is the page this nav most needs to reach.
+  const primaryPaths = ['/money', '/dashboard', '/sales', '/cash'];
   const primary = isOwner ? nav.filter(n => primaryPaths.includes(n.path)) : nav;
   const overflow = isOwner ? nav.filter(n => !primaryPaths.includes(n.path)) : [];
 

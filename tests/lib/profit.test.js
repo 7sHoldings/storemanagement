@@ -281,3 +281,46 @@ describe('cashSummary', () => {
     expect(c.notDropped).toBe(0);
   });
 });
+
+describe('game machine cash', () => {
+  it('counts game money as cash but keeps it out of sales cash', () => {
+    // Game machines pay out in cash, but nothing left the shelves for it.
+    // Folding it into sales cash would flatter how the shops are trading.
+    const c = cashSummary({
+      sales: [{ cash_sales: 100, r2_net: 50 }],
+      games: [{ amount: 300 }, { amount: 200 }],
+    });
+    expect(c.salesCash).toBe(150);
+    expect(c.gameCash).toBe(500);
+    expect(c.totalCashTaken).toBe(650);
+  });
+
+  it('adds game cash to the running balance', () => {
+    const c = cashSummary({
+      opening: 1000,
+      collections: [{ cash_collected: 400 }],
+      games: [{ amount: 250 }],
+      takeouts: [{ cash_amount: 200 }],
+    });
+    expect(c.inHand).toBe(1450);      // 1000 + 400 + 250 − 200
+    expect(c.netChange).toBe(450);
+  });
+
+  it('carries game cash forward in the opening balance too', () => {
+    // Money from an August machine collection is still in hand in September.
+    expect(runningCashBalance({
+      collections: [{ cash_collected: 1000 }],
+      games: [{ amount: 400 }],
+      takeouts: [{ cash_amount: 200 }],
+    })).toBe(1200);
+  });
+
+  it('leaves sales, profit and the not-dropped check untouched', () => {
+    // Game money is not a sale, so it must not move the cash-vs-drop check.
+    const c = cashSummary({
+      sales: [{ cash_sales: 100, r2_net: 0, r1_safe_drop: 90 }],
+      games: [{ amount: 500 }],
+    });
+    expect(c.notDropped).toBe(10);
+  });
+});
