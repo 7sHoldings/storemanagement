@@ -44,9 +44,15 @@ function Section({ title, badge, headline, headlineLabel, tone = 'plain', childr
 
 // One make-up line. `emphasis` marks a subtotal.
 function Row({ label, hint, value, sign = '', tone = 'plain', emphasis = false }) {
+  // Without this a negative value with no explicit sign rendered as positive,
+  // because the number is printed as an absolute. A held balance of
+  // −$5,667.02 showed as $5,667.02 — the exact opposite of the truth.
+  const shown = sign || (value < 0 ? '−' : '');
+  const negative = value < 0 && !sign;
   const colour =
     tone === 'minus' ? 'text-sw-red'
     : tone === 'plus' ? 'text-sw-green'
+    : negative ? 'text-sw-red'
     : emphasis ? 'text-sw-text'
     : 'text-sw-sub';
   return (
@@ -56,7 +62,7 @@ function Row({ label, hint, value, sign = '', tone = 'plain', emphasis = false }
         {hint && <div className="text-[10.5px] text-sw-dim mt-0.5 leading-snug">{hint}</div>}
       </div>
       <div className={`shrink-0 font-mono tabular-nums text-[13px] ${emphasis ? 'font-bold' : ''} ${colour}`}>
-        {sign}{fmt(Math.abs(value))}
+        {shown}{fmt(Math.abs(value))}
       </div>
     </div>
   );
@@ -92,7 +98,7 @@ export default function MoneyPage() {
     const scope = (q) => (activeStore ? q.eq('store_id', activeStore) : q);
     try {
       const [sales, purchases, expenses, collections, games, cashExp, outs,
-             priorColl, priorOuts, priorCashExp] = await Promise.all([
+             priorColl, priorOuts, priorCashExp, priorGames] = await Promise.all([
         scope(supabase.from('daily_sales')
           .select('date, store_id, gross_sales, total_sales, tax_collected, cash_sales, r2_net, card_sales, register2_card, r1_safe_drop, r2_safe_drop, short_over')
           .gte('date', range.start).lte('date', range.end)),
@@ -125,12 +131,13 @@ export default function MoneyPage() {
         supabase.from('profit_takeouts').select('cash_amount').lt('date', range.start),
         scope(supabase.from('expenses').select('amount')
           .eq('paid_from', 'cash_collection').lt('expense_date', range.start)),
+        scope(supabase.from('game_machine_collections').select('amount').lt('date', range.start)),
       ]);
 
       // A discarded error reads as "nothing happened" and shows a confident
       // zero, which is worse than saying so.
       for (const r of [sales, purchases, expenses, collections, games, cashExp, outs,
-                       priorColl, priorOuts, priorCashExp]) {
+                       priorColl, priorOuts, priorCashExp, priorGames]) {
         if (r.error) throw new Error(r.error.message);
       }
 
@@ -145,12 +152,14 @@ export default function MoneyPage() {
         collections: priorColl.data,
         takeouts: activeStore ? [] : priorOuts.data,
         cashExpenses: priorCashExp.data,
+        games: priorGames.data,
       });
       setCash(cashSummary({
         sales: sales.data,
         collections: collections.data,
         takeouts: activeStore ? [] : outs.data,
         cashExpenses: cashExp.data,
+        games: games.data,
         opening,
       }));
       setTakeouts(activeStore ? [] : (outs.data || []));
@@ -324,12 +333,22 @@ export default function MoneyPage() {
               What the stores took · this period
             </div>
             <Row label="Cash sales" hint="Both tills — Register 2 is cash only" value={cash.salesCash} />
+            {cash.gameCash > 0 && (
+              <Row
+                label="Game machine cash"
+                hint="Real cash, but not a sale — nothing left the shelves"
+                value={cash.gameCash}
+              />
+            )}
+            {cash.gameCash > 0 && (
+              <Row label="Total cash taken" value={cash.totalCashTaken} emphasis />
+            )}
             <Row label="Put in the safe" hint="Safe drops recorded by staff" value={cash.safeDrop} />
             {Math.abs(cash.notDropped) >= 0.01 && (
               <Row
                 label={cash.notDropped > 0 ? 'Rung up but not dropped' : 'Dropped above what was rung'}
                 hint={cash.notDropped > 0
-                  ? 'Cash the registers counted that never reached the safe'
+                  ? 'Sales cash the registers counted that never reached the safe'
                   : 'More in the safe than the registers rang — often a drop covering another day'}
                 value={cash.notDropped}
                 sign={cash.notDropped > 0 ? '−' : '+'}
@@ -357,6 +376,9 @@ export default function MoneyPage() {
                   value={cash.openingBalance}
                 />
                 <Row label="Collected from the safe" value={cash.collected} sign="+" tone="plus" />
+                {cash.gameCash > 0 && (
+                  <Row label="Game machine cash" value={cash.gameCash} sign="+" tone="plus" />
+                )}
                 <Row label="Taken out" value={cash.takenOut} sign="−" tone="minus" />
                 <Row label="Paid out in cash" hint="Expenses settled from cash" value={cash.paidInCash} sign="−" tone="minus" />
                 <Row label={`In hand on ${range.end}`} value={cash.inHand} emphasis />
