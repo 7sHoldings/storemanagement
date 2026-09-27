@@ -8,6 +8,7 @@ import {
 import { fmt, today, storeShortName } from '@/lib/utils';
 import { logActivity } from '@/lib/activity';
 import { profitSummary, cashSummary, safeBalance, handBalance } from '@/lib/profit';
+import { missingColumn } from '@/lib/postgrest-errors';
 
 // ── Building blocks ────────────────────────────────────────
 // Each section is a card with one headline figure and the lines that make
@@ -68,6 +69,39 @@ function Row({ label, hint, value, sign = '', tone = 'plain', emphasis = false }
   );
 }
 
+const TAKEOUT_COLS = 'id, date, amount, cash_amount, card_amount, destination, notes, for_month';
+
+// Takeouts in the period. On a whole-month view they are selected by the
+// month whose cash they came out of; any other range has no month to
+// attribute to, so it falls back to the day they were recorded.
+function takeoutQuery(supabase, cols, monthKey, range) {
+  const q = supabase.from('profit_takeouts').select(cols);
+  return monthKey
+    ? q.eq('for_month', monthKey)
+    : q.gte('date', range.start).lte('date', range.end);
+}
+
+// Everything before the period, for the balance brought in. 'YYYY-MM' sorts
+// chronologically as text, so "an earlier month" is a plain comparison.
+function priorTakeoutQuery(supabase, monthKey, range) {
+  const q = supabase.from('profit_takeouts').select('cash_amount');
+  return monthKey ? q.lt('for_month', monthKey) : q.lt('date', range.start);
+}
+
+// Until the for_month migration is applied the column does not exist, and
+// PostgREST rejects the whole query rather than ignoring it. Rather than
+// leave the page broken until someone runs SQL, fall back to selecting on
+// the record date — which is exactly what the app did before attribution
+// existed.
+async function withMonthFallback(run, runByDate) {
+  const res = await run();
+  if (missingColumn(res.error) === 'for_month') {
+    const fallback = await runByDate();
+    return { ...fallback, monthAttributionMissing: true };
+  }
+  return res;
+}
+
 // The last 12 calendar months, newest first, as { key, label, start, end }.
 // Built from date parts rather than by parsing strings, and the current
 // month stops at today rather than running to a future date.
@@ -125,11 +159,17 @@ export default function MoneyPage() {
   const [perStore, setPerStore] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  const [needsMonthMigration, setNeedsMonthMigration] = useState(false);
 
   // Take-out form
   const [modal, setModal] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ date: today(), amount: '', destination: '', notes: '' });
+  // null = adding, otherwise the row being edited.
+  const [editing, setEditing] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const [form, setForm] = useState({
+    date: today(), amount: '', destination: '', notes: '', for_month: today().slice(0, 7),
+  });
   const [formErr, setFormErr] = useState('');
 
   useEffect(() => {
@@ -139,12 +179,19 @@ export default function MoneyPage() {
 
   const activeStore = isOwner ? storeId : (effectiveStoreId || '');
 
+  const months = recentMonths(today());
+  // A pill is lit only when the range is exactly that whole month, so a
+  // custom range or a week never lights one misleadingly.
+  const activeMonthKey = months.find(m => m.start === range.start && m.end === range.end)?.key;
+  const periodLabel = months.find(m => m.key === activeMonthKey)?.label
+    || `${range.start} → ${range.end}`;
+
   const load = useCallback(async () => {
     setErr('');
     const scope = (q) => (activeStore ? q.eq('store_id', activeStore) : q);
     try {
-      const [sales, purchases, expenses, collections, games, cashExp, outs,
-             priorColl, priorOuts, priorCashExp, priorGames, priorDrops] = await Promise.all([
+      let [sales, purchases, expenses, collections, games, cashExp, outs,
+           priorColl, priorOuts, priorCashExp, priorGames, priorDrops] = await Promise.all([
         scope(supabase.from('daily_sales')
           .select('date, store_id, gross_sales, total_sales, tax_collected, cash_sales, r2_net, card_sales, register2_card, r1_safe_drop, r2_safe_drop, short_over')
           .gte('date', range.start).lte('date', range.end)),
@@ -164,9 +211,12 @@ export default function MoneyPage() {
           .gte('expense_date', range.start).lte('expense_date', range.end)),
         // profit_takeouts has no store_id — takeouts belong to the group, so
         // they are only meaningful with every store in view.
-        supabase.from('profit_takeouts')
-          .select('id, date, amount, cash_amount, card_amount, destination, notes')
-          .gte('date', range.start).lte('date', range.end)
+        //
+        // A withdrawal is recorded on the day it happens but belongs to the
+        // month whose cash it came out of, so a whole-month view selects on
+        // that attribution rather than on the record date. Any other range
+        // has no month to attribute to, and falls back to the date.
+        takeoutQuery(supabase, TAKEOUT_COLS, activeMonthKey, range)
           .order('date', { ascending: false }),
 
         // Everything dated BEFORE this period, for the balance carried in.
@@ -174,7 +224,7 @@ export default function MoneyPage() {
         // still there in September, and taking it out in September must not
         // make September look like it lost cash it never held.
         scope(supabase.from('cash_collections').select('cash_collected').lt('date', range.start)),
-        supabase.from('profit_takeouts').select('cash_amount').lt('date', range.start),
+        priorTakeoutQuery(supabase, activeMonthKey, range),
         scope(supabase.from('expenses').select('amount')
           .eq('paid_from', 'cash_collection').lt('expense_date', range.start)),
         scope(supabase.from('game_machine_collections').select('amount').lt('date', range.start)),
@@ -182,6 +232,24 @@ export default function MoneyPage() {
         // the hand does, so its balance needs its own history.
         scope(supabase.from('daily_sales').select('r1_safe_drop, r2_safe_drop').lt('date', range.start)),
       ]);
+
+      // The for_month column only exists once its migration has run. Rather
+      // than leave the page broken until someone runs SQL, fall back to the
+      // record date — exactly what the app did before attribution existed —
+      // and say so on screen so the figures are not silently misread.
+      let monthAttributionMissing = false;
+      if (missingColumn(outs.error) === 'for_month'
+          || missingColumn(priorOuts.error) === 'for_month') {
+        monthAttributionMissing = true;
+        [outs, priorOuts] = await Promise.all([
+          supabase.from('profit_takeouts')
+            .select('id, date, amount, cash_amount, card_amount, destination, notes')
+            .gte('date', range.start).lte('date', range.end)
+            .order('date', { ascending: false }),
+          supabase.from('profit_takeouts').select('cash_amount').lt('date', range.start),
+        ]);
+      }
+      setNeedsMonthMigration(monthAttributionMissing);
 
       // A discarded error reads as "nothing happened" and shows a confident
       // zero, which is worse than saying so.
@@ -248,6 +316,33 @@ export default function MoneyPage() {
     return () => window.removeEventListener('focus', onFocus);
   }, [load]);
 
+  const openAdd = () => {
+    setEditing(null);
+    setForm({
+      date: today(), amount: '', destination: '', notes: '',
+      // Default to the month being viewed: a withdrawal entered while
+      // looking at August is far more likely to be August's money.
+      for_month: activeMonthKey || today().slice(0, 7),
+    });
+    setFormErr('');
+    setModal(true);
+  };
+
+  const openEdit = (t) => {
+    setEditing(t);
+    setForm({
+      date: t.date,
+      amount: String(t.cash_amount ?? t.amount ?? ''),
+      destination: t.destination || '',
+      notes: t.notes || '',
+      for_month: t.for_month || String(t.date).slice(0, 7),
+    });
+    setFormErr('');
+    setModal(true);
+  };
+
+  const closeTakeout = () => { setModal(false); setEditing(null); setFormErr(''); };
+
   const saveTakeout = async () => {
     const amount = parseFloat(form.amount);
     if (!Number.isFinite(amount) || amount <= 0) {
@@ -256,35 +351,63 @@ export default function MoneyPage() {
     }
     setSaving(true);
     setFormErr('');
-    // Recorded as cash in full: this button is specifically for cash out of
-    // the safe. Mixed cash/card takeouts are entered on Profit Take Out.
-    const { error } = await supabase.from('profit_takeouts').insert({
+    // Recorded as cash in full: this form is specifically for cash out of
+    // the safe. Mixed cash/card takeouts are entered on Profit Take Out,
+    // so editing one here would silently drop its card half.
+    const payload = {
       date: form.date,
       amount,
       cash_amount: amount,
       card_amount: 0,
       destination: form.destination || null,
       notes: form.notes || null,
-      created_by: profile?.id || null,
-    });
-    if (error) { setFormErr(error.message); setSaving(false); return; }
+      // Which month's cash this came out of, which is often not the month
+      // it was recorded in.
+      for_month: form.for_month,
+    };
+    const { error } = editing
+      ? await supabase.from('profit_takeouts').update(payload).eq('id', editing.id)
+      : await supabase.from('profit_takeouts').insert({ ...payload, created_by: profile?.id || null });
+    if (error) {
+      // Before the migration runs the column does not exist, and PostgREST
+      // rejects the whole write rather than ignoring the unknown field.
+      if (missingColumn(error) === 'for_month') {
+        const { for_month, ...rest } = payload;
+        const retry = editing
+          ? await supabase.from('profit_takeouts').update(rest).eq('id', editing.id)
+          : await supabase.from('profit_takeouts').insert({ ...rest, created_by: profile?.id || null });
+        if (retry.error) { setFormErr(retry.error.message); setSaving(false); return; }
+        setFormErr('');
+      } else {
+        setFormErr(error.message); setSaving(false); return;
+      }
+    }
     await logActivity(supabase, profile, {
-      action: 'create',
+      action: editing ? 'update' : 'create',
       entityType: 'profit_takeouts',
-      description: `${profile?.name} took out ${fmt(amount)} cash${form.destination ? ` for ${form.destination}` : ''}`,
+      entityId: editing?.id,
+      description: `${profile?.name} ${editing ? 'edited a' : 'took out'} ${fmt(amount)} cash withdrawal${form.destination ? ` for ${form.destination}` : ''} (from ${form.for_month})`,
     });
     setSaving(false);
-    setModal(false);
-    setForm({ date: today(), amount: '', destination: '', notes: '' });
+    closeTakeout();
     load();
   };
 
-  const months = recentMonths(today());
-  // A pill is lit only when the range is exactly that whole month, so a
-  // custom range or a week never lights one misleadingly.
-  const activeMonthKey = months.find(m => m.start === range.start && m.end === range.end)?.key;
-  const periodLabel = months.find(m => m.key === activeMonthKey)?.label
-    || `${range.start} → ${range.end}`;
+  const deleteTakeout = async () => {
+    if (!editing) return;
+    setDeleting(true);
+    const { error } = await supabase.from('profit_takeouts').delete().eq('id', editing.id);
+    if (error) { setFormErr(error.message); setDeleting(false); return; }
+    await logActivity(supabase, profile, {
+      action: 'delete',
+      entityType: 'profit_takeouts',
+      entityId: editing.id,
+      description: `${profile?.name} removed a ${fmt(editing.cash_amount || 0)} cash withdrawal`,
+    });
+    setDeleting(false);
+    closeTakeout();
+    load();
+  };
 
   if (loading && !summary) return <Loading text="Working out the numbers…" />;
 
@@ -312,6 +435,15 @@ export default function MoneyPage() {
       )}
 
       {err && <div className="mt-3"><Alert type="error">Could not load the figures: {err}</Alert></div>}
+      {needsMonthMigration && (
+        <div className="mt-3">
+          <Alert type="warning">
+            Cash taken out is still counted against the month it was recorded
+            in. To attribute a withdrawal to the month its money was earned,
+            run supabase/migrations/takeout-for-month.sql.
+          </Alert>
+        </div>
+      )}
 
       {s && cash && (
         <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
@@ -393,7 +525,7 @@ export default function MoneyPage() {
                 : `${periodLabel} paid out more than it took in — the difference came from earlier months`}
             tone={activeStore ? 'plain' : cash.period.left >= 0 ? 'good' : 'bad'}
             action={isOwner && !activeStore && (
-              <Button onClick={() => setModal(true)} className="!py-1 !px-2.5 !text-[11px] !rounded-lg">
+              <Button onClick={openAdd} className="!py-1 !px-2.5 !text-[11px] !rounded-lg">
                 Take out cash
               </Button>
             )}
@@ -493,19 +625,32 @@ export default function MoneyPage() {
           {takeouts.length > 0 && (
             <Section title="Cash taken out" badge={`${takeouts.length} in this period`}>
               <div className="divide-y divide-sw-border">
-                {takeouts.map(t => (
-                  <div key={t.id} className="flex items-baseline justify-between gap-3 py-2">
-                    <div className="min-w-0">
-                      <div className="text-[12.5px] text-sw-text">{t.destination || 'Cash taken out'}</div>
-                      <div className="text-[10.5px] text-sw-dim mt-0.5">
-                        {t.date}{t.notes ? ` · ${t.notes}` : ''}
+                {takeouts.map(t => {
+                  const attributed = t.for_month || String(t.date).slice(0, 7);
+                  const movedMonth = attributed !== String(t.date).slice(0, 7);
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => openEdit(t)}
+                      className="w-full text-left flex items-baseline justify-between gap-3 py-2 hover:bg-sw-card2 rounded px-1 -mx-1"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-[12.5px] text-sw-text truncate">{t.destination || 'Cash taken out'}</div>
+                        <div className="text-[10.5px] text-sw-dim mt-0.5">
+                          Taken {t.date}
+                          {/* Only worth saying when it differs from the record
+                              date; otherwise it is noise on every row. */}
+                          {movedMonth && <span className="text-sw-amber"> · from {attributed} cash</span>}
+                          {t.notes ? ` · ${t.notes}` : ''}
+                        </div>
                       </div>
-                    </div>
-                    <div className="shrink-0 font-mono tabular-nums text-[13px] text-sw-red">
-                      −{fmt(t.cash_amount || 0)}
-                    </div>
-                  </div>
-                ))}
+                      <div className="shrink-0 font-mono tabular-nums text-[13px] text-sw-red">
+                        −{fmt(t.cash_amount || 0)}
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </Section>
           )}
@@ -566,35 +711,68 @@ export default function MoneyPage() {
       )}
 
       {modal && (
-        <Modal title="Take out cash" onClose={() => { setModal(false); setFormErr(''); }}>
+        <Modal
+          title={editing ? 'Edit cash taken out' : 'Take out cash'}
+          onClose={closeTakeout}
+        >
           {formErr && <div className="mb-3"><Alert type="error">{formErr}</Alert></div>}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-            <Field label="Date">
-              <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
+            <Field label="Date taken">
+              <input type="date" value={form.date}
+                onChange={e => setForm({ ...form, date: e.target.value })} />
             </Field>
             <Field label="Amount">
               <input type="number" min="0" step="0.01" placeholder="0.00" value={form.amount}
                 onChange={e => setForm({ ...form, amount: e.target.value.replace(/^-/, '') })} />
             </Field>
           </div>
+          <Field label="Taken from which month's cash">
+            <select value={form.for_month}
+              onChange={e => setForm({ ...form, for_month: e.target.value })}>
+              {months.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+            </select>
+            <div className="mt-1 text-[11px] text-sw-dim leading-snug">
+              Usually the same month you took it. Set it back when the money
+              was earned earlier — August cash taken out in September belongs
+              to August, and counting it against September makes September
+              look worse than it was.
+            </div>
+          </Field>
           <Field label="What for">
-            <input placeholder="e.g. Bank deposit, personal draw" value={form.destination}
+            <input placeholder="e.g. Bank deposit, contractor, personal draw" value={form.destination}
               onChange={e => setForm({ ...form, destination: e.target.value })} />
           </Field>
           <Field label="Notes">
             <input placeholder="Optional" value={form.notes}
               onChange={e => setForm({ ...form, notes: e.target.value })} />
           </Field>
+          {editing && Number(editing.card_amount || 0) > 0 && (
+            <div className="mt-2">
+              <Alert type="warning">
+                This withdrawal has a {fmt(editing.card_amount)} card portion.
+                Saving here records it as cash only — edit it on Profit Take
+                Out instead to keep both halves.
+              </Alert>
+            </div>
+          )}
           <div className="mt-2 text-[11px] text-sw-dim leading-snug">
-            Comes off the running cash balance from this date on. It does not
-            matter which month the cash was originally collected in — the
-            balance carries forward, so taking out older money simply reduces
-            what is left. Sales and profit are untouched: taking money out is
-            not a cost of running the stores.
+            Comes off the cash balance for the month it is attributed to. It
+            does not change sales or profit — taking money out is not a cost
+            of running the stores.
           </div>
-          <div className="flex gap-2 justify-end mt-4">
-            <Button variant="secondary" onClick={() => { setModal(false); setFormErr(''); }}>Cancel</Button>
-            <Button onClick={saveTakeout} disabled={saving}>{saving ? 'Saving…' : 'Take out'}</Button>
+          <div className="flex gap-2 justify-between items-center mt-4">
+            {editing ? (
+              <Button variant="danger" onClick={deleteTakeout} disabled={deleting || saving}
+                className="!py-1.5 !px-3 !text-[12px]">
+                {deleting ? 'Removing…' : 'Delete'}
+              </Button>
+            ) : <span />}
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={closeTakeout}>Cancel</Button>
+              <Button onClick={saveTakeout} disabled={saving || deleting}>
+                {saving ? 'Saving…' : editing ? 'Save changes' : 'Take out'}
+              </Button>
+            </div>
           </div>
         </Modal>
       )}
