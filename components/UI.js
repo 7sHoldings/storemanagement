@@ -264,7 +264,14 @@ export function useDateRange(defaultPreset = 'last30') {
     setPreset('custom');
   };
 
-  return { range, preset, selectPreset, setStart, setEnd };
+  // Both ends at once. Setting start then end in one handler would read a
+  // stale `custom` on the second call, so a month button needs this.
+  const setRange = ({ start, end }) => {
+    setCustom({ start, end });
+    setPreset('custom');
+  };
+
+  return { range, preset, selectPreset, setStart, setEnd, setRange };
 }
 
 // ── MultiSelect ─────────────────────────────────────────────

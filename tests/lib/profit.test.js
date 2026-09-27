@@ -288,3 +288,48 @@ describe('cashSummary — two piles, both carrying forward', () => {
 });
 
 const round = (n) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+describe('cashSummary — this period kept apart from what came before', () => {
+  const sept = {
+    sales: [{ cash_sales: 25519.37, r2_net: 0, r1_safe_drop: 24505, r2_safe_drop: 0 }],
+    collections: [{ cash_collected: 15077 }],
+    takeouts: [{ cash_amount: 37503 }],
+    games: [{ amount: 1250 }],
+    opening: { safe: 35649.87, hand: 63695.48 },
+  };
+
+  it('reports the period alone, with nothing carried in', () => {
+    const c = cashSummary(sept);
+    expect(c.period.cameIn).toBe(25755);       // 24505 dropped + 1250 games
+    expect(c.period.wentOut).toBe(37503);
+    expect(c.period.left).toBe(-11748);        // took out more than came in
+  });
+
+  it('counts only cash that reached a safe as having come in', () => {
+    // The tills rang 25,519.37 but only 24,505 was dropped. Counting the
+    // rung-up figure would have the total claim $1,014.37 that is not
+    // anywhere. It is reported as missing instead.
+    const c = cashSummary(sept);
+    expect(c.salesCash).toBe(25519.37);
+    expect(c.period.cameIn).toBe(25755);       // uses the drop, not the till
+    expect(c.notDropped).toBe(1014.37);
+  });
+
+  it('reports what was brought in from before, on its own', () => {
+    expect(cashSummary(sept).broughtForward).toBe(99345.35);
+  });
+
+  it('adds the two to the total held, exactly', () => {
+    const c = cashSummary(sept);
+    expect(c.broughtForward + c.period.left).toBeCloseTo(c.totalHeld, 2);
+    expect(c.totalHeld).toBe(87597.35);
+  });
+
+  it('keeps the period figure free of the opening balance', () => {
+    // A big balance carried in must not change what the month itself did.
+    const a = cashSummary(sept);
+    const b = cashSummary({ ...sept, opening: { safe: 0, hand: 0 } });
+    expect(b.period.left).toBe(a.period.left);
+    expect(b.broughtForward).toBe(0);
+  });
+});
