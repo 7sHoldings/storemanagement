@@ -85,6 +85,7 @@ export default function Sidebar({ selectedStore, onStoreChange }) {
   // Grouped navigation for owner — mirrors the mockup's section layout.
   const sections = isOwner ? [
     { title: 'Overview', items: [
+      { path: '/money',     icon: I.pl,        label: 'Money' },
       { path: '/dashboard', icon: I.dashboard, label: 'Dashboard' },
       { path: '/trends',    icon: I.trends,    label: 'Trends' },
     ]},
