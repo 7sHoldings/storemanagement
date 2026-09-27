@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   daysInMonth, monthOverlapDays, proratedExpenses,
-  coversWholeMonths, checkSalesIdentity, profitSummary, cashSummary, safeBalance, handBalance,
+  coversWholeMonths, checkSalesIdentity, profitSummary, cashSummary, safeBalance, handBalance, monthlyCashRows,
 } from '@/lib/profit';
 
 describe('daysInMonth', () => {
@@ -331,5 +331,74 @@ describe('cashSummary — this period kept apart from what came before', () => {
     const b = cashSummary({ ...sept, opening: { safe: 0, hand: 0 } });
     expect(b.period.left).toBe(a.period.left);
     expect(b.broughtForward).toBe(0);
+  });
+});
+
+describe('monthlyCashRows', () => {
+  const months = [
+    { key: '2026-09', label: 'Sep 26' },
+    { key: '2026-08', label: 'Aug 26' },
+    { key: '2026-07', label: 'Jul 26' },
+  ];
+
+  it('buckets each movement into its own month', () => {
+    const rows = monthlyCashRows({
+      months,
+      drops: [
+        { date: '2026-09-15', r1_safe_drop: 400, r2_safe_drop: 100 },
+        { date: '2026-08-02', r1_safe_drop: 300 },
+      ],
+      games: [{ date: '2026-09-20', amount: 250 }],
+      takeouts: [{ date: '2026-09-21', for_month: '2026-09', cash_amount: 200 }],
+      cashExpenses: [{ expense_date: '2026-08-10', amount: 50 }],
+    });
+    expect(rows[0]).toMatchObject({ key: '2026-09', cameIn: 750, wentOut: 200, net: 550 });
+    expect(rows[1]).toMatchObject({ key: '2026-08', cameIn: 300, wentOut: 50, net: 250 });
+    expect(rows[2]).toMatchObject({ key: '2026-07', cameIn: 0, wentOut: 0, net: 0 });
+  });
+
+  it('counts a withdrawal against the month it was attributed to', () => {
+    // Recorded in September, taken from August's cash.
+    const rows = monthlyCashRows({
+      months,
+      takeouts: [{ date: '2026-09-21', for_month: '2026-08', cash_amount: 973 }],
+    });
+    expect(rows[0].wentOut).toBe(0);      // September untouched
+    expect(rows[1].wentOut).toBe(973);    // August carries it
+  });
+
+  it('falls back to the record date for rows written before attribution existed', () => {
+    const rows = monthlyCashRows({
+      months,
+      takeouts: [{ date: '2026-09-21', cash_amount: 500 }],
+    });
+    expect(rows[0].wentOut).toBe(500);
+  });
+
+  it('ignores movements outside the months asked for', () => {
+    const rows = monthlyCashRows({
+      months,
+      drops: [{ date: '2025-01-05', r1_safe_drop: 9999 }],
+    });
+    expect(rows.every(r => r.cameIn === 0)).toBe(true);
+  });
+
+  it('returns a row for every month asked for, in that order', () => {
+    const rows = monthlyCashRows({ months });
+    expect(rows.map(r => r.key)).toEqual(['2026-09', '2026-08', '2026-07']);
+  });
+
+  it('can report a month that paid out more than it took in', () => {
+    const rows = monthlyCashRows({
+      months,
+      drops: [{ date: '2026-09-15', r1_safe_drop: 100 }],
+      takeouts: [{ date: '2026-09-16', for_month: '2026-09', cash_amount: 400 }],
+    });
+    expect(rows[0].net).toBe(-300);
+  });
+
+  it('returns zeroes rather than NaN with nothing to show', () => {
+    expect(monthlyCashRows({ months })[0]).toMatchObject({ cameIn: 0, wentOut: 0, net: 0 });
+    expect(monthlyCashRows({})).toEqual([]);
   });
 });
