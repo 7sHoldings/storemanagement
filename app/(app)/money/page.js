@@ -7,7 +7,7 @@ import {
 } from '@/components/UI';
 import { fmt, today, storeShortName } from '@/lib/utils';
 import { logActivity } from '@/lib/activity';
-import { profitSummary, cashSummary, safeBalance, handBalance } from '@/lib/profit';
+import { profitSummary, cashSummary, safeBalance, handBalance, monthlyCashRows } from '@/lib/profit';
 import { missingColumn } from '@/lib/postgrest-errors';
 
 // ── Building blocks ────────────────────────────────────────
@@ -160,6 +160,7 @@ export default function MoneyPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
   const [needsMonthMigration, setNeedsMonthMigration] = useState(false);
+  const [byMonth, setByMonth] = useState([]);
 
   // Take-out form
   const [modal, setModal] = useState(false);
@@ -189,9 +190,12 @@ export default function MoneyPage() {
   const load = useCallback(async () => {
     setErr('');
     const scope = (q) => (activeStore ? q.eq('store_id', activeStore) : q);
+    // Far enough back to cover every month button.
+    const yearStart = months.length ? months[months.length - 1].start : range.start;
     try {
       let [sales, purchases, expenses, collections, games, cashExp, outs,
-           priorColl, priorOuts, priorCashExp, priorGames, priorDrops] = await Promise.all([
+           priorColl, priorOuts, priorCashExp, priorGames, priorDrops,
+           yrDrops, yrGames, yrOuts, yrCashExp] = await Promise.all([
         scope(supabase.from('daily_sales')
           .select('date, store_id, gross_sales, total_sales, tax_collected, cash_sales, r2_net, card_sales, register2_card, r1_safe_drop, r2_safe_drop, short_over')
           .gte('date', range.start).lte('date', range.end)),
@@ -231,6 +235,18 @@ export default function MoneyPage() {
         // Safe drops before the period: the safe carries forward as much as
         // the hand does, so its balance needs its own history.
         scope(supabase.from('daily_sales').select('r1_safe_drop, r2_safe_drop').lt('date', range.start)),
+
+        // A year of cash movement, for the month-by-month list. Read in one
+        // pass rather than a query per month.
+        scope(supabase.from('daily_sales').select('date, r1_safe_drop, r2_safe_drop')
+          .gte('date', yearStart).lte('date', today())),
+        scope(supabase.from('game_machine_collections').select('date, amount')
+          .gte('date', yearStart).lte('date', today())),
+        supabase.from('profit_takeouts').select('date, cash_amount, for_month')
+          .gte('date', yearStart),
+        scope(supabase.from('expenses').select('expense_date, amount')
+          .eq('paid_from', 'cash_collection')
+          .gte('expense_date', yearStart).lte('expense_date', today())),
       ]);
 
       // The for_month column only exists once its migration has run. Rather
@@ -254,7 +270,8 @@ export default function MoneyPage() {
       // A discarded error reads as "nothing happened" and shows a confident
       // zero, which is worse than saying so.
       for (const r of [sales, purchases, expenses, collections, games, cashExp, outs,
-                       priorColl, priorOuts, priorCashExp, priorGames, priorDrops]) {
+                       priorColl, priorOuts, priorCashExp, priorGames, priorDrops,
+                       yrDrops, yrGames, yrCashExp]) {
         if (r.error) throw new Error(r.error.message);
       }
 
@@ -283,6 +300,17 @@ export default function MoneyPage() {
         opening,
       }));
       setTakeouts(activeStore ? [] : (outs.data || []));
+
+      // yrOuts is checked separately: before the migration it carries a
+      // for_month error, and the month list is still worth showing without
+      // attribution rather than not at all.
+      setByMonth(monthlyCashRows({
+        months,
+        drops: yrDrops.data,
+        games: yrGames.data,
+        takeouts: activeStore ? [] : (yrOuts.error ? [] : yrOuts.data),
+        cashExpenses: yrCashExp.data,
+      }));
 
       const ids = [...new Set((sales.data || []).map(r => r.store_id))];
       setPerStore(ids.map(id => ({
@@ -568,10 +596,50 @@ export default function MoneyPage() {
             )}
           </Section>
 
-          {/* ── 6. CASH FROM BEFORE — kept entirely separate ── */}
+          {/* ── 6. CASH MONTH BY MONTH ── */}
+          {!activeStore && (
+            <Section title="Cash by month" badge="tap a month to open it">
+              <div className="divide-y divide-sw-border -mt-1">
+                {byMonth.map(m => {
+                  const isActive = m.key === activeMonthKey;
+                  const month = months.find(x => x.key === m.key);
+                  return (
+                    <button
+                      key={m.key}
+                      type="button"
+                      onClick={() => month && setRange({ start: month.start, end: month.end })}
+                      className={`w-full text-left grid grid-cols-[auto_1fr_auto] items-baseline gap-2 py-2 px-1 -mx-1 rounded transition-colors ${
+                        isActive ? 'bg-sw-green/10' : 'hover:bg-sw-card2'
+                      }`}
+                    >
+                      <span className={`text-[12.5px] w-14 shrink-0 ${isActive ? 'text-sw-green font-bold' : 'text-sw-text'}`}>
+                        {m.label}
+                      </span>
+                      <span className="text-[10.5px] text-sw-dim truncate">
+                        in {fmt(m.cameIn)} · out {fmt(m.wentOut)}
+                      </span>
+                      <span className={`font-mono tabular-nums text-[13px] font-bold ${
+                        m.net > 0 ? 'text-sw-green' : m.net < 0 ? 'text-sw-red' : 'text-sw-dim'
+                      }`}>
+                        {m.net < 0 ? '−' : ''}{fmt(Math.abs(m.net))}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-2 text-[10.5px] text-sw-dim leading-snug">
+                Cash left over in each month on its own: what reached the
+                safes plus game money, less what was taken out of that
+                month&apos;s cash. A withdrawal counts against the month you
+                attributed it to, not the day it was recorded.
+              </div>
+            </Section>
+          )}
+
+          {/* ── 6b. HELD BEFORE THIS PERIOD ── */}
           {!activeStore && (
             <Section
-              title="Cash from earlier months"
+              title="Held before this period"
               badge={`up to ${range.start}`}
               headline={cash.broughtForward}
               headlineLabel={`Already held when ${periodLabel} began`}
@@ -579,11 +647,19 @@ export default function MoneyPage() {
               <Row label="In the stores' safes" value={cash.safe.opening} />
               <Row label="In your hand" value={cash.hand.opening} />
               <Row label="Total from before" value={cash.broughtForward} emphasis />
-              <div className="mt-2 text-[10.5px] text-sw-dim leading-snug">
-                Nothing here belongs to {periodLabel}. It is every earlier
-                month added up, so taking this money out now shows against
-                the period you take it, not against the month that earned it.
-              </div>
+              {cash.hand.opening < 0 && (
+                <div className="mt-2">
+                  <Alert type="warning">
+                    More cash has been taken out than was ever recorded as
+                    collected, so &quot;in your hand&quot; has gone below zero
+                    — which cannot happen physically. The likely cause is cash
+                    taken from a safe without a matching entry on the Cash
+                    Collection page, which also leaves that money still
+                    showing as sitting in the safes. The two figures are wrong
+                    in opposite directions; the total is unaffected.
+                  </Alert>
+                </div>
+              )}
             </Section>
           )}
 
