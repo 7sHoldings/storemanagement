@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   daysInMonth, monthOverlapDays, proratedExpenses,
-  coversWholeMonths, checkSalesIdentity, profitSummary, cashSummary,
+  coversWholeMonths, checkSalesIdentity, profitSummary, cashSummary, runningCashBalance,
 } from '@/lib/profit';
 
 describe('daysInMonth', () => {
@@ -183,6 +183,28 @@ describe('profitSummary', () => {
   });
 });
 
+describe('runningCashBalance', () => {
+  it('is everything collected less everything that left', () => {
+    expect(runningCashBalance({
+      collections: [{ cash_collected: 1000 }, { cash_collected: 500 }],
+      takeouts: [{ cash_amount: 400 }],
+      cashExpenses: [{ amount: 100 }],
+    })).toBe(1000);
+  });
+
+  it('counts only the cash half of a part-card takeout', () => {
+    expect(runningCashBalance({
+      collections: [{ cash_collected: 1000 }],
+      takeouts: [{ amount: 900, cash_amount: 200, card_amount: 700 }],
+    })).toBe(800);
+  });
+
+  it('is zero with no history rather than NaN', () => {
+    expect(runningCashBalance({})).toBe(0);
+    expect(runningCashBalance()).toBe(0);
+  });
+});
+
 describe('cashSummary', () => {
   const day = {
     sales: [
@@ -199,41 +221,63 @@ describe('cashSummary', () => {
     expect(cashSummary(day).salesCash).toBe(618.92);
   });
 
-  it('tracks cash from the register through to what is still held', () => {
-    const c = cashSummary(day);
-    expect(c.safeDrop).toBe(597);
-    expect(c.collected).toBe(500);
-    expect(c.takenOut).toBe(300);       // card takeouts are not cash
-    expect(c.paidInCash).toBe(120);
-    expect(c.stillHeld).toBe(80);       // 500 − 300 − 120
-  });
-
   it('shows cash rung up but not put in the safe', () => {
-    // 618.92 rung, 597.00 dropped — 21.92 unaccounted for.
-    expect(cashSummary(day).notDropped).toBe(21.92);
+    expect(cashSummary(day).notDropped).toBe(21.92);   // 618.92 rung, 597 dropped
   });
 
   it('shows cash in the safe not yet picked up', () => {
-    expect(cashSummary(day).awaitingPickup).toBe(97);   // 597 − 500
+    expect(cashSummary(day).awaitingPickup).toBe(97);  // 597 − 500
+  });
+
+  it('carries a balance forward instead of treating the period as a closed box', () => {
+    // The bug this replaces. August collected 2,000 and none of it left, so
+    // September opens holding 2,000 even though September collected 500.
+    const c = cashSummary({ ...day, opening: 2000 });
+    expect(c.openingBalance).toBe(2000);
+    expect(c.collected).toBe(500);
+    expect(c.inHand).toBe(2080);   // 2000 + 500 − 300 − 120
+  });
+
+  it("lets August's money be taken out in September without September going negative", () => {
+    // $2,000 collected in August, nothing collected in September, $1,500
+    // taken out in September. The old model showed −$1,500 for September
+    // as though the month had lost money it never held.
+    const c = cashSummary({
+      opening: 2000,
+      collections: [],
+      takeouts: [{ cash_amount: 1500 }],
+    });
+    expect(c.collected).toBe(0);
+    expect(c.takenOut).toBe(1500);
+    expect(c.netChange).toBe(-1500);   // the period did lose 1,500
+    expect(c.inHand).toBe(500);        // but 500 is genuinely still there
+  });
+
+  it('separates what the period did from what is held', () => {
+    const c = cashSummary({ ...day, opening: 2000 });
+    // netChange is the period alone; inHand includes everything before it.
+    expect(c.netChange).toBe(80);
+    expect(c.inHand).toBe(c.openingBalance + c.netChange);
   });
 
   it('ignores the card half of a takeout', () => {
-    // A takeout can be part cash, part card. Only the cash half leaves the
-    // cash pile; counting the whole amount would understate what is held.
-    const c = cashSummary({ takeouts: [{ amount: 1000, cash_amount: 250, card_amount: 750 }], collections: [{ cash_collected: 1000 }] });
+    const c = cashSummary({
+      opening: 1000,
+      takeouts: [{ amount: 1000, cash_amount: 250, card_amount: 750 }],
+    });
     expect(c.takenOut).toBe(250);
-    expect(c.stillHeld).toBe(750);
+    expect(c.inHand).toBe(750);
   });
 
-  it('can report negative held cash rather than hiding an overdraw', () => {
-    const c = cashSummary({ collections: [{ cash_collected: 100 }], takeouts: [{ cash_amount: 400 }] });
-    expect(c.stillHeld).toBe(-300);
+  it('can report a negative balance rather than hiding an overdraw', () => {
+    const c = cashSummary({ opening: 100, takeouts: [{ cash_amount: 400 }] });
+    expect(c.inHand).toBe(-300);
   });
 
   it('returns zeroes rather than NaN with nothing to show', () => {
     const c = cashSummary({});
     expect(c.salesCash).toBe(0);
-    expect(c.stillHeld).toBe(0);
+    expect(c.inHand).toBe(0);
     expect(c.notDropped).toBe(0);
   });
 });
