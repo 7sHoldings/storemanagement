@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
+import { proratedExpenses } from '@/lib/profit';
 import { generatePDF } from './generatePDF';
 import { DateBar, useDateRange, Loading, StorePills } from '@/components/UI';
 import { Card, V2StatCard, Badge, V2Alert, SectionHeader } from '@/components/ui';
@@ -94,7 +95,9 @@ export default function ReportsPage() {
         const totalCheck = (salesCur || []).reduce((s, r) => s + (r.cashapp_check || 0), 0);
         const totalTax = (salesCur || []).reduce((s, r) => s + (r.tax_collected || 0), 0);
         const totalPurchases = (purchCur || []).reduce((s, r) => s + (r.total_cost || r.unit_cost || 0), 0);
-        const totalExpenses = (expCur || []).reduce((s, r) => s + (r.amount || 0), 0);
+        // Shared out by day: a report for part of a month carries part of
+        // that month's fixed costs, not all of them.
+        const totalExpenses = proratedExpenses(expCur, range.start, range.end);
         // Game-machine income is "other income" — added to net profit but
         // intentionally NOT part of sales revenue (kept out of totalRevenue
         // so sales metrics, payment-mix %s, and shareholder profit stay
@@ -117,7 +120,7 @@ export default function ReportsPage() {
         const prevCash = (salesPrev || []).reduce((s, r) => s + (r.cash_sales || 0), 0);
         const prevCard = (salesPrev || []).reduce((s, r) => s + (r.card_sales || 0), 0);
         const prevPurchases = (purchPrev || []).reduce((s, r) => s + (r.total_cost || r.unit_cost || 0), 0);
-        const prevExpenses = (expPrev || []).reduce((s, r) => s + (r.amount || 0), 0);
+        const prevExpenses = proratedExpenses(expPrev, prev.start, prev.end);
         const prevGameMachine = (gmPrev || []).reduce((s, r) => s + (r.amount || 0), 0);
         const prevGrossProfit = prevRevenue - prevPurchases;
         const prevNetProfit = prevRevenue + prevGameMachine - prevPurchases - prevExpenses;
@@ -150,7 +153,7 @@ export default function ReportsPage() {
           const check = storeSales.reduce((a, r) => a + (r.cashapp_check || 0), 0);
           const tax = storeSales.reduce((a, r) => a + (r.tax_collected || 0), 0);
           const pur = (purchCur || []).filter(r => r.store_id === s.id).reduce((a, r) => a + (r.total_cost || r.unit_cost || 0), 0);
-          const exp = (expCur || []).filter(r => r.store_id === s.id).reduce((a, r) => a + (r.amount || 0), 0);
+          const exp = proratedExpenses((expCur || []).filter(r => r.store_id === s.id), range.start, range.end);
           const games = (gmCur || []).filter(r => r.store_id === s.id).reduce((a, r) => a + (r.amount || 0), 0);
           const gross = rev - pur;
           const net = rev + games - pur - exp;
@@ -162,8 +165,14 @@ export default function ReportsPage() {
 
         // ── Section 3 — Expense by category ─────────────
         const byCatCur = {}, byCatPrev = {};
-        (expCur || []).forEach(r => { byCatCur[r.category] = (byCatCur[r.category] || 0) + (r.amount || 0); });
-        (expPrev || []).forEach(r => { byCatPrev[r.category] = (byCatPrev[r.category] || 0) + (r.amount || 0); });
+        // Shared out by day like the totals above, so the category rows add
+        // up to the expense figure in the summary instead of overshooting it.
+        (expCur || []).forEach(r => {
+          byCatCur[r.category] = (byCatCur[r.category] || 0) + proratedExpenses([r], range.start, range.end);
+        });
+        (expPrev || []).forEach(r => {
+          byCatPrev[r.category] = (byCatPrev[r.category] || 0) + proratedExpenses([r], prev.start, prev.end);
+        });
         const catRows = Object.keys({ ...byCatCur, ...byCatPrev }).map(cat => {
           const meta = EXPENSE_CATEGORIES.find(c => c.id === cat);
           const cur = byCatCur[cat] || 0;

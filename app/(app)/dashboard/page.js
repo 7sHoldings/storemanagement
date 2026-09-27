@@ -2,6 +2,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
+import { proratedExpenses } from '@/lib/profit';
 import { useDateRange, Loading } from '@/components/UI';
 import { V2Alert } from '@/components/ui';
 import { fmt, weekRangeLabel, startOfWeekMonday, today } from '@/lib/utils';
@@ -121,10 +122,10 @@ export default function DashboardPage() {
         const totalShortOver = sales?.reduce((s, r) => s + (r.short_over || 0), 0) || 0;
         const totalTax = sales?.reduce((s, r) => s + (r.tax_collected || 0), 0) || 0;
         const totalPurch = purch?.reduce((s, r) => s + (r.total_cost || r.unit_cost || 0), 0) || 0;
-        // Sum the full month-amount of every expense whose month overlaps the
-        // range (the query already scopes to overlapping months). Matches the
-        // P&L Report exactly so the dashboard's Net Profit reconciles with it.
-        const totalExp = exps?.reduce((s, r) => s + (r.amount || 0), 0) || 0;
+        // Expenses are one figure per month, so a range shorter than a month
+        // gets that month's share of them. Charging the full month against a
+        // single day was reporting losses that never happened.
+        const totalExp = proratedExpenses(exps, range.start, range.end);
         const totalGameMachine = gmRows?.reduce((s, r) => s + (r.amount || 0), 0) || 0;
         const cashInHand = cashRows?.reduce((s, r) => s + (r.cash_collected || 0), 0) || 0;
         // Net Profit formula mirrors the P&L Report: sales revenue plus
