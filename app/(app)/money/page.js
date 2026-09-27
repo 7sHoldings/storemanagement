@@ -595,6 +595,11 @@ export default function MoneyPage() {
               headline={cash.totalHeld}
               headlineLabel="Everything held — in the safes and in your hand"
               tone={cash.totalHeld >= 0 ? 'plain' : 'bad'}
+              action={isOwner && (
+                <Button onClick={openAdd} className="!py-1 !px-2.5 !text-[11px] !rounded-lg">
+                  Take out cash
+                </Button>
+              )}
             >
               <Row label="From earlier months" value={cash.broughtForward} />
               <Row label={`Left from ${periodLabel}`} value={cash.period.left} sign={cash.period.left < 0 ? '−' : '+'} tone={cash.period.left < 0 ? 'minus' : 'plus'} />
