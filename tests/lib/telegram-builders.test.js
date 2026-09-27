@@ -107,6 +107,44 @@ describe('buildSyncSummaryMessage', () => {
     expect(jan).toContain('JANUARY SO FAR');
   });
 
+  it('counts Register 2 takings as cash', () => {
+    // 26 Sep, real figures. The five stores' cash_sales add to $684.26, but
+    // Bells and Kerens put nearly all their cash through the second till, so
+    // the day's actual cash was $1,319.33 — the number the sales table
+    // shows. Quoting cash_sales alone understated it by $635.07.
+    const day = [
+      { store_name: 'Kerens',  status: 'created', salesData: { store_id: 'k', gross_sales: 754.23, total_sales: 1094.91, cash_sales: 0.18,   r2_net: 396.82, card_sales: 754.05, short_over: 0 } },
+      { store_name: 'Bells',   status: 'created', salesData: { store_id: 'b', gross_sales: 619.22, total_sales: 810.26, cash_sales: 1.75,   r2_net: 238.25, card_sales: 610.47, short_over: 0 } },
+      { store_name: 'Denison', status: 'created', salesData: { store_id: 'd', gross_sales: 737.84, total_sales: 681.60, cash_sales: 160.14, r2_net: 0,      card_sales: 577.70, short_over: 0 } },
+      { store_name: 'Reno',    status: 'created', salesData: { store_id: 'r', gross_sales: 607.85, total_sales: 561.55, cash_sales: 221.92, r2_net: 0,      card_sales: 385.93, short_over: 0 } },
+      { store_name: 'Troup',   status: 'created', salesData: { store_id: 't', gross_sales: 1042.01, total_sales: 962.60, cash_sales: 300.27, r2_net: 0,     card_sales: 741.74, short_over: 0 } },
+    ];
+    const msg = buildSyncSummaryMessage(day, '2026-09-26', []);
+    expect(msg).toContain('Cash: $1,319.33');
+    expect(msg).not.toContain('Cash: $684.26');
+  });
+
+  it('shows the R1/R2 split only at stores that have a second till', () => {
+    const msg = buildSyncSummaryMessage([
+      { store_name: 'Kerens', status: 'created', salesData: { gross_sales: 754.23, total_sales: 1094.91, cash_sales: 0.18, r2_net: 396.82, card_sales: 754.05, short_over: 0 } },
+      { store_name: 'Reno',   status: 'created', salesData: { gross_sales: 607.85, total_sales: 561.55, cash_sales: 221.92, r2_net: 0, card_sales: 385.93, short_over: 0 } },
+    ], '2026-09-26', []);
+    // Kerens: $0.18 in the drawer, $396.82 through the second till.
+    expect(msg).toContain('Cash: $397.00 (R1 $0.18 + R2 $396.82)');
+    // Reno has one till, so no split to show.
+    expect(msg).toContain('Cash: $221.92  💳');
+  });
+
+  it('keeps the per-store cash lines adding up to the all-stores cash', () => {
+    const day = [
+      { store_name: 'A', status: 'created', salesData: { gross_sales: 100, total_sales: 90, cash_sales: 10, r2_net: 40, card_sales: 50, short_over: 0 } },
+      { store_name: 'B', status: 'created', salesData: { gross_sales: 200, total_sales: 180, cash_sales: 25, r2_net: 0, card_sales: 175, short_over: 0 } },
+    ];
+    const msg = buildSyncSummaryMessage(day, '2026-09-26', []);
+    // 10 + 40 + 25 = 75
+    expect(msg).toContain('Cash: $75.00  💳');
+  });
+
   it('stays inside the Telegram message limit with five stores', () => {
     // Telegram rejects anything over 4096 characters outright, which would
     // silently cost the whole daily summary.
