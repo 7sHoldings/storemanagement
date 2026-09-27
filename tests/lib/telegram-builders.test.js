@@ -57,22 +57,23 @@ describe('buildSyncSummaryMessage', () => {
     const one = buildSyncSummaryMessage([
       { store_name: 'A', status: 'created', salesData: { gross_sales: 100, total_sales: 100, cash_sales: 50, card_sales: 50, short_over: 0 } },
     ], '2026-05-12', []);
-    expect(one).not.toContain('ALL STORES');
+    expect(one).not.toContain('— TODAY');
 
     const two = buildSyncSummaryMessage([
       { store_name: 'A', status: 'created', salesData: { gross_sales: 100, total_sales: 100, cash_sales: 50, card_sales: 50, short_over: 0 } },
       { store_name: 'B', status: 'created', salesData: { gross_sales: 200, total_sales: 200, cash_sales: 100, card_sales: 100, short_over: 0 } },
     ], '2026-05-12', []);
-    expect(two).toContain('ALL STORES');
+    expect(two).toContain('ALL 2 STORES — TODAY');
   });
 
-  it('labels the day\'s figure in caps for each store and for the group', () => {
+  it('leads each store and the group with the day\'s sales in caps and bold', () => {
     const msg = buildSyncSummaryMessage([
       { store_name: 'A', status: 'created', salesData: { gross_sales: 100, total_sales: 90, cash_sales: 50, card_sales: 50, short_over: 0 } },
       { store_name: 'B', status: 'created', salesData: { gross_sales: 200, total_sales: 180, cash_sales: 100, card_sales: 100, short_over: 0 } },
     ], '2026-05-12', []);
-    // Once per store, once for the group.
-    expect(msg.match(/TOTAL SALES FOR THE DAY/g)).toHaveLength(3);
+    // Per store it reads SALES TODAY; the group totals read TOTAL SALES.
+    expect(msg.match(/📊 SALES TODAY   <b>/g)).toHaveLength(2);
+    expect(msg).toContain('📊 TOTAL SALES   <b>$270.00</b>');
   });
 
   it('adds the month-so-far block when month figures are supplied', () => {
@@ -81,12 +82,12 @@ describe('buildSyncSummaryMessage', () => {
     ], '2026-05-12', [], {
       byStore: { s1: { sales: 900, cash: 400 } }, sales: 900, cash: 400, days: 12,
     });
+    expect(msg).toContain('MAY SO FAR — 12 DAYS');
     expect(msg).toContain('MAY SO FAR');
-    expect(msg).toContain('12 days');
-    expect(msg).toContain('TOTAL SALES: $900.00');
-    expect(msg).toContain('TOTAL CASH: $400.00');
-    expect(msg).toContain('Average per day: $75.00');
-    expect(msg).toContain('Month so far: <b>$900.00</b>');
+    expect(msg).toContain('TOTAL SALES   <b>$900.00</b>');
+    expect(msg).toContain('TOTAL CASH    <b>$400.00</b>');
+    expect(msg).toContain('Averaging $75.00 a day');
+    expect(msg).toContain('MAY SO FAR   <b>$900.00</b>  ·  cash <b>$400.00</b>');
   });
 
   it('omits the month block entirely when the month lookup failed', () => {
@@ -95,7 +96,7 @@ describe('buildSyncSummaryMessage', () => {
       { store_name: 'A', status: 'created', salesData: { gross_sales: 100, total_sales: 90, cash_sales: 50, card_sales: 50, short_over: 0 } },
     ], '2026-05-12', [], { byStore: {}, sales: 0, cash: 0, days: 0 });
     expect(msg).not.toContain('SO FAR');
-    expect(msg).toContain('TOTAL SALES FOR THE DAY');
+    expect(msg).toContain('📊 SALES TODAY');
   });
 
   it('names the month from the date string, not the local clock', () => {
@@ -120,8 +121,8 @@ describe('buildSyncSummaryMessage', () => {
       { store_name: 'Troup',   status: 'created', salesData: { store_id: 't', gross_sales: 1042.01, total_sales: 962.60, cash_sales: 300.27, r2_net: 0,     card_sales: 741.74, short_over: 0 } },
     ];
     const msg = buildSyncSummaryMessage(day, '2026-09-26', []);
-    expect(msg).toContain('Cash: $1,319.33');
-    expect(msg).not.toContain('Cash: $684.26');
+    expect(msg).toContain('💵 TOTAL CASH    <b>$1,319.33</b>');
+    expect(msg).not.toContain('$684.26');
   });
 
   it('shows the R1/R2 split only at stores that have a second till', () => {
@@ -130,9 +131,12 @@ describe('buildSyncSummaryMessage', () => {
       { store_name: 'Reno',   status: 'created', salesData: { gross_sales: 607.85, total_sales: 561.55, cash_sales: 221.92, r2_net: 0, card_sales: 385.93, short_over: 0 } },
     ], '2026-09-26', []);
     // Kerens: $0.18 in the drawer, $396.82 through the second till.
-    expect(msg).toContain('Cash: $397.00 (R1 $0.18 + R2 $396.82)');
+    expect(msg).toContain('💵 CASH TODAY    <b>$397.00</b>');
+    expect(msg).toContain('R1 $0.18 + R2 $396.82');
     // Reno has one till, so no split to show.
-    expect(msg).toContain('Cash: $221.92  💳');
+    // Reno has one till, so no split line under its cash figure.
+    expect(msg).toContain('💵 CASH TODAY    <b>$221.92</b>');
+    expect(msg.match(/R1 \$/g)).toHaveLength(1);
   });
 
   it('keeps the per-store cash lines adding up to the all-stores cash', () => {
@@ -142,7 +146,25 @@ describe('buildSyncSummaryMessage', () => {
     ];
     const msg = buildSyncSummaryMessage(day, '2026-09-26', []);
     // 10 + 40 + 25 = 75
-    expect(msg).toContain('Cash: $75.00  💳');
+    expect(msg).toContain('💵 TOTAL CASH    <b>$75.00</b>');
+  });
+
+  it('shortens store names so the identifying part survives on a phone', () => {
+    const msg = buildSyncSummaryMessage([
+      { store_name: '7s Smoke and Vape World - Bells', status: 'created', salesData: { gross_sales: 100, total_sales: 90, cash_sales: 50, card_sales: 50, short_over: -5 } },
+    ], '2026-09-26', [{ store: 'x' }]);
+    expect(msg).toContain('🏪 <b>Bells</b>');
+    expect(msg).not.toContain('7s Smoke and Vape World');
+  });
+
+  it('escapes a store name rather than letting it break the message', () => {
+    // Telegram rejects the whole message on a bare & in HTML mode, which
+    // would cost the entire daily summary.
+    const msg = buildSyncSummaryMessage([
+      { store_name: 'Vape - Smoke & Go', status: 'created', salesData: { gross_sales: 100, total_sales: 90, cash_sales: 50, card_sales: 50, short_over: 0 } },
+    ], '2026-09-26', []);
+    expect(msg).toContain('Smoke &amp; Go');
+    expect(msg).not.toMatch(/&(?!amp;|lt;|gt;)/);
   });
 
   it('stays inside the Telegram message limit with five stores', () => {
