@@ -7,7 +7,7 @@ import {
 } from '@/components/UI';
 import { fmt, today, storeShortName } from '@/lib/utils';
 import { logActivity } from '@/lib/activity';
-import { profitSummary, cashSummary } from '@/lib/profit';
+import { profitSummary, cashSummary, runningCashBalance } from '@/lib/profit';
 
 // ── Building blocks ────────────────────────────────────────
 // Each section is a card with one headline figure and the lines that make
@@ -91,7 +91,8 @@ export default function MoneyPage() {
     setErr('');
     const scope = (q) => (activeStore ? q.eq('store_id', activeStore) : q);
     try {
-      const [sales, purchases, expenses, collections, games, cashExp, outs] = await Promise.all([
+      const [sales, purchases, expenses, collections, games, cashExp, outs,
+             priorColl, priorOuts, priorCashExp] = await Promise.all([
         scope(supabase.from('daily_sales')
           .select('date, store_id, gross_sales, total_sales, tax_collected, cash_sales, r2_net, card_sales, register2_card, r1_safe_drop, r2_safe_drop, short_over')
           .gte('date', range.start).lte('date', range.end)),
@@ -115,11 +116,21 @@ export default function MoneyPage() {
           .select('id, date, amount, cash_amount, card_amount, destination, notes')
           .gte('date', range.start).lte('date', range.end)
           .order('date', { ascending: false }),
+
+        // Everything dated BEFORE this period, for the balance carried in.
+        // Cash does not belong to a month: money collected in August is
+        // still there in September, and taking it out in September must not
+        // make September look like it lost cash it never held.
+        scope(supabase.from('cash_collections').select('cash_collected').lt('date', range.start)),
+        supabase.from('profit_takeouts').select('cash_amount').lt('date', range.start),
+        scope(supabase.from('expenses').select('amount')
+          .eq('paid_from', 'cash_collection').lt('expense_date', range.start)),
       ]);
 
       // A discarded error reads as "nothing happened" and shows a confident
       // zero, which is worse than saying so.
-      for (const r of [sales, purchases, expenses, collections, games, cashExp, outs]) {
+      for (const r of [sales, purchases, expenses, collections, games, cashExp, outs,
+                       priorColl, priorOuts, priorCashExp]) {
         if (r.error) throw new Error(r.error.message);
       }
 
@@ -128,11 +139,19 @@ export default function MoneyPage() {
         collections: collections.data, games: games.data,
         start: range.start, end: range.end,
       }));
+      // Takeouts are group-level, so a single-store view cannot carry a
+      // meaningful held balance; the page says so rather than showing one.
+      const opening = runningCashBalance({
+        collections: priorColl.data,
+        takeouts: activeStore ? [] : priorOuts.data,
+        cashExpenses: priorCashExp.data,
+      });
       setCash(cashSummary({
         sales: sales.data,
         collections: collections.data,
         takeouts: activeStore ? [] : outs.data,
         cashExpenses: cashExp.data,
+        opening,
       }));
       setTakeouts(activeStore ? [] : (outs.data || []));
 
@@ -291,17 +310,18 @@ export default function MoneyPage() {
           {/* ── 5. CASH ── */}
           <Section
             title="Cash"
-            headline={cash.stillHeld}
-            headlineLabel="Collected and not yet spent or taken out"
-            tone={cash.stillHeld >= 0 ? 'plain' : 'bad'}
-            action={isOwner && (
+            badge={activeStore ? 'balance shown for All Stores' : undefined}
+            headline={activeStore ? undefined : cash.inHand}
+            headlineLabel={activeStore ? undefined : `Should be in hand at ${range.end}`}
+            tone={cash.inHand >= 0 ? 'plain' : 'bad'}
+            action={isOwner && !activeStore && (
               <Button onClick={() => setModal(true)} className="!py-1 !px-2.5 !text-[11px] !rounded-lg">
                 Take out cash
               </Button>
             )}
           >
             <div className="text-[10px] font-bold uppercase tracking-wide text-sw-dim mt-1 mb-0.5">
-              What the stores took
+              What the stores took · this period
             </div>
             <Row label="Cash sales" hint="Both tills — Register 2 is cash only" value={cash.salesCash} />
             <Row label="Put in the safe" hint="Safe drops recorded by staff" value={cash.safeDrop} />
@@ -316,17 +336,37 @@ export default function MoneyPage() {
                 tone={cash.notDropped > 0 ? 'minus' : 'plus'}
               />
             )}
-
-            <div className="text-[10px] font-bold uppercase tracking-wide text-sw-dim mt-3 mb-0.5">
-              What happened to it
-            </div>
-            <Row label="Collected from the safe" value={cash.collected} />
             {Math.abs(cash.awaitingPickup) >= 0.01 && (
               <Row label="Still in the safe" hint="Dropped but not yet picked up" value={cash.awaitingPickup} />
             )}
-            <Row label="Taken out" hint={activeStore ? 'Recorded for the group — pick All Stores to see' : 'Cash withdrawn from the business'} value={cash.takenOut} sign="−" tone="minus" />
-            <Row label="Paid out in cash" hint="Expenses settled from collected cash" value={cash.paidInCash} sign="−" tone="minus" />
-            <Row label="Still held" value={cash.stillHeld} emphasis />
+
+            {activeStore ? (
+              <div className="mt-3 text-[10.5px] text-sw-dim leading-snug">
+                Cash taken out is recorded for the business as a whole, not per
+                store, so the held balance only makes sense with every store in
+                view. Choose All Stores to see it.
+              </div>
+            ) : (
+              <>
+                <div className="text-[10px] font-bold uppercase tracking-wide text-sw-dim mt-3 mb-0.5">
+                  Cash in hand · running balance
+                </div>
+                <Row
+                  label="Brought forward"
+                  hint={`Held on ${range.start} from earlier collections`}
+                  value={cash.openingBalance}
+                />
+                <Row label="Collected from the safe" value={cash.collected} sign="+" tone="plus" />
+                <Row label="Taken out" value={cash.takenOut} sign="−" tone="minus" />
+                <Row label="Paid out in cash" hint="Expenses settled from cash" value={cash.paidInCash} sign="−" tone="minus" />
+                <Row label={`In hand on ${range.end}`} value={cash.inHand} emphasis />
+                <div className="mt-2 text-[10.5px] text-sw-dim leading-snug">
+                  Cash does not belong to a month. Money collected earlier is
+                  still here, so taking it out now reduces the balance without
+                  touching this period&apos;s own collections.
+                </div>
+              </>
+            )}
           </Section>
 
           {/* ── Take-outs list ── */}
@@ -426,9 +466,11 @@ export default function MoneyPage() {
               onChange={e => setForm({ ...form, notes: e.target.value })} />
           </Field>
           <div className="mt-2 text-[11px] text-sw-dim leading-snug">
-            Recorded as cash out of the safe, so it comes off "Still held"
-            straight away. It does not change sales or profit — taking money
-            out is not a cost of running the stores.
+            Comes off the running cash balance from this date on. It does not
+            matter which month the cash was originally collected in — the
+            balance carries forward, so taking out older money simply reduces
+            what is left. Sales and profit are untouched: taking money out is
+            not a cost of running the stores.
           </div>
           <div className="flex gap-2 justify-end mt-4">
             <Button variant="secondary" onClick={() => { setModal(false); setFormErr(''); }}>Cancel</Button>
