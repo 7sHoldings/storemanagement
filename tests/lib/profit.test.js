@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   daysInMonth, monthOverlapDays, proratedExpenses,
-  coversWholeMonths, checkSalesIdentity, profitSummary,
+  coversWholeMonths, checkSalesIdentity, profitSummary, cashSummary,
 } from '@/lib/profit';
 
 describe('daysInMonth', () => {
@@ -180,5 +180,60 @@ describe('profitSummary', () => {
       purchases: [{ total_cost: 500 }], expenses: [], start: '2026-09-01', end: '2026-09-30',
     });
     expect(s.profit).toBe(-408);
+  });
+});
+
+describe('cashSummary', () => {
+  const day = {
+    sales: [
+      { cash_sales: 0.18, r2_net: 396.82, r1_safe_drop: 397, r2_safe_drop: 0 },
+      { cash_sales: 221.92, r2_net: 0, r1_safe_drop: 200, r2_safe_drop: 0 },
+    ],
+    collections: [{ cash_collected: 500 }],
+    takeouts: [{ cash_amount: 300 }, { cash_amount: 0, card_amount: 900 }],
+    cashExpenses: [{ amount: 120 }],
+  };
+
+  it('counts both tills as cash sales', () => {
+    // Kerens 0.18 + 396.82, Reno 221.92. cash_sales alone would say 222.10.
+    expect(cashSummary(day).salesCash).toBe(618.92);
+  });
+
+  it('tracks cash from the register through to what is still held', () => {
+    const c = cashSummary(day);
+    expect(c.safeDrop).toBe(597);
+    expect(c.collected).toBe(500);
+    expect(c.takenOut).toBe(300);       // card takeouts are not cash
+    expect(c.paidInCash).toBe(120);
+    expect(c.stillHeld).toBe(80);       // 500 − 300 − 120
+  });
+
+  it('shows cash rung up but not put in the safe', () => {
+    // 618.92 rung, 597.00 dropped — 21.92 unaccounted for.
+    expect(cashSummary(day).notDropped).toBe(21.92);
+  });
+
+  it('shows cash in the safe not yet picked up', () => {
+    expect(cashSummary(day).awaitingPickup).toBe(97);   // 597 − 500
+  });
+
+  it('ignores the card half of a takeout', () => {
+    // A takeout can be part cash, part card. Only the cash half leaves the
+    // cash pile; counting the whole amount would understate what is held.
+    const c = cashSummary({ takeouts: [{ amount: 1000, cash_amount: 250, card_amount: 750 }], collections: [{ cash_collected: 1000 }] });
+    expect(c.takenOut).toBe(250);
+    expect(c.stillHeld).toBe(750);
+  });
+
+  it('can report negative held cash rather than hiding an overdraw', () => {
+    const c = cashSummary({ collections: [{ cash_collected: 100 }], takeouts: [{ cash_amount: 400 }] });
+    expect(c.stillHeld).toBe(-300);
+  });
+
+  it('returns zeroes rather than NaN with nothing to show', () => {
+    const c = cashSummary({});
+    expect(c.salesCash).toBe(0);
+    expect(c.stillHeld).toBe(0);
+    expect(c.notDropped).toBe(0);
   });
 });
