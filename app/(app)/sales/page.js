@@ -71,6 +71,10 @@ export default function SalesPage() {
   const [modal, setModal] = useState(null);
   const [editItem, setEditItem] = useState(null);
   const [msg, setMsg] = useState('');
+  // Most banners report a failure, but a save that stored everything except
+  // one field is a warning, not an error — a red ❌ over a sale that did save
+  // reads as "nothing worked".
+  const [msgType, setMsgType] = useState('error');
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [formError, setFormError] = useState('');
   const [nrsSyncOpen, setNrsSyncOpen] = useState(false);
@@ -702,8 +706,10 @@ export default function SalesPage() {
     if (droppedColumn) {
       // Left on screen rather than auto-cleared: the sale saved, but a figure
       // the owner typed did not, and that needs to be read.
-      setMsg(`Saved — but "${droppedColumn}" could not be stored because that database migration has not been applied yet. Everything else was saved.`);
+      setMsgType('warning');
+      setMsg(`Saved. Everything except "${droppedColumn}" was stored — that one needs its database migration applied first (docs/RUN-THIS-IN-SUPABASE.sql).`);
     } else {
+      setMsgType('error');
       setMsg('success'); setTimeout(() => setMsg(''), 2500);
     }
     setForm(blankForm());
@@ -735,7 +741,7 @@ export default function SalesPage() {
     // Delete linked employee short/over
     await supabase.from('employee_shortover').delete().eq('sales_id', row.id);
     const { error } = await supabase.from('daily_sales').delete().eq('id', row.id);
-    if (error) { setMsg(error.message); setConfirmDelete(null); return; }
+    if (error) { setMsgType('error'); setMsg(error.message); setConfirmDelete(null); return; }
     const storeName = row.stores?.name || stores.find(s => s.id === row.store_id)?.name;
     await logActivity(supabase, profile, {
       action: 'delete',
@@ -1581,7 +1587,7 @@ export default function SalesPage() {
       <div className="max-w-xl mx-auto">
         <PageHeader title="Enter Daily Sales" subtitle={storeName} />
         {msg === 'success' && <Alert type="success">Sales recorded!</Alert>}
-        {msg && msg !== 'success' && <Alert type="error">{msg}</Alert>}
+        {msg && msg !== 'success' && <Alert type={msgType}>{msg}</Alert>}
 
         {/* My Stats — personal stats card */}
         <div className="bg-sw-card rounded-xl border border-sw-border mb-4 overflow-hidden">
@@ -1921,7 +1927,7 @@ export default function SalesPage() {
       />
 
       {msg === 'success' && <Alert type="success">Saved!</Alert>}
-      {msg && msg !== 'success' && <Alert type="error">{msg}</Alert>}
+      {msg && msg !== 'success' && <Alert type={msgType}>{msg}</Alert>}
       {loadError && <Alert type="error">{loadError}</Alert>}
 
       <DailySalesFilters
