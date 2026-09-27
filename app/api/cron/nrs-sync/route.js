@@ -257,8 +257,9 @@ async function runSync(supabase, targetDate) {
 
   // Check short/over and send ONE comprehensive Telegram message to owner
   const shortOverAlerts = await checkShortOver(supabase, stores, targetDate);
+  const mtd = await monthToDate(supabase, targetDate);
   try {
-    const msg = buildSyncSummaryMessage(results, targetDate, shortOverAlerts);
+    const msg = buildSyncSummaryMessage(results, targetDate, shortOverAlerts, mtd);
     await sendTelegram(msg);
   } catch (e) {
     console.warn('[nrs-cron] telegram notification failed (non-fatal):', e.message);
@@ -321,6 +322,43 @@ async function retryUnresolved(supabase, stores, targetDate) {
     });
   }
   return { attempted: pending.length, recovered };
+}
+
+// Everything sold so far this calendar month, up to and including the day
+// being reported. Read from daily_sales rather than accumulated in the
+// message, so a day the cron missed and later healed is still counted, and
+// an owner's hand correction is reflected the next morning.
+async function monthToDate(supabase, targetDate) {
+  const empty = { byStore: {}, sales: 0, cash: 0, days: 0, from: null };
+  try {
+    const from = `${String(targetDate).slice(0, 7)}-01`;
+    const { data, error } = await supabase
+      .from('daily_sales')
+      .select('store_id, date, total_sales, cash_sales, r2_net')
+      .gte('date', from)
+      .lte('date', targetDate);
+    if (error) throw new Error(error.message);
+
+    const byStore = {};
+    const dates = new Set();
+    for (const row of data || []) {
+      const key = row.store_id;
+      // R2 is a cash-only till, so its takings are cash too.
+      const cash = Number(row.cash_sales || 0) + Number(row.r2_net || 0);
+      const sales = Number(row.total_sales || 0);
+      byStore[key] = byStore[key] || { sales: 0, cash: 0 };
+      byStore[key].sales += sales;
+      byStore[key].cash += cash;
+      dates.add(row.date);
+    }
+    const sales = Object.values(byStore).reduce((t, v) => t + v.sales, 0);
+    const cashTotal = Object.values(byStore).reduce((t, v) => t + v.cash, 0);
+    return { byStore, sales, cash: cashTotal, days: dates.size, from };
+  } catch (e) {
+    // A summary without the month block still beats no summary at all.
+    console.warn('[nrs-cron] monthToDate failed (non-fatal):', e.message);
+    return empty;
+  }
 }
 
 async function checkShortOver(supabase, stores, targetDate) {

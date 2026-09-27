@@ -53,17 +53,76 @@ describe('buildSyncSummaryMessage', () => {
     expect(msg).toContain('auth expired');
   });
 
-  it('renders a TOTALS block only when more than one store had data', () => {
+  it('renders an all-stores block only when more than one store had data', () => {
     const one = buildSyncSummaryMessage([
       { store_name: 'A', status: 'created', salesData: { gross_sales: 100, total_sales: 100, cash_sales: 50, card_sales: 50, short_over: 0 } },
     ], '2026-05-12', []);
-    expect(one).not.toContain('TOTALS');
+    expect(one).not.toContain('ALL STORES');
 
     const two = buildSyncSummaryMessage([
       { store_name: 'A', status: 'created', salesData: { gross_sales: 100, total_sales: 100, cash_sales: 50, card_sales: 50, short_over: 0 } },
       { store_name: 'B', status: 'created', salesData: { gross_sales: 200, total_sales: 200, cash_sales: 100, card_sales: 100, short_over: 0 } },
     ], '2026-05-12', []);
-    expect(two).toContain('TOTALS');
+    expect(two).toContain('ALL STORES');
+  });
+
+  it('labels the day\'s figure in caps for each store and for the group', () => {
+    const msg = buildSyncSummaryMessage([
+      { store_name: 'A', status: 'created', salesData: { gross_sales: 100, total_sales: 90, cash_sales: 50, card_sales: 50, short_over: 0 } },
+      { store_name: 'B', status: 'created', salesData: { gross_sales: 200, total_sales: 180, cash_sales: 100, card_sales: 100, short_over: 0 } },
+    ], '2026-05-12', []);
+    // Once per store, once for the group.
+    expect(msg.match(/TOTAL SALES FOR THE DAY/g)).toHaveLength(3);
+  });
+
+  it('adds the month-so-far block when month figures are supplied', () => {
+    const msg = buildSyncSummaryMessage([
+      { store_name: 'A', status: 'created', salesData: { store_id: 's1', gross_sales: 100, total_sales: 90, cash_sales: 50, card_sales: 50, short_over: 0 } },
+    ], '2026-05-12', [], {
+      byStore: { s1: { sales: 900, cash: 400 } }, sales: 900, cash: 400, days: 12,
+    });
+    expect(msg).toContain('MAY SO FAR');
+    expect(msg).toContain('12 days');
+    expect(msg).toContain('TOTAL SALES: $900.00');
+    expect(msg).toContain('TOTAL CASH: $400.00');
+    expect(msg).toContain('Average per day: $75.00');
+    expect(msg).toContain('Month so far: <b>$900.00</b>');
+  });
+
+  it('omits the month block entirely when the month lookup failed', () => {
+    // A summary without the month figures still beats no summary at all.
+    const msg = buildSyncSummaryMessage([
+      { store_name: 'A', status: 'created', salesData: { gross_sales: 100, total_sales: 90, cash_sales: 50, card_sales: 50, short_over: 0 } },
+    ], '2026-05-12', [], { byStore: {}, sales: 0, cash: 0, days: 0 });
+    expect(msg).not.toContain('SO FAR');
+    expect(msg).toContain('TOTAL SALES FOR THE DAY');
+  });
+
+  it('names the month from the date string, not the local clock', () => {
+    // The sync fires just after midnight; a Date round-trip could land in
+    // the previous month depending on the runner's timezone.
+    const jan = buildSyncSummaryMessage([
+      { store_name: 'A', status: 'created', salesData: { gross_sales: 1, total_sales: 1, cash_sales: 1, card_sales: 0, short_over: 0 } },
+    ], '2026-01-01', [], { byStore: {}, sales: 5, cash: 2, days: 1 });
+    expect(jan).toContain('JANUARY SO FAR');
+  });
+
+  it('stays inside the Telegram message limit with five stores', () => {
+    // Telegram rejects anything over 4096 characters outright, which would
+    // silently cost the whole daily summary.
+    const stores = ['Bells', 'Kerens', 'Reno', 'Troup', 'Denison'].map((n, i) => ({
+      store_name: `7s Smoke and Vape World - ${n}`, status: 'created',
+      salesData: {
+        store_id: `s${i}`, gross_sales: 1234.56, total_sales: 1111.11, cash_sales: 321.12,
+        card_sales: 790.45, non_tax_sales: 17.31, r1_net: 1093.80, tax_collected: 99.99,
+        r1_safe_drop: 400, short_over: -12.34,
+      },
+    }));
+    const byStore = Object.fromEntries(stores.map((s, i) => [`s${i}`, { sales: 33333.33, cash: 9876.54 }]));
+    const msg = buildSyncSummaryMessage(stores, '2026-09-26',
+      stores.map(s => ({ store: s.store_name, expected: 400, collected: 380 })),
+      { byStore, sales: 166666.65, cash: 49382.70, days: 26 });
+    expect(msg.length).toBeLessThan(4096);
   });
 });
 
