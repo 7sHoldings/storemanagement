@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase-server';
 import { getPricebookItemDetail } from '@/lib/nrs-pricebook';
+import { isNotFoundError, suggestedCents } from '@/lib/pricebook-prefill';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -57,7 +58,9 @@ async function lookupExternalUpc(upc) {
 // Looks a UPC up across all the owner's stores' NRS pricebooks and returns
 // the first match's details, so the Add-item form can auto-fill name / size
 // / department / cost when scanning a product that already exists somewhere.
-// Owner-only.
+// Also returns every store's status (has / missing / unknown) with its
+// price, plus the price most stores charge, so the form can skip stores
+// that already carry the item and pre-fill the rest. Owner-only.
 export async function GET(req) {
   try {
     const supabase = createClient();
@@ -81,13 +84,27 @@ export async function GET(req) {
       .order('created_at');
     if (!stores?.length) return NextResponse.json({ found: false });
 
-    // Query every store in parallel; take the first that has the item.
+    // Query every store in parallel; note which carry the item and at what
+    // price. A lookup that failed for any reason other than "not there" is
+    // `unknown`, never `missing`, so a flaky store is not silently re-added.
     const results = await Promise.allSettled(
       stores.map(async (s) => {
         const { pricebook: pb } = await getPricebookItemDetail(s.nrs_store_id, upc);
         return { store: s.name, pb };
       })
     );
+    const storeResults = results.map((r, i) => {
+      const s = stores[i];
+      if (r.status === 'fulfilled' && r.value?.pb) {
+        const cents = r.value.pb.pricing?.cents;
+        return { store_id: s.id, store: s.name, status: 'has', cents: Number.isFinite(cents) ? cents : null };
+      }
+      return {
+        store_id: s.id, store: s.name,
+        status: r.status === 'rejected' && !isNotFoundError(r.reason) ? 'unknown' : 'missing',
+        cents: null,
+      };
+    });
     const hit = results.find(r => r.status === 'fulfilled' && r.value?.pb);
     if (hit) {
       const pb = hit.value.pb;
@@ -100,6 +117,8 @@ export async function GET(req) {
         dept: pb.dept?.dept || pb.dept || '',
         costCents: pb.pricing?.cost_cents ?? 0,
         cents: pb.pricing?.cents ?? null,
+        stores: storeResults,
+        suggestedCents: suggestedCents(storeResults),
       });
     }
 
@@ -107,10 +126,10 @@ export async function GET(req) {
     // brand-new item gets its name filled.
     const ext = await lookupExternalUpc(upc);
     if (ext?.name) {
-      return NextResponse.json({ found: true, source: ext.source || 'catalog', foundInStore: 'product database', name: ext.name, size: '', dept: '', costCents: 0, cents: null });
+      return NextResponse.json({ found: true, source: ext.source || 'catalog', foundInStore: 'product database', name: ext.name, size: '', dept: '', costCents: 0, cents: null, stores: storeResults, suggestedCents: null });
     }
 
-    return NextResponse.json({ found: false });
+    return NextResponse.json({ found: false, stores: storeResults, suggestedCents: null });
   } catch (e) {
     console.error('[pricebook/lookup]', e);
     return NextResponse.json({ error: e.message || 'Lookup failed' }, { status: 500 });
