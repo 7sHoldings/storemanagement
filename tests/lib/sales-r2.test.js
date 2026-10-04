@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { effectiveR2, derivedR2, hasOverride } from '@/lib/sales-r2';
+import { effectiveR2, derivedR2, hasOverride, houseAccountTotal, cashReceived, shortOver } from '@/lib/sales-r2';
 
 const R2 = { usesRegister2: true };
 const SINGLE = { usesRegister2: false };
@@ -100,5 +100,48 @@ describe('effectiveR2 at a single-register store', () => {
 
   it('defaults to whatever r2_net holds', () => {
     expect(effectiveR2({ r2_net: 75 }, SINGLE).amount).toBe(75);
+  });
+});
+
+describe('house accounts', () => {
+  // A credit is rung as cash in NRS but never reaches the drawer, so it
+  // comes out of POS cash before the drop is reconciled.
+  it('a logged credit no longer shows as short at a single-register store', () => {
+    const row = { cash_sales: 300, r1_safe_drop: 250, r1_house_account_amount: 50 };
+    expect(cashReceived(row)).toBe(250);
+    expect(shortOver(row, SINGLE)).toBe(0);
+  });
+
+  it('cash missing beyond the credit is still short (positive = SHORT)', () => {
+    expect(shortOver({ cash_sales: 300, r1_safe_drop: 240, r1_house_account_amount: 50 }, SINGLE)).toBe(10);
+  });
+
+  it('prefers the per-employee list over the single-amount column', () => {
+    const row = { house_accounts: [{ amount: 20 }, { amount: '30' }], r1_house_account_amount: 999 };
+    expect(houseAccountTotal(row)).toBe(50);
+  });
+
+  it('falls back to legacy credits on old rows', () => {
+    expect(houseAccountTotal({ credits: 40 })).toBe(40);
+    expect(houseAccountTotal({})).toBe(0);
+  });
+
+  it('never makes received cash negative on a day NRS has not synced', () => {
+    const row = { cash_sales: 0, r1_safe_drop: 0, r1_house_account_amount: 50 };
+    expect(cashReceived(row)).toBe(0);
+    expect(shortOver(row, SINGLE)).toBe(0);
+    expect(derivedR2(row)).toBe(0);
+  });
+
+  it('at an R2 store the credit is not mistaken for missing R2 sales', () => {
+    // R1 rang 100 cash, 50 of it a credit; R2 took 200; drop = 50 + 200.
+    const row = { cash_sales: 100, r1_safe_drop: 250, r1_house_account_amount: 50 };
+    expect(derivedR2(row)).toBe(200);
+    expect(shortOver(row, R2)).toBe(0);
+  });
+
+  it('an R2 owner override still reconciles against received cash', () => {
+    const row = { cash_sales: 100, r1_safe_drop: 230, r2_override: 200, r1_house_account_amount: 50 };
+    expect(shortOver(row, R2)).toBe(20);
   });
 });

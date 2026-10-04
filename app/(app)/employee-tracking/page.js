@@ -83,8 +83,8 @@ export default function EmployeeTrackingPage() {
         ...s,
         _hours: clamped != null ? clamped : Number(s.total_hours || 0),
         _isPrimary: primaryIds.has(s.id),
-        // short_over is the canonical day total (driven by cash collection
-        // when present, sales math otherwise). r1_short_over is always 0 on
+        // short_over is the canonical day total: (POS cash − house account)
+        // reconciled against the safe drop, worked out by the DB trigger. r1_short_over is always 0 on
         // R2 stores, so we read short_over first.
         _so: primaryIds.has(s.id) ? Number(s.daily_sales?.short_over ?? s.daily_sales?.r1_short_over ?? 0) : 0,
         _sales: primaryIds.has(s.id) ? Number(s.daily_sales?.total_sales ?? s.daily_sales?.net_sales ?? 0) : 0,
@@ -220,7 +220,9 @@ export default function EmployeeTrackingPage() {
   };
 
   const goDetail = (storeId, name) => router.push(`/employee-tracking/${storeId}/${encodeURIComponent(name)}`);
-  const soColor = (v) => Math.abs(v) < 0.01 ? '#64748B' : v > 0 ? '#34D399' : '#F87171';
+  // Convention: positive short_over = SHORT (cash missing, red), negative = OVER.
+  const soColor = (v) => Math.abs(v) < 0.01 ? '#64748B' : v > 0 ? '#F87171' : '#34D399';
+  const soLabel = (v) => Math.abs(v) < 0.01 ? fmt(0) : v > 0 ? `Short ${fmt(v)}` : `Over ${fmt(-v)}`;
 
   return (
     <div>
@@ -237,7 +239,7 @@ export default function EmployeeTrackingPage() {
         <V2StatCard label="Total Shifts" value={totals.shifts} icon="📋" variant="info" />
         <V2StatCard label="Total Hours" value={`${totals.hours}h`} icon="🕐" variant="success" />
         <V2StatCard label="Employees" value={totals.employees} icon="👤" />
-        <V2StatCard label="Net Short/Over" value={`${Number(totals.so) >= 0 ? '+' : ''}${fmt(Number(totals.so))}`} icon="💰" variant={Number(totals.so) < 0 ? 'danger' : 'success'} />
+        <V2StatCard label="Net Short/Over" value={soLabel(Number(totals.so))} icon="💰" variant={Number(totals.so) > 0.005 ? 'danger' : 'success'} />
       </div>
 
       <DateBar preset={preset} onPreset={selectPreset} startDate={range.start} endDate={range.end} onStartChange={setStart} onEndChange={setEnd} />
@@ -260,7 +262,7 @@ export default function EmployeeTrackingPage() {
                   <span>{g.totalHours}h</span>
                   <span>{g.employeeCount} emp</span>
                   <span style={{ color: soColor(g.totalSO) }} className="font-mono font-bold">
-                    S/O: {g.totalSO >= 0 ? '+' : ''}{fmt(g.totalSO)}
+                    S/O: {soLabel(g.totalSO)}
                   </span>
                   {g.totalCredit > 0 && (
                     <span className="font-mono font-bold text-[var(--color-warning)]">
@@ -299,7 +301,7 @@ export default function EmployeeTrackingPage() {
                       <div className="text-right font-mono text-[var(--text-primary)]">{fmt(emp.totalSales)}</div>
                       <div className="text-[var(--text-secondary)] font-semibold">Short/Over</div>
                       <div className="text-right font-mono font-bold" style={{ color: soColor(emp.totalSO) }}>
-                        {emp.totalSO >= 0 ? '+' : ''}{fmt(emp.totalSO)}
+                        {soLabel(emp.totalSO)}
                       </div>
                       <div className="text-[var(--text-secondary)] font-semibold">Credit</div>
                       <div className="text-right font-mono font-bold" style={{ color: emp.totalCredit > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>

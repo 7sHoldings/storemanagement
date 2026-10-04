@@ -12,7 +12,9 @@ function fmtTime(iso) {
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: 'America/Chicago' });
 }
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const soColor = (v) => Math.abs(v) < 0.01 ? '#64748B' : v > 0 ? '#34D399' : '#F87171';
+// Convention: positive short_over = SHORT (cash missing, red), negative = OVER.
+const soColor = (v) => Math.abs(v) < 0.01 ? '#64748B' : v > 0 ? '#F87171' : '#34D399';
+const soLabel = (v) => Math.abs(v) < 0.01 ? fmt(0) : v > 0 ? `Short ${fmt(v)}` : `Over ${fmt(-v)}`;
 
 export default function EmployeeDetailPage() {
   const params = useParams();
@@ -123,8 +125,8 @@ export default function EmployeeDetailPage() {
       return {
         ...s,
         _hours: clamped != null ? clamped : Number(s.total_hours || 0),
-        // short_over is the canonical day total (driven by cash collection
-        // when present, sales math otherwise).
+        // short_over is the canonical day total: (POS cash − house account)
+        // reconciled against the safe drop, worked out by the DB trigger.
         _so: primaryIds.has(s.id) ? Number(s.daily_sales?.short_over ?? s.daily_sales?.r1_short_over ?? 0) : 0,
         _sales: primaryIds.has(s.id) ? Number(s.daily_sales?.total_sales ?? s.daily_sales?.net_sales ?? 0) : 0,
         _isPrimary: primaryIds.has(s.id),
@@ -204,7 +206,7 @@ export default function EmployeeDetailPage() {
         <V2StatCard label="Shifts" value={stats.totalShifts} icon="📋" variant="info" />
         <V2StatCard label="Hours" value={`${stats.totalHours}h`} icon="🕐" variant={Number(stats.totalHours) >= 40 ? 'success' : 'default'} />
         <V2StatCard label="Sales Handled" value={fmt(Number(stats.totalSales))} icon="💵" variant="success" />
-        <V2StatCard label="Net Short/Over" value={`${Number(stats.totalSO) >= 0 ? '+' : ''}${fmt(Number(stats.totalSO))}`} icon="💰" variant={Number(stats.totalSO) < 0 ? 'danger' : 'success'} />
+        <V2StatCard label="Net Short/Over" value={soLabel(Number(stats.totalSO))} icon="💰" variant={Number(stats.totalSO) > 0.005 ? 'danger' : 'success'} />
         <V2StatCard label="House Credit" value={fmt(totalCredit)} icon="🪙" variant={totalCredit > 0 ? 'warning' : 'default'} />
         <V2StatCard label="Longest Shift" value={stats.longest ? `${stats.longest.hours}h` : '—'} sub={stats.longest ? dayLabel(stats.longest.date) : ''} icon="🏆" />
       </div>
@@ -231,7 +233,7 @@ export default function EmployeeDetailPage() {
                 if (!r._isPrimary) return <span className="text-[var(--text-muted)]">—</span>;
                 const v = r._so;
                 if (Math.abs(v) < 0.01) return <span className="text-[var(--text-muted)]">⚪ $0</span>;
-                return <span style={{ color: soColor(v) }} className="font-bold">{v > 0 ? '🟢 +' : '🔴 '}{fmt(v)}</span>;
+                return <span style={{ color: soColor(v) }} className="font-bold">{v > 0 ? '🔴 ' : '🟢 '}{soLabel(v)}</span>;
               } },
           ]}
           rows={enriched}
@@ -241,7 +243,7 @@ export default function EmployeeDetailPage() {
           <div className="px-3 py-2 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] flex justify-between items-center flex-wrap gap-2 text-[11px]">
             <span className="text-[var(--text-secondary)] font-bold uppercase">{enriched.length} shifts · {stats.maxConsec} max consecutive days</span>
             <span className="font-mono font-bold" style={{ color: soColor(Number(stats.totalSO)) }}>
-              Net S/O: {Number(stats.totalSO) >= 0 ? '+' : ''}{fmt(Number(stats.totalSO))}
+              Net S/O: {soLabel(Number(stats.totalSO))}
             </span>
           </div>
         )}
@@ -260,7 +262,7 @@ export default function EmployeeDetailPage() {
             <div className="text-right text-[var(--text-primary)] font-mono">{fmt(Number(stats.totalSales))}</div>
             <div className="text-[var(--text-secondary)] font-semibold">Cumulative Short/Over</div>
             <div className="text-right font-mono font-bold" style={{ color: soColor(Number(stats.totalSO)) }}>
-              {Number(stats.totalSO) >= 0 ? '+' : ''}{fmt(Number(stats.totalSO))}
+              {soLabel(Number(stats.totalSO))}
             </div>
             <div className="text-[var(--text-secondary)] font-semibold">House Account Credit</div>
             <div className="text-right font-mono font-bold" style={{ color: totalCredit > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>
@@ -281,9 +283,9 @@ export default function EmployeeDetailPage() {
             </div>
           )}
           <div className="text-[var(--text-muted)] text-[10px] mt-3 space-y-0.5">
-            <div>House Account Credit: deduct from paycheck (employee took cash as credit)</div>
-            <div>If S/O negative: deduct from paycheck</div>
-            <div>If S/O positive: employee overage — goes to store</div>
+            <div>House Account Credit: owed by the employee — no longer counted as a cash short. Record the paycheck deduction on the House Accounts page.</div>
+            <div>Short: cash missing from the drop beyond any house account.</div>
+            <div>Over: extra cash in the drop — goes to the store.</div>
           </div>
         </Card>
       )}

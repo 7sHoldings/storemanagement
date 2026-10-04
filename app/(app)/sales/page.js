@@ -8,7 +8,7 @@ import { fmt, fK, dayLabel, today, downloadCSV } from '@/lib/utils';
 import { logActivity, fmtMoney, shortDate } from '@/lib/activity';
 import { uploadReceipt, compressImage } from '@/lib/storage';
 import { clampShiftHours } from '@/lib/shift-hours';
-import { effectiveR2, derivedR2 as deriveR2, hasOverride } from '@/lib/sales-r2';
+import { effectiveR2, derivedR2 as deriveR2, hasOverride, shortOver as calcShortOver } from '@/lib/sales-r2';
 import { missingColumn } from '@/lib/postgrest-errors';
 import NRSSyncModal from '@/components/NRSSyncModal';
 import DailySalesHeader from '@/components/daily-sales/DailySalesHeader';
@@ -884,28 +884,27 @@ export default function SalesPage() {
   // trigger, so the form always shows the number that will actually be
   // stored. `derivedR2` is what the safe-drop rule works out; `r2Net` is
   // that unless the owner has corrected the day by hand.
-  const derivedR2     = deriveR2(form);
+  // The form's house accounts ride along so the rule can take the credit
+  // out of POS cash, exactly as the trigger does.
+  const formWithHA    = { ...form, r1_house_account_amount: r1HouseAmount };
+  const derivedR2     = deriveR2(formWithHA);
   const hasR2Override = currentUsesReg2 && hasOverride(form.r2_override);
-  const r2Net         = effectiveR2(form, { usesRegister2: currentUsesReg2 }).amount;
+  const r2Net         = effectiveR2(formWithHA, { usesRegister2: currentUsesReg2 }).amount;
   const r2Cash        = currentUsesReg2 ? r2Net : 0;
 
-  // Short/Over and Basket vs R2 diff. House Account / Employee Credit is
-  // money the cashier handed out as credit, so it counts as a draw against
-  // the cash that should be in safe drop.
+  // Short/Over and Basket vs R2 diff. A house account is rung in NRS as
+  // cash but never reaches the drawer — it is owed by the employee and
+  // cleared at payroll (House Accounts page) — so it comes out of POS cash
+  // before the drop is reconciled. Positive = SHORT.
   //   R2 stores (Bells/Kerens):
-  //     short_over = R1 cash + R2 net − (R1 safe drop + house account)
+  //     short_over = (R1 cash − house account) + R2 net − R1 safe drop
   //     diff       = R2 net − R1 canceled basket
   //   Single-register stores (Reno/Denison/Troup):
-  //     short_over = R1 cash − (R1 safe drop + house account)
-  //     diff       = n/a
-  const r1ShortOverCalc = currentUsesReg2
-    ? 0
-    : r1Cash - (r1SafeDrop + r1HouseAmount);
+  //     short_over = (R1 cash − house account) − R1 safe drop
+  const totalShortOverCalc = calcShortOver(formWithHA, { usesRegister2: currentUsesReg2 });
+  const r1ShortOverCalc = currentUsesReg2 ? 0 : totalShortOverCalc;
   const r2ShortOverCalc = 0;
   const basketR2Diff = currentUsesReg2 ? r2Net - r1CancelBasket : 0;
-  const totalShortOverCalc = currentUsesReg2
-    ? (r1Cash + r2Net - r1SafeDrop - r1HouseAmount)
-    : r1ShortOverCalc;
 
   const totalGross = r1Gross + r2Net; // R2 has no gross, use net
   const totalNet   = r1Net + r2Net;
