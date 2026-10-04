@@ -5,6 +5,7 @@ import { PageHeader, Button, Alert, Loading, EmptyState, ConfirmModal, Field, Mo
 import BarcodeScanModal from '@/components/BarcodeScanner';
 import MultiStorePanel from '@/components/pricebook/MultiStorePanel';
 import CatalogPanel from '@/components/pricebook/CatalogPanel';
+import { existingPrices } from '@/lib/pricebook-prefill';
 
 const fmtCents = (c) => `$${(Number(c || 0) / 100).toFixed(2)}`;
 // "29.99" / "$29.99" / "2999¢"? → integer cents. Returns null if unparseable.
@@ -636,6 +637,10 @@ function AddItemPanel({ stores }) {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState(null);
   const [lookup, setLookup] = useState(null); // { status:'searching'|'found'|'notfound', msg }
+  // What the lookup found per store: id -> { status:'has'|'missing'|'unknown', cents }.
+  // Stores that already carry the UPC are shown with their price and are
+  // never added again; empty until a UPC has been looked up.
+  const [storeStatus, setStoreStatus] = useState({});
   const lookedUp = useRef('');
   const upcRef = useRef(null);
 
@@ -654,6 +659,25 @@ function AddItemPanel({ stores }) {
     upcRef.current?.focus();
   }, []);
 
+  // Untick stores that already carry the UPC and pre-fill every other
+  // store with the price most stores charge. A UPC no store carries starts
+  // every price at 0 so stale prices from the last item never carry over.
+  const applyStoreResults = useCallback((json) => {
+    const list = Array.isArray(json?.stores) ? json.stores : [];
+    if (!list.length) return;
+    const status = Object.fromEntries(list.map(r => [r.store_id, { status: r.status, cents: r.cents }]));
+    setStoreStatus(status);
+    setSel(new Set(stores.filter(s => status[s.id]?.status !== 'has').map(s => s.id)));
+    const fill = Number.isFinite(json.suggestedCents) ? (json.suggestedCents / 100).toFixed(2) : '';
+    setPrices(Object.fromEntries(stores.filter(s => status[s.id]?.status !== 'has').map(s => [s.id, fill])));
+  }, [stores]);
+
+  // Forget the last lookup's per-store results when the UPC changes.
+  const resetStoreStatus = () => {
+    setStoreStatus({});
+    setSel(new Set(stores.map(s => s.id)));
+  };
+
   // Look a UPC up across all stores and auto-fill name/size/dept/cost. Only
   // fills fields the user hasn't already typed, so it never clobbers input.
   const lookupUpc = useCallback(async (code) => {
@@ -665,11 +689,14 @@ function AddItemPanel({ stores }) {
       const res = await fetch(`/api/pricebook/lookup?upc=${encodeURIComponent(u)}`);
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Lookup failed');
+      // The UPC was edited while this was in flight; its results are stale.
+      if (lookedUp.current !== u) return;
       if (json.found) {
         setName(prev => prev.trim() ? prev : (json.name || ''));
         setSize(prev => prev.trim() ? prev : (json.size || ''));
         setDept(prev => prev || (json.dept || ''));
         setCost(prev => prev.trim() ? prev : (json.costCents ? (json.costCents / 100).toFixed(2) : ''));
+        applyStoreResults(json);
         setLookup({
           status: 'found',
           msg: json.source && json.source !== 'store'
@@ -677,14 +704,15 @@ function AddItemPanel({ stores }) {
             : `Auto-filled from ${json.foundInStore}`,
         });
       } else {
+        applyStoreResults(json);
         setLookup({ status: 'notfound', msg: 'New product — type the name below.' });
       }
     } catch (e) {
       setLookup({ status: 'notfound', msg: '' });
     }
-  }, []);
+  }, [applyStoreResults]);
 
-  const toggleSel = (id) => setSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleSel = (id) => storeStatus[id]?.status !== 'has' && setSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const setPrice = (id, v) => setPrices(p => ({ ...p, [id]: v }));
   const applyBulkPrice = () => {
     if (!bulkPrice.trim()) return;
@@ -692,8 +720,14 @@ function AddItemPanel({ stores }) {
     setPrices(p => { const n = { ...p }; for (const s of stores) if (sel.has(s.id)) n[s.id] = v; return n; });
   };
 
-  const selectedStores = stores.filter(s => sel.has(s.id));
-  const canSubmit = upc.trim() && name.trim() && dept && selectedStores.length > 0
+  const selectedStores = stores.filter(s => sel.has(s.id) && storeStatus[s.id]?.status !== 'has');
+  const carried = stores.filter(s => storeStatus[s.id]?.status === 'has');
+  const priceOptions = existingPrices(stores.map(s => ({ store: s.name, ...storeStatus[s.id] })));
+  const applyPriceToMissing = (cents) => {
+    const v = (cents / 100).toFixed(2);
+    setPrices(p => { const n = { ...p }; for (const s of selectedStores) n[s.id] = v; return n; });
+  };
+  const canSubmit = lookup?.status !== 'searching' && upc.trim() && name.trim() && dept && selectedStores.length > 0
     && selectedStores.every(s => (prices[s.id] || '').trim() && Number(prices[s.id]) >= 0);
 
   const submit = async () => {
@@ -714,6 +748,7 @@ function AddItemPanel({ stores }) {
       if (json.failed === 0) {
         // Clear item fields for the next add; keep dept + store selection + prices.
         setUpc(''); setName(''); setSize(''); setCost('');
+        lookedUp.current = ''; setLookup(null); resetStoreStatus();
         upcRef.current?.focus();
       }
     } catch (e) {
@@ -732,7 +767,12 @@ function AddItemPanel({ stores }) {
           <Field label="UPC / barcode">
             <div className="flex gap-2">
               <input ref={upcRef} value={upc}
-                onChange={e => { setUpc(e.target.value); if (e.target.value.trim() !== lookedUp.current) setLookup(null); }}
+                onChange={e => {
+                  setUpc(e.target.value);
+                  if (e.target.value.trim() !== lookedUp.current) {
+                    lookedUp.current = ''; setLookup(null); resetStoreStatus();
+                  }
+                }}
                 onBlur={() => lookupUpc(upc)}
                 onKeyDown={e => { if (e.key === 'Enter') lookupUpc(upc); }}
                 placeholder="Scan or type…"
@@ -776,6 +816,33 @@ function AddItemPanel({ stores }) {
         <h3 className="text-sw-text text-[15px] font-bold mb-1">Add to stores</h3>
         <p className="text-sw-sub text-[12px] mb-3">Tick stores and set each price. Use “set all” when the price is the same.</p>
 
+        {carried.length > 0 && (
+          <div className="mb-3 rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[12px]">
+            {selectedStores.length === 0 && carried.length === stores.length ? (
+              <span className="text-green-500 font-semibold">Already in every store — nothing to add.</span>
+            ) : (
+              <>
+                <div className="text-sw-sub mb-1">
+                  Already in {carried.length} store{carried.length === 1 ? '' : 's'}. The others are pre-filled with
+                  {priceOptions.length > 1 ? ' the most common price.' : ' the same price.'}
+                </div>
+                {priceOptions.length > 1 && (
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {priceOptions.map(o => (
+                      <button key={o.cents} type="button" onClick={() => applyPriceToMissing(o.cents)}
+                        title={`Use ${fmtCents(o.cents)} for the stores being added`}
+                        className="rounded-md border border-sw-border bg-sw-card px-2 py-0.5 text-[11px] text-sw-text hover:border-amber-500">
+                        <span className="font-mono font-bold">{fmtCents(o.cents)}</span>
+                        <span className="text-[var(--text-muted)]"> · {o.stores.join(', ')}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
         <div className="flex items-center gap-2 mb-3">
           <span className="text-[var(--text-muted)] text-[13px]">$</span>
           <input value={bulkPrice} onChange={e => setBulkPrice(e.target.value)} inputMode="decimal" placeholder="set all to"
@@ -786,6 +853,18 @@ function AddItemPanel({ stores }) {
 
         <ul className="space-y-2 mb-4">
           {stores.map(s => {
+            const st = storeStatus[s.id];
+            if (st?.status === 'has') {
+              return (
+                <li key={s.id} className="flex items-center gap-2">
+                  <span className="w-4 shrink-0 text-center text-green-500">✓</span>
+                  <span className="flex-1 min-w-0 truncate text-[13px] text-sw-text" title={s.name}>{s.name || s.id}</span>
+                  <span className="text-[11px] text-green-500 whitespace-nowrap">
+                    In system{Number.isFinite(st.cents) ? <> · <span className="font-mono font-bold">{fmtCents(st.cents)}</span></> : ''}
+                  </span>
+                </li>
+              );
+            }
             const checked = sel.has(s.id);
             return (
               <li key={s.id} className="flex items-center gap-2">
@@ -795,6 +874,9 @@ function AddItemPanel({ stores }) {
                 <input value={prices[s.id] ?? ''} onChange={e => setPrice(s.id, e.target.value)} inputMode="decimal" placeholder="0.00"
                   disabled={!checked}
                   style={{ width: '5rem' }} className={`w-20 rounded-md border bg-sw-bg px-2 py-1 text-[13px] text-sw-text ${checked ? 'border-sw-border' : 'border-sw-border/40 opacity-50'}`} />
+                {st?.status === 'unknown' && (
+                  <span className="text-[10px] text-amber-500" title="This store could not be checked. It may already have the item.">couldn’t check</span>
+                )}
               </li>
             );
           })}
