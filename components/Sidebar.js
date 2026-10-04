@@ -111,6 +111,7 @@ export default function Sidebar({ selectedStore, onStoreChange }) {
     ]},
     { title: 'Management', items: [
       { path: '/employee-tracking', icon: I.employee, label: 'Employee Tracking' },
+      { path: '/house-accounts',    icon: I.invoice,  label: 'House Accounts' },
       { path: '/profit-takeout',    icon: I.cash,     label: 'Profit Take Out' },
       { path: '/shares',            icon: I.tag,      label: 'Shares' },
       { path: '/team',              icon: I.admin,    label: 'Admin' },

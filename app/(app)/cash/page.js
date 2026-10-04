@@ -153,10 +153,10 @@ export default function CashPage() {
         const expected = +(r1 + r2).toFixed(2);
         const cc = r.cash_collected || 0;
         // Use the canonical short_over from daily_sales so this page and
-        // the Daily Sales table always show the same number. It already
-        // reflects whether a manual collection has been recorded:
-        //   collected → cash_sales (+ r2_net) − cash_collected − house
-        //   pending   → cash_sales (+ r2_net) − safe_drop − house
+        // the Daily Sales table always show the same number:
+        //   (cash_sales − house account) (+ r2_net) − safe_drop
+        // House accounts are owed by the employee, not missing cash, so
+        // they never show as short here (see the House Accounts page).
         // Convention: positive = SHORT (matches Daily Sales).
         const so = +(Number(r.ds_short_over || 0)).toFixed(2);
         const store = st?.find(s => s.id === r.store_id);
