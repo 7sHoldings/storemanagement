@@ -105,16 +105,21 @@ export async function GET(req) {
         cents: null,
       };
     });
+    // Prefer the first store's record: the Department dropdown is loaded from
+    // that same store, so its department is the one most likely to match.
     const hit = results.find(r => r.status === 'fulfilled' && r.value?.pb);
     if (hit) {
       const pb = hit.value.pb;
+      const deptOf = (p) => (p?.dept && typeof p.dept === 'object' ? p.dept.dept : p?.dept) || '';
+      const deptLabelOf = (p) => (p?.dept && typeof p.dept === 'object' ? (p.dept.label || p.dept.dept) : p?.dept) || '';
       return NextResponse.json({
         found: true,
         source: 'store',
         foundInStore: hit.value.store,
         name: pb.name || '',
         size: pb.size || '',
-        dept: pb.dept?.dept || pb.dept || '',
+        dept: deptOf(pb),
+        deptLabel: deptLabelOf(pb),
         costCents: pb.pricing?.cost_cents ?? 0,
         cents: pb.pricing?.cents ?? null,
         stores: storeResults,

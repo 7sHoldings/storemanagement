@@ -5,7 +5,7 @@ import { PageHeader, Button, Alert, Loading, EmptyState, ConfirmModal, Field, Mo
 import BarcodeScanModal from '@/components/BarcodeScanner';
 import MultiStorePanel from '@/components/pricebook/MultiStorePanel';
 import CatalogPanel from '@/components/pricebook/CatalogPanel';
-import { existingPrices } from '@/lib/pricebook-prefill';
+import { existingPrices, matchDepartment, priceChanges as findPriceChanges } from '@/lib/pricebook-prefill';
 
 const fmtCents = (c) => `$${(Number(c || 0) / 100).toFixed(2)}`;
 // "29.99" / "$29.99" / "2999¢"? → integer cents. Returns null if unparseable.
@@ -641,6 +641,10 @@ function AddItemPanel({ stores }) {
   // Stores that already carry the UPC are shown with their price and are
   // never added again; empty until a UPC has been looked up.
   const [storeStatus, setStoreStatus] = useState({});
+  // The department of the item the lookup found, waiting to be matched to a
+  // dropdown option (departments may still be loading when it arrives).
+  const [foundDept, setFoundDept] = useState(null); // { dept, label, store }
+  const [deptHint, setDeptHint] = useState('');
   const lookedUp = useRef('');
   const upcRef = useRef(null);
 
@@ -659,6 +663,15 @@ function AddItemPanel({ stores }) {
     upcRef.current?.focus();
   }, []);
 
+  // An item already in a store brings its department with it, replacing
+  // whatever was picked for the previous item.
+  useEffect(() => {
+    if (!foundDept || !departments.length) return;
+    const match = matchDepartment(departments, foundDept);
+    if (match) { setDept(match); setDeptHint(''); }
+    else setDeptHint(`“${foundDept.label || foundDept.dept}” (from ${foundDept.store}) isn’t in this list — pick a department.`);
+  }, [foundDept, departments]);
+
   // Untick stores that already carry the UPC and pre-fill every other
   // store with the price most stores charge. A UPC no store carries starts
   // every price at 0 so stale prices from the last item never carry over.
@@ -668,13 +681,20 @@ function AddItemPanel({ stores }) {
     const status = Object.fromEntries(list.map(r => [r.store_id, { status: r.status, cents: r.cents }]));
     setStoreStatus(status);
     setSel(new Set(stores.filter(s => status[s.id]?.status !== 'has').map(s => s.id)));
+    // Stores that carry it start at their own price (editable); the rest at
+    // the price most stores charge.
     const fill = Number.isFinite(json.suggestedCents) ? (json.suggestedCents / 100).toFixed(2) : '';
-    setPrices(Object.fromEntries(stores.filter(s => status[s.id]?.status !== 'has').map(s => [s.id, fill])));
+    setPrices(Object.fromEntries(stores.map(s => {
+      const st = status[s.id];
+      if (st?.status === 'has') return [s.id, Number.isFinite(st.cents) ? (st.cents / 100).toFixed(2) : ''];
+      return [s.id, fill];
+    })));
   }, [stores]);
 
   // Forget the last lookup's per-store results when the UPC changes.
   const resetStoreStatus = () => {
     setStoreStatus({});
+    setFoundDept(null); setDeptHint('');
     setSel(new Set(stores.map(s => s.id)));
   };
 
@@ -694,8 +714,10 @@ function AddItemPanel({ stores }) {
       if (json.found) {
         setName(prev => prev.trim() ? prev : (json.name || ''));
         setSize(prev => prev.trim() ? prev : (json.size || ''));
-        setDept(prev => prev || (json.dept || ''));
         setCost(prev => prev.trim() ? prev : (json.costCents ? (json.costCents / 100).toFixed(2) : ''));
+        if (json.source === 'store' && (json.dept || json.deptLabel)) {
+          setFoundDept({ dept: json.dept, label: json.deptLabel, store: json.foundInStore });
+        }
         applyStoreResults(json);
         setLookup({
           status: 'found',
@@ -714,45 +736,75 @@ function AddItemPanel({ stores }) {
 
   const toggleSel = (id) => storeStatus[id]?.status !== 'has' && setSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const setPrice = (id, v) => setPrices(p => ({ ...p, [id]: v }));
+  // Every ticked store plus every store that already carries the item, so
+  // one price can be lined up across all stores in one step.
+  const applyPriceToAll = (v) => setPrices(p => {
+    const n = { ...p };
+    for (const s of stores) if (sel.has(s.id) || storeStatus[s.id]?.status === 'has') n[s.id] = v;
+    return n;
+  });
   const applyBulkPrice = () => {
     if (!bulkPrice.trim()) return;
-    const v = (parseFloat(bulkPrice.replace(/[^0-9.]/g, '')) || 0).toFixed(2);
-    setPrices(p => { const n = { ...p }; for (const s of stores) if (sel.has(s.id)) n[s.id] = v; return n; });
+    applyPriceToAll((parseFloat(bulkPrice.replace(/[^0-9.]/g, '')) || 0).toFixed(2));
   };
 
   const selectedStores = stores.filter(s => sel.has(s.id) && storeStatus[s.id]?.status !== 'has');
   const carried = stores.filter(s => storeStatus[s.id]?.status === 'has');
   const priceOptions = existingPrices(stores.map(s => ({ store: s.name, ...storeStatus[s.id] })));
-  const applyPriceToMissing = (cents) => {
-    const v = (cents / 100).toFixed(2);
-    setPrices(p => { const n = { ...p }; for (const s of selectedStores) n[s.id] = v; return n; });
-  };
-  const canSubmit = lookup?.status !== 'searching' && upc.trim() && name.trim() && dept && selectedStores.length > 0
-    && selectedStores.every(s => (prices[s.id] || '').trim() && Number(prices[s.id]) >= 0);
+  const changes = findPriceChanges(storeStatus, prices);
+  const validPrice = (v) => String(v ?? '').trim() !== '' && Number(v) >= 0;
+  const canSubmit = lookup?.status !== 'searching' && upc.trim()
+    && (selectedStores.length > 0 || changes.length > 0)
+    && (selectedStores.length === 0 || (name.trim() && dept && selectedStores.every(s => validPrice(prices[s.id]))))
+    && carried.every(s => validPrice(prices[s.id]));
+  const submitLabel = [
+    selectedStores.length ? `Add to ${selectedStores.length} store${selectedStores.length === 1 ? '' : 's'}` : '',
+    changes.length ? `${selectedStores.length ? 'update' : 'Update'} ${changes.length} price${changes.length === 1 ? '' : 's'}` : '',
+  ].filter(Boolean).join(' · ') || 'Add to stores';
 
+  // Creates the item in the ticked stores that lack it and re-prices the
+  // stores that already carry it, then reports both together.
   const submit = async () => {
     setSubmitting(true); setResult(null);
+    const out = { name: name.trim() || upc.trim(), created: 0, updated: 0, failed: 0, errors: [] };
     try {
-      const targets = selectedStores.map(s => ({ store_id: s.id, cents: Math.round(parseFloat(prices[s.id]) * 100) }));
-      const res = await fetch('/api/pricebook/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          item: { upc: upc.trim(), name: name.trim(), size: size.trim(), dept, costCents: cost ? Math.round(parseFloat(cost) * 100) : 0 },
-          targets,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Create failed');
-      setResult(json);
-      if (json.failed === 0) {
+      if (selectedStores.length) {
+        const targets = selectedStores.map(s => ({ store_id: s.id, cents: Math.round(parseFloat(prices[s.id]) * 100) }));
+        const res = await fetch('/api/pricebook/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            item: { upc: upc.trim(), name: name.trim(), size: size.trim(), dept, costCents: cost ? Math.round(parseFloat(cost) * 100) : 0 },
+            targets,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Create failed');
+        out.created = json.created || 0;
+        out.failed += json.failed || 0;
+        (json.results || []).filter(r => !r.ok).forEach(r => out.errors.push(`${r.store}: ${r.error}`));
+      }
+      if (changes.length) {
+        const res = await fetch('/api/pricebook/bulk-update', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ writes: changes.map(c => ({ store_id: c.store_id, upc: upc.trim(), cents: c.cents })) }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Price update failed');
+        out.updated = (json.updated || 0) + (json.unchanged || 0);
+        out.failed += json.failed || 0;
+        (json.results || []).filter(r => !r.ok).forEach(r => out.errors.push(`${r.store_name}: ${r.error}`));
+      }
+      setResult(out);
+      if (out.failed === 0) {
         // Clear item fields for the next add; keep dept + store selection + prices.
         setUpc(''); setName(''); setSize(''); setCost('');
         lookedUp.current = ''; setLookup(null); resetStoreStatus();
         upcRef.current?.focus();
       }
     } catch (e) {
-      setResult({ error: e.message });
+      setResult({ ...out, error: e.message });
     } finally {
       setSubmitting(false);
     }
@@ -792,6 +844,7 @@ function AddItemPanel({ stores }) {
               {departments.map(d => <option key={d.dept} value={d.dept}>{d.label}</option>)}
             </select>
             {deptError && <span className="text-[11px] text-red-500">{deptError}</span>}
+            {deptHint && <span className="text-[11px] text-amber-500">{deptHint}</span>}
           </Field>
           <Field label="Item name">
             <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Zig Zag Orange"
@@ -818,19 +871,19 @@ function AddItemPanel({ stores }) {
 
         {carried.length > 0 && (
           <div className="mb-3 rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[12px]">
-            {selectedStores.length === 0 && carried.length === stores.length ? (
-              <span className="text-green-500 font-semibold">Already in every store — nothing to add.</span>
+            {carried.length === stores.length ? (
+              <span className="text-green-500 font-semibold">Already in every store. Change a price below to update it.</span>
             ) : (
               <>
                 <div className="text-sw-sub mb-1">
                   Already in {carried.length} store{carried.length === 1 ? '' : 's'}. The others are pre-filled with
-                  {priceOptions.length > 1 ? ' the most common price.' : ' the same price.'}
+                  {priceOptions.length > 1 ? ' the most common price.' : ' the same price.'} You can change any price, including stores that already have it.
                 </div>
                 {priceOptions.length > 1 && (
                   <div className="flex flex-wrap gap-1.5 mt-1.5">
                     {priceOptions.map(o => (
-                      <button key={o.cents} type="button" onClick={() => applyPriceToMissing(o.cents)}
-                        title={`Use ${fmtCents(o.cents)} for the stores being added`}
+                      <button key={o.cents} type="button" onClick={() => applyPriceToAll((o.cents / 100).toFixed(2))}
+                        title={`Use ${fmtCents(o.cents)} at every store`}
                         className="rounded-md border border-sw-border bg-sw-card px-2 py-0.5 text-[11px] text-sw-text hover:border-amber-500">
                         <span className="font-mono font-bold">{fmtCents(o.cents)}</span>
                         <span className="text-[var(--text-muted)]"> · {o.stores.join(', ')}</span>
@@ -855,13 +908,21 @@ function AddItemPanel({ stores }) {
           {stores.map(s => {
             const st = storeStatus[s.id];
             if (st?.status === 'has') {
+              const changed = changes.some(c => c.store_id === s.id);
               return (
                 <li key={s.id} className="flex items-center gap-2">
-                  <span className="w-4 shrink-0 text-center text-green-500">✓</span>
-                  <span className="flex-1 min-w-0 truncate text-[13px] text-sw-text" title={s.name}>{s.name || s.id}</span>
-                  <span className="text-[11px] text-green-500 whitespace-nowrap">
-                    In system{Number.isFinite(st.cents) ? <> · <span className="font-mono font-bold">{fmtCents(st.cents)}</span></> : ''}
+                  <span className="w-4 shrink-0 text-center text-green-500" title="Already in this store">✓</span>
+                  <span className="flex-1 min-w-0 truncate text-[13px] text-sw-text" title={s.name}>
+                    {s.name || s.id}
+                    <span className={`block text-[10px] ${changed ? 'text-amber-500' : 'text-green-500'}`}>
+                      {changed
+                        ? `In system · was ${Number.isFinite(st.cents) ? fmtCents(st.cents) : '—'}, will update`
+                        : 'In system'}
+                    </span>
                   </span>
+                  <span className="text-[var(--text-muted)] text-[13px]">$</span>
+                  <input value={prices[s.id] ?? ''} onChange={e => setPrice(s.id, e.target.value)} inputMode="decimal" placeholder="0.00"
+                    style={{ width: '5rem' }} className={`w-20 rounded-md border bg-sw-bg px-2 py-1 text-[13px] text-sw-text ${changed ? 'border-amber-500' : 'border-sw-border'}`} />
                 </li>
               );
             }
@@ -883,22 +944,22 @@ function AddItemPanel({ stores }) {
         </ul>
 
         <Button variant="primary" className="w-full" disabled={!canSubmit || submitting} onClick={submit}>
-          {submitting ? 'Adding…' : `Add to ${selectedStores.length || ''} store${selectedStores.length === 1 ? '' : 's'}`.trim()}
+          {submitting ? 'Saving…' : submitLabel}
         </Button>
 
         {result && (
           <div className="mt-4">
-            {result.error ? (
-              <Alert type="error">{result.error}</Alert>
-            ) : (
+            {result.error && <Alert type="error">{result.error}</Alert>}
+            {(result.created > 0 || result.updated > 0 || result.failed > 0) && (
               <Alert type={result.failed ? 'warning' : 'success'}>
-                Added “{result.name}” to {result.created} store{result.created === 1 ? '' : 's'}
-                {result.failed ? `, ${result.failed} failed` : ''}.
-                {result.failed > 0 && (
+                {[
+                  result.created ? `Added “${result.name}” to ${result.created} store${result.created === 1 ? '' : 's'}` : '',
+                  result.updated ? `updated the price in ${result.updated} store${result.updated === 1 ? '' : 's'}` : '',
+                  result.failed ? `${result.failed} failed` : '',
+                ].filter(Boolean).join(', ')}.
+                {result.errors?.length > 0 && (
                   <ul className="mt-2 text-[12px] list-disc pl-4">
-                    {result.results.filter(r => !r.ok).map(r => (
-                      <li key={r.store_id}>{r.store}: {r.error}</li>
-                    ))}
+                    {result.errors.map((e, i) => <li key={i}>{e}</li>)}
                   </ul>
                 )}
               </Alert>

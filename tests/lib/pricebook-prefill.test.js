@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { suggestedCents, existingPrices, isNotFoundError } from '@/lib/pricebook-prefill';
+import { suggestedCents, existingPrices, isNotFoundError, matchDepartment, priceChanges } from '@/lib/pricebook-prefill';
 
 const has = (store, cents) => ({ store, status: 'has', cents });
 const missing = (store) => ({ store, status: 'missing', cents: null });
@@ -36,5 +36,35 @@ describe('isNotFoundError', () => {
   it('tells "not in this store" apart from a failed lookup', () => {
     expect(isNotFoundError(new Error('Item 123 not found in pricebook'))).toBe(true);
     expect(isNotFoundError(new Error('NRS 502 Bad Gateway'))).toBe(false);
+  });
+});
+
+describe('matchDepartment', () => {
+  const depts = [{ dept: 'VAPE', label: 'Vape' }, { dept: 'DRINKS', label: "Drink's" }];
+
+  it('matches the code regardless of case and spacing', () => {
+    expect(matchDepartment(depts, { dept: 'vape ' })).toBe('VAPE');
+  });
+
+  it('falls back to the label when the code differs between stores', () => {
+    expect(matchDepartment(depts, { dept: 'D17', label: "drink's" })).toBe('DRINKS');
+  });
+
+  it('returns null when nothing matches, so the owner is asked to pick', () => {
+    expect(matchDepartment(depts, { dept: 'Kratom' })).toBeNull();
+    expect(matchDepartment(depts, {})).toBeNull();
+  });
+});
+
+describe('priceChanges', () => {
+  const status = { bells: { status: 'has', cents: 249 }, reno: { status: 'has', cents: 229 }, troup: { status: 'missing', cents: null } };
+
+  it('lists only stores that carry the item and whose price was edited', () => {
+    expect(priceChanges(status, { bells: '2.49', reno: '2.49', troup: '2.49' }))
+      .toEqual([{ store_id: 'reno', from: 229, cents: 249 }]);
+  });
+
+  it('ignores blank or invalid entries', () => {
+    expect(priceChanges(status, { bells: '', reno: 'abc' })).toEqual([]);
   });
 });
