@@ -38,6 +38,8 @@ export async function GET() {
 
     return NextResponse.json({
       departments: mergeDepartments(perStore),
+      // Each store's own list with item counts and tax, for the sync planner.
+      perStore,
       stores: stores.map(s => ({ id: s.id, name: s.name })),
       failedStores,
     });
