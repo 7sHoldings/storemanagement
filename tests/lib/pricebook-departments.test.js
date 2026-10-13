@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mergeDepartments, findMergedDepartment } from '@/lib/pricebook-departments';
+import { mergeDepartments, findMergedDepartment, splitFrequentDepartments } from '@/lib/pricebook-departments';
 
 const perStore = [
   { store_id: 'k', store: 'Kerens', departments: [{ dept: 'THC', label: 'THC' }, { dept: 'VAPE', label: 'Vape' }] },
@@ -42,5 +42,30 @@ describe('findMergedDepartment', () => {
   it('returns null when nothing matches', () => {
     expect(findMergedDepartment(merged, { dept: 'Kratom' })).toBeNull();
     expect(findMergedDepartment(merged, {})).toBeNull();
+  });
+});
+
+
+describe('splitFrequentDepartments', () => {
+  const dept = (label, items) => ({ key: label.toLowerCase(), label, items, missing: [] });
+  const merged = [dept('Alcohol', 9), dept('Vape', 412), dept('THC', 150), dept('Flower', 133), dept('Calling Card', 0), dept('Candy', 53)];
+
+  it('puts the busiest departments first, in alphabetical order', () => {
+    const { frequent, rest } = splitFrequentDepartments(merged, { limit: 3 });
+    expect(frequent.map(d => d.label)).toEqual(['Flower', 'THC', 'Vape']);
+    expect(rest.map(d => d.label)).toEqual(['Alcohol', 'Calling Card', 'Candy']);
+  });
+
+  it('never counts an empty department as frequent', () => {
+    const { frequent } = splitFrequentDepartments([dept('Calling Card', 0)], { limit: 3 });
+    expect(frequent).toEqual([]);
+  });
+
+  it('adds up item counts across stores when merging', () => {
+    const m = mergeDepartments([
+      { store_id: 'a', store: 'A', departments: [{ dept: 'Vape', label: 'Vape', item_count: 10 }] },
+      { store_id: 'b', store: 'B', departments: [{ dept: 'vape', label: 'vape', item_count: 5 }] },
+    ]);
+    expect(m[0].items).toBe(15);
   });
 });

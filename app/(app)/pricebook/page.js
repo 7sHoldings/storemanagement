@@ -7,7 +7,7 @@ import MultiStorePanel from '@/components/pricebook/MultiStorePanel';
 import CatalogPanel from '@/components/pricebook/CatalogPanel';
 import DepartmentsPanel from '@/components/pricebook/DepartmentsPanel';
 import { existingPrices, priceChanges as findPriceChanges } from '@/lib/pricebook-prefill';
-import { findMergedDepartment } from '@/lib/pricebook-departments';
+import { findMergedDepartment, splitFrequentDepartments } from '@/lib/pricebook-departments';
 
 const fmtCents = (c) => `$${(Number(c || 0) / 100).toFixed(2)}`;
 // "29.99" / "$29.99" / "2999¢"? → integer cents. Returns null if unparseable.
@@ -760,6 +760,13 @@ function AddItemPanel({ stores }) {
   const carried = stores.filter(s => storeStatus[s.id]?.status === 'has');
   const priceOptions = existingPrices(stores.map(s => ({ store: s.name, ...storeStatus[s.id] })));
   const changes = findPriceChanges(storeStatus, prices);
+  // Busiest departments first (A–Z), then the rest (A–Z).
+  const deptGroups = useMemo(() => splitFrequentDepartments(departments), [departments]);
+  const deptOption = (d) => (
+    <option key={d.key} value={d.key}>
+      {d.label}{d.items ? ` (${d.items})` : ''}{d.missing.length ? ` — not in ${d.missing.length} store${d.missing.length === 1 ? '' : 's'}` : ''}
+    </option>
+  );
   // Ticked stores that have no such department; NRS would reject the item there.
   const deptRow = departments.find(d => d.key === dept) || null;
   const deptMissingIn = deptRow ? selectedStores.filter(s => deptRow.missingIds.includes(s.id)) : [];
@@ -857,11 +864,14 @@ function AddItemPanel({ stores }) {
             <select value={dept} onChange={e => setDept(e.target.value)}
               className="w-full rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text">
               <option value="">Select department…</option>
-              {departments.map(d => (
-                <option key={d.key} value={d.key}>
-                  {d.label}{d.missing.length ? ` — not in ${d.missing.length} store${d.missing.length === 1 ? '' : 's'}` : ''}
-                </option>
-              ))}
+              {deptGroups.frequent.length > 0 && (
+                <optgroup label="Most used">
+                  {deptGroups.frequent.map(deptOption)}
+                </optgroup>
+              )}
+              <optgroup label={deptGroups.frequent.length ? 'All other departments' : 'Departments'}>
+                {deptGroups.rest.map(deptOption)}
+              </optgroup>
             </select>
             {deptError && <span className="text-[11px] text-red-500">{deptError}</span>}
             {deptHint && <span className="text-[11px] text-amber-500">{deptHint}</span>}
