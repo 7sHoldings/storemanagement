@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import { Button, Alert, Loading } from '@/components/UI';
+import { Button, Alert, Loading, Modal } from '@/components/UI';
+import { useAuth } from '@/components/AuthProvider';
+import { logActivity } from '@/lib/activity';
 import { downloadCSV, storeShortName } from '@/lib/utils';
 import { groupDepartments, suggestSimilar, applyMerges, planSync, summarize } from '@/lib/department-sync';
 
@@ -11,7 +13,9 @@ import { groupDepartments, suggestSimilar, applyMerges, planSync, summarize } fr
 // owner about near-matches, and shows per store what has to happen:
 // nothing, add the department, or move items from another spelling.
 //
-// This view only plans. The owner's choices (which near-matches are the
+// "Add missing departments" creates every "+ add" in NRS, copying each
+// department's settings from the store that uses it most. Moving items
+// between spellings is not automated yet. The owner's choices (which near-matches are the
 // same, the name to keep, departments to leave alone) are remembered in
 // this browser.
 const PREFS_KEY = 'pricebook.deptSync.v1';
@@ -24,6 +28,11 @@ const savePrefs = (p) => {
 const pctTax = (decibps) => `${(decibps / 1000).toFixed(2).replace(/\.?0+$/, '')}%`;
 
 export default function DepartmentsPanel() {
+  const { supabase, profile } = useAuth();
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [applying, setApplying] = useState(false);
+  const [applyResult, setApplyResult] = useState(null);
+  const [progress, setProgress] = useState('');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -69,6 +78,60 @@ export default function DepartmentsPanel() {
     { chosen: prefs.chosen || {}, skipped: new Set(prefs.skipped || []) },
   ), [baseGroups, stores, prefs]);
   const totals = summarize(plan);
+
+  // Every "+ add" in the plan, skipped departments left out.
+  const creates = useMemo(() => plan
+    .filter(p => !p.skipped)
+    .flatMap(p => stores
+      .filter(s => p.perStore[s.id]?.status === 'create')
+      .map(s => ({ store_id: s.id, store: s.name, name: p.name, source_store_id: p.source.store_id, source_dept: p.source.dept, tax: p.taxRates }))),
+  [plan, stores]);
+  const createsByStore = stores
+    .map(s => ({ store: s, items: creates.filter(c => c.store_id === s.id) }))
+    .filter(x => x.items.length);
+
+  // One request per store, so each stays well inside the server time limit
+  // and the owner sees progress. Results from every store are combined.
+  const applyCreates = async () => {
+    setApplying(true); setApplyResult(null);
+    const all = { created: 0, skipped: 0, failed: 0, warnings: 0, results: [] };
+    try {
+      for (let i = 0; i < createsByStore.length; i++) {
+        const { store, items } = createsByStore[i];
+        setProgress(`Adding to ${store.name} (${i + 1} of ${createsByStore.length})…`);
+        const res = await fetch('/api/pricebook/departments/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ creates: items.map(({ store_id, name, source_store_id, source_dept }) => ({ store_id, name, source_store_id, source_dept })) }),
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          all.failed += items.length;
+          items.forEach(c => all.results.push({ store_name: store.name, name: c.name, ok: false, error: json.error || `Request failed (${res.status})` }));
+          continue;
+        }
+        all.created += json.created || 0;
+        all.skipped += json.skipped || 0;
+        all.failed += json.failed || 0;
+        all.warnings += json.warnings || 0;
+        all.results.push(...(json.results || []));
+      }
+      setApplyResult(all);
+      await logActivity(supabase, profile, {
+        action: 'create',
+        entityType: 'nrs_department',
+        description: `${profile?.name} added ${all.created} missing department${all.created === 1 ? '' : 's'} to NRS across stores${all.failed ? ` (${all.failed} failed)` : ''}`,
+        metadata: { results: all.results },
+      });
+    } catch (e) {
+      setApplyResult({ ...all, error: e.message });
+    } finally {
+      setConfirmOpen(false);
+      setApplying(false);
+      setProgress('');
+      load();
+    }
+  };
 
   const rows = plan
     .filter(p => !onlyChanges || p.skipped || Object.values(p.perStore).some(c => c.status !== 'ok'))
@@ -117,11 +180,33 @@ export default function DepartmentsPanel() {
               Names that differ only in capitals, spaces or punctuation are treated as one department.
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="primary" onClick={() => setConfirmOpen(true)} disabled={!creates.length || applying} className="!text-[11px]">
+              {applying ? 'Adding…' : `Add ${creates.length} missing department${creates.length === 1 ? '' : 's'}`}
+            </Button>
             <Button variant="secondary" onClick={exportCSV} className="!text-[11px]">CSV</Button>
             <Button variant="secondary" onClick={load} className="!text-[11px]">Refresh</Button>
           </div>
         </div>
+        {applyResult && (
+          <div className="mt-3">
+            {applyResult.error && <Alert type="error">{applyResult.error}</Alert>}
+            {(applyResult.created > 0 || applyResult.failed > 0 || applyResult.skipped > 0) && (
+              <Alert type={applyResult.failed || applyResult.warnings ? 'warning' : 'success'}>
+                Added {applyResult.created} department{applyResult.created === 1 ? '' : 's'}
+                {applyResult.skipped ? `, ${applyResult.skipped} already there` : ''}
+                {applyResult.failed ? `, ${applyResult.failed} failed` : ''}.
+                {(applyResult.results || []).some(r => !r.ok || r.warning) && (
+                  <ul className="mt-2 text-[12px] list-disc pl-4">
+                    {applyResult.results.filter(r => !r.ok || r.warning).map((r, i) => (
+                      <li key={i}>{r.store_name} · {r.name}: {r.error || r.warning}</li>
+                    ))}
+                  </ul>
+                )}
+              </Alert>
+            )}
+          </div>
+        )}
         {data?.failedStores?.length > 0 && (
           <div className="mt-3">
             <Alert type="warning">
@@ -234,10 +319,36 @@ export default function DepartmentsPanel() {
       </div>
 
       <p className="text-[11px] text-[var(--text-muted)] mt-3">
-        <span className="text-red-500 font-semibold">+ add</span> = the store doesn’t have this department ·{' '}
+        <span className="text-red-500 font-semibold">+ add</span> = the store doesn’t have this department; the “Add missing departments” button adds it ·{' '}
         <span className="text-amber-500 font-semibold">↪</span> = the store has it under another name; its items move to the name to keep.
         Numbers are items in that department.
       </p>
+
+      {confirmOpen && (
+        <Modal title={`Add ${creates.length} departments to NRS?`} onClose={() => !applying && setConfirmOpen(false)} wide>
+          <p className="text-sw-sub text-[12px] mb-3">
+            These are added to your live NRS stores. Each copies its tax, age-check and display settings from the store
+            that already uses it. Untick a department with “leave this one alone” first if you don’t want it everywhere.
+            Departments spelled differently (↪) are not changed.
+          </p>
+          <div className="space-y-3 max-h-[50vh] overflow-auto mb-4">
+            {createsByStore.map(({ store, items }) => (
+              <div key={store.id}>
+                <div className="text-sw-text text-[13px] font-bold">{store.name} · {items.length}</div>
+                <div className="text-[12px] text-sw-sub">
+                  {items.map(c => `${c.name}${c.tax.length === 1 ? ` (${pctTax(c.tax[0])})` : ''}`).join(', ')}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setConfirmOpen(false)} disabled={applying}>Cancel</Button>
+            <Button variant="primary" onClick={applyCreates} disabled={applying}>
+              {applying ? (progress || 'Adding…') : `Add ${creates.length} departments`}
+            </Button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
