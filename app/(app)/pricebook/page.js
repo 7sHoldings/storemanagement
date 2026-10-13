@@ -5,7 +5,9 @@ import { PageHeader, Button, Alert, Loading, EmptyState, ConfirmModal, Field, Mo
 import BarcodeScanModal from '@/components/BarcodeScanner';
 import MultiStorePanel from '@/components/pricebook/MultiStorePanel';
 import CatalogPanel from '@/components/pricebook/CatalogPanel';
-import { existingPrices, matchDepartment, priceChanges as findPriceChanges } from '@/lib/pricebook-prefill';
+import DepartmentsPanel from '@/components/pricebook/DepartmentsPanel';
+import { existingPrices, priceChanges as findPriceChanges } from '@/lib/pricebook-prefill';
+import { findMergedDepartment } from '@/lib/pricebook-departments';
 
 const fmtCents = (c) => `$${(Number(c || 0) / 100).toFixed(2)}`;
 // "29.99" / "$29.99" / "2999¢"? → integer cents. Returns null if unparseable.
@@ -20,7 +22,7 @@ export default function PricebookPage() {
   const [stores, setStores] = useState([]);
   const [storeId, setStoreId] = useState('');
   const [loadingStores, setLoadingStores] = useState(true);
-  const [tab, setTab] = useState('update'); // 'update' | 'multi' | 'catalog' | 'add'
+  const [tab, setTab] = useState('update'); // 'update' | 'multi' | 'catalog' | 'add' | 'departments'
 
   // pending edits: upc -> { item, newCents }
   const [pending, setPending] = useState({});
@@ -107,7 +109,7 @@ export default function PricebookPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-4 border-b border-sw-border overflow-x-auto -mx-1 px-1">
-        {[['update', 'One store'], ['multi', 'All stores'], ['catalog', 'By UPC'], ['add', 'Add new item']].map(([key, label]) => (
+        {[['update', 'One store'], ['multi', 'All stores'], ['catalog', 'By UPC'], ['add', 'Add new item'], ['departments', 'Departments']].map(([key, label]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -149,6 +151,8 @@ export default function PricebookPage() {
       {tab === 'catalog' && <CatalogPanel />}
 
       {tab === 'add' && <AddItemPanel stores={stores} />}
+
+      {tab === 'departments' && <DepartmentsPanel />}
 
       {confirmOpen && (
         <ConfirmModal
@@ -624,8 +628,11 @@ function AddItemPanel({ stores }) {
   const [name, setName] = useState('');
   const [size, setSize] = useState('');
   const [cost, setCost] = useState('');
+  // `dept` holds the merged department's key; each store's own code comes
+  // from `departments[].codes` (codes differ between stores).
   const [dept, setDept] = useState('');
   const [departments, setDepartments] = useState([]);
+  const [deptFailedStores, setDeptFailedStores] = useState([]);
   const [deptError, setDeptError] = useState('');
   const [scanOpen, setScanOpen] = useState(false);
 
@@ -648,7 +655,7 @@ function AddItemPanel({ stores }) {
   const lookedUp = useRef('');
   const upcRef = useRef(null);
 
-  // Load departments once (they match across stores).
+  // Load every store's departments once, merged by name.
   useEffect(() => {
     (async () => {
       try {
@@ -656,6 +663,7 @@ function AddItemPanel({ stores }) {
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || 'Failed to load departments');
         setDepartments(json.departments || []);
+        setDeptFailedStores(json.failedStores || []);
       } catch (e) {
         setDeptError(e.message);
       }
@@ -667,8 +675,8 @@ function AddItemPanel({ stores }) {
   // whatever was picked for the previous item.
   useEffect(() => {
     if (!foundDept || !departments.length) return;
-    const match = matchDepartment(departments, foundDept);
-    if (match) { setDept(match); setDeptHint(''); }
+    const match = findMergedDepartment(departments, foundDept);
+    if (match) { setDept(match.key); setDeptHint(''); }
     else setDeptHint(`“${foundDept.label || foundDept.dept}” (from ${foundDept.store}) isn’t in this list — pick a department.`);
   }, [foundDept, departments]);
 
@@ -752,10 +760,18 @@ function AddItemPanel({ stores }) {
   const carried = stores.filter(s => storeStatus[s.id]?.status === 'has');
   const priceOptions = existingPrices(stores.map(s => ({ store: s.name, ...storeStatus[s.id] })));
   const changes = findPriceChanges(storeStatus, prices);
+  // Ticked stores that have no such department; NRS would reject the item there.
+  const deptRow = departments.find(d => d.key === dept) || null;
+  const deptMissingIn = deptRow ? selectedStores.filter(s => deptRow.missingIds.includes(s.id)) : [];
+  const untickDeptMissing = () => setSel(prev => {
+    const n = new Set(prev);
+    deptMissingIn.forEach(s => n.delete(s.id));
+    return n;
+  });
   const validPrice = (v) => String(v ?? '').trim() !== '' && Number(v) >= 0;
   const canSubmit = lookup?.status !== 'searching' && upc.trim()
     && (selectedStores.length > 0 || changes.length > 0)
-    && (selectedStores.length === 0 || (name.trim() && dept && selectedStores.every(s => validPrice(prices[s.id]))))
+    && (selectedStores.length === 0 || (name.trim() && deptRow && deptMissingIn.length === 0 && selectedStores.every(s => validPrice(prices[s.id]))))
     && carried.every(s => validPrice(prices[s.id]));
   const submitLabel = [
     selectedStores.length ? `Add to ${selectedStores.length} store${selectedStores.length === 1 ? '' : 's'}` : '',
@@ -774,7 +790,7 @@ function AddItemPanel({ stores }) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            item: { upc: upc.trim(), name: name.trim(), size: size.trim(), dept, costCents: cost ? Math.round(parseFloat(cost) * 100) : 0 },
+            item: { upc: upc.trim(), name: name.trim(), size: size.trim(), dept: deptRow.dept, deptLabel: deptRow.label, costCents: cost ? Math.round(parseFloat(cost) * 100) : 0 },
             targets,
           }),
         });
@@ -841,10 +857,24 @@ function AddItemPanel({ stores }) {
             <select value={dept} onChange={e => setDept(e.target.value)}
               className="w-full rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text">
               <option value="">Select department…</option>
-              {departments.map(d => <option key={d.dept} value={d.dept}>{d.label}</option>)}
+              {departments.map(d => (
+                <option key={d.key} value={d.key}>
+                  {d.label}{d.missing.length ? ` — not in ${d.missing.length} store${d.missing.length === 1 ? '' : 's'}` : ''}
+                </option>
+              ))}
             </select>
             {deptError && <span className="text-[11px] text-red-500">{deptError}</span>}
             {deptHint && <span className="text-[11px] text-amber-500">{deptHint}</span>}
+            {deptRow?.missing.length > 0 && (
+              <span className="text-[11px] text-amber-500">
+                “{deptRow.label}” isn’t set up in {deptRow.missing.join(', ')}. See the Departments tab.
+              </span>
+            )}
+            {deptFailedStores.length > 0 && (
+              <span className="text-[11px] text-[var(--text-muted)]">
+                Couldn’t load departments for {deptFailedStores.map(f => f.store).join(', ')}.
+              </span>
+            )}
           </Field>
           <Field label="Item name">
             <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Zig Zag Orange"
@@ -942,6 +972,14 @@ function AddItemPanel({ stores }) {
             );
           })}
         </ul>
+
+        {deptMissingIn.length > 0 && (
+          <div className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-500">
+            The “{deptRow.label}” department isn’t set up in {deptMissingIn.map(s => s.name).join(', ')}, so NRS would
+            reject the item there. Add the department in NRS for {deptMissingIn.length === 1 ? 'that store' : 'those stores'}, or
+            <button type="button" onClick={untickDeptMissing} className="ml-1 underline font-semibold">untick {deptMissingIn.length === 1 ? 'it' : 'them'}</button>.
+          </div>
+        )}
 
         <Button variant="primary" className="w-full" disabled={!canSubmit || submitting} onClick={submit}>
           {submitting ? 'Saving…' : submitLabel}
