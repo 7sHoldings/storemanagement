@@ -1,14 +1,21 @@
 import { NextResponse } from 'next/server';
 import { createClient, createAdminClient } from '@/lib/supabase-server';
-import { createPricebookItem } from '@/lib/nrs-pricebook';
+import { createPricebookItem, listDepartments } from '@/lib/nrs-pricebook';
+import { mapWithConcurrency, STORE_CONCURRENCY } from '@/lib/pricebook-stores';
+import { mergeDepartments, findMergedDepartment } from '@/lib/pricebook-departments';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 // POST /api/pricebook/create
-// Body: { item: { upc, name, size, dept, costCents }, targets: [{ store_id, cents }] }
+// Body: { item: { upc, name, size, dept, deptLabel?, costCents }, targets: [{ store_id, cents }] }
 // Creates the same item across the selected stores, each with its own price.
 // Owner-only. Per-store result list returned.
+//
+// A department can carry a different code in each store, so `dept` is
+// translated to each store's own code (matched by code or name) before the
+// item is created. A store that has no such department is reported as failed
+// without calling NRS, rather than having NRS reject the item.
 export async function POST(req) {
   try {
     const supabase = createClient();
@@ -26,6 +33,7 @@ export async function POST(req) {
     const name = String(item?.name || '').trim();
     const size = String(item?.size || '').trim();
     const dept = item?.dept;
+    const deptLabel = String(item?.deptLabel || '').trim();
     const costCents = Number.isFinite(Number(item?.costCents)) ? Math.round(Number(item.costCents)) : 0;
 
     if (!upc) return NextResponse.json({ error: 'UPC is required' }, { status: 400 });
@@ -52,6 +60,18 @@ export async function POST(req) {
       .in('id', clean.map(c => c.store_id));
     const byId = new Map((stores || []).map(s => [s.id, s]));
 
+    // Each target store's departments. A store whose list cannot be loaded
+    // falls back to the code as sent.
+    const nrsStores = (stores || []).filter(s => s.nrs_store_id);
+    const lists = await mapWithConcurrency(nrsStores, STORE_CONCURRENCY, s => listDepartments(s.nrs_store_id));
+    const merged = mergeDepartments(nrsStores.map((s, i) => ({
+      store_id: s.id, store: s.name,
+      departments: lists[i].status === 'fulfilled' ? lists[i].value : null,
+    })));
+    const deptRow = findMergedDepartment(merged, { dept, label: deptLabel });
+    const loadedIds = new Set(nrsStores.filter((_, i) => lists[i].status === 'fulfilled').map(s => s.id));
+    const deptName = deptRow?.label || deptLabel || dept;
+
     const userLabel = profile.name ? `${profile.name} (StoreWise)` : '7S StoreWise';
     const results = [];
     for (const { store_id, cents } of clean) {
@@ -61,8 +81,14 @@ export async function POST(req) {
         results.push({ store_id, store: storeName, ok: false, error: 'Store has no NRS ID configured' });
         continue;
       }
+      const storeDept = deptRow?.codes[store_id] || (loadedIds.has(store_id) ? null : dept);
+      if (!storeDept) {
+        results.push({ store_id, store: storeName, ok: false, missingDept: true,
+          error: `Department “${deptName}” isn’t set up in this store — add it in NRS first` });
+        continue;
+      }
       try {
-        const r = await createPricebookItem(store.nrs_store_id, { upc, name, size, dept, cents, costCents }, { user: userLabel });
+        const r = await createPricebookItem(store.nrs_store_id, { upc, name, size, dept: storeDept, cents, costCents }, { user: userLabel });
         results.push({ store_id, store: storeName, ok: true, ...r });
       } catch (e) {
         console.error(`[pricebook/create] ${storeName} failed:`, e.message);
