@@ -6,6 +6,7 @@ import BarcodeScanModal from '@/components/BarcodeScanner';
 import MultiStorePanel from '@/components/pricebook/MultiStorePanel';
 import CatalogPanel from '@/components/pricebook/CatalogPanel';
 import DepartmentsPanel from '@/components/pricebook/DepartmentsPanel';
+import DepartmentSalesPanel from '@/components/pricebook/DepartmentSalesPanel';
 import { existingPrices, priceChanges as findPriceChanges } from '@/lib/pricebook-prefill';
 import { findMergedDepartment, splitFrequentDepartments } from '@/lib/pricebook-departments';
 
@@ -22,7 +23,7 @@ export default function PricebookPage() {
   const [stores, setStores] = useState([]);
   const [storeId, setStoreId] = useState('');
   const [loadingStores, setLoadingStores] = useState(true);
-  const [tab, setTab] = useState('update'); // 'update' | 'multi' | 'catalog' | 'add' | 'departments'
+  const [tab, setTab] = useState('update'); // 'update' | 'multi' | 'catalog' | 'add' | 'departments' | 'deptsales'
 
   // pending edits: upc -> { item, newCents }
   const [pending, setPending] = useState({});
@@ -109,7 +110,7 @@ export default function PricebookPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-4 border-b border-sw-border overflow-x-auto -mx-1 px-1">
-        {[['update', 'One store'], ['multi', 'All stores'], ['catalog', 'By UPC'], ['add', 'Add new item'], ['departments', 'Departments']].map(([key, label]) => (
+        {[['update', 'One store'], ['multi', 'All stores'], ['catalog', 'By UPC'], ['add', 'Add new item'], ['departments', 'Departments'], ['deptsales', 'Department sales']].map(([key, label]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -153,6 +154,8 @@ export default function PricebookPage() {
       {tab === 'add' && <AddItemPanel stores={stores} />}
 
       {tab === 'departments' && <DepartmentsPanel />}
+
+      {tab === 'deptsales' && <DepartmentSalesPanel stores={stores} />}
 
       {confirmOpen && (
         <ConfirmModal
