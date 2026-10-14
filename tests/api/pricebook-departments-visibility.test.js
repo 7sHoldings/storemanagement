@@ -1,14 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('@/lib/supabase-server', () => ({ createClient: vi.fn(), createAdminClient: vi.fn() }));
-vi.mock('@/lib/nrs-pricebook', () => ({ getDepartmentRecords: vi.fn(), setDepartmentShown: vi.fn() }));
+vi.mock('@/lib/nrs-pricebook', () => ({ getDepartmentRecords: vi.fn(), setDepartmentShown: vi.fn(), createDepartment: vi.fn() }));
 
 import { POST } from '@/app/api/pricebook/departments/visibility/route';
 import { createClient, createAdminClient } from '@/lib/supabase-server';
-import { getDepartmentRecords, setDepartmentShown } from '@/lib/nrs-pricebook';
+import { getDepartmentRecords, setDepartmentShown, createDepartment } from '@/lib/nrs-pricebook';
 
 const STORE = { id: 'den', name: 'Denison', nrs_store_id: 61345, nrs_elmer_id: 60903 };
+const RENO = { id: 'reno', name: 'Reno', nrs_store_id: 63560 };
 const tax = [{ rate_decibps: 8250 }];
+const RENO_RECORDS = {
+  '7-hydroxy': { dept: '7-hydroxy', label: '7-hydroxy', item_count: 26, donotshow: false, auth_totals: tax },
+};
 let live;
 
 beforeEach(() => {
@@ -21,9 +25,18 @@ beforeEach(() => {
   const profiles = { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { role: 'owner', name: 'Owner' } }) }) }) };
   vi.mocked(createClient).mockReturnValue({ auth: { getUser: async () => ({ data: { user: { id: 'u1' } } }) } });
   vi.mocked(createAdminClient).mockReturnValue({
-    from: (t) => (t === 'profiles' ? profiles : { select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: STORE }) }) }) }),
+    from: (t) => (t === 'profiles' ? profiles : {
+      select: () => ({
+        eq: () => ({ maybeSingle: async () => ({ data: STORE }) }),
+        neq: () => ({ not: () => ({ order: async () => ({ data: [RENO] }) }) }),
+      }),
+    }),
   });
-  vi.mocked(getDepartmentRecords).mockImplementation(async () => structuredClone(live));
+  vi.mocked(getDepartmentRecords).mockImplementation(async (id) => structuredClone(id === 63560 ? RENO_RECORDS : live));
+  vi.mocked(createDepartment).mockImplementation(async (_s, _e, name, template) => {
+    live[name] = { ...structuredClone(template), dept: name, label: name, item_count: 0 };
+    return live[name];
+  });
   vi.mocked(setDepartmentShown).mockImplementation(async (_s, _e, rec, shown) => {
     live[rec.dept] = { ...live[rec.dept], donotshow: !shown };
     return live[rec.dept];
@@ -66,5 +79,24 @@ describe('POST /api/pricebook/departments/visibility', () => {
     const res = await POST(req({ store_id: 'den', show: ['Kratom'], apply: true }));
     expect(res.status).toBe(400);
     expect(setDepartmentShown).not.toHaveBeenCalled();
+  });
+
+  it('previews a missing department with the store it would be copied from', async () => {
+    const body = await (await POST(req({ store_id: 'den', show: ['Vape', '7-hydroxy', 'Kratom'] }))).json();
+    expect(body.toCreate).toEqual([
+      { name: '7-hydroxy', from_store: 'Reno', from_dept: '7-hydroxy' },
+      { name: 'Kratom', from_store: null, error: 'No store has this department to copy' },
+    ]);
+    expect(createDepartment).not.toHaveBeenCalled();
+  });
+
+  it('creates a missing department from another store, then shows it', async () => {
+    RENO_RECORDS['7-hydroxy'].donotshow = true; // copied hidden, still ends up shown
+    const body = await (await POST(req({ store_id: 'den', show: ['Vape', '7-hydroxy'], apply: true }))).json();
+    expect(vi.mocked(createDepartment).mock.calls[0].slice(0, 3)).toEqual([61345, 60903, '7-hydroxy']);
+    expect(body.created).toEqual([{ name: '7-hydroxy', ok: true, from_store: 'Reno' }]);
+    expect(live['7-hydroxy'].donotshow).toBe(false);
+    expect(live.DEFAULT.donotshow).toBe(true);
+    RENO_RECORDS['7-hydroxy'].donotshow = false;
   });
 });

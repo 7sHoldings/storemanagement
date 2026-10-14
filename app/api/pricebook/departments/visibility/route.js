@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getDepartmentRecords, setDepartmentShown } from '@/lib/nrs-pricebook';
-import { requireOwner } from '@/lib/pricebook-stores';
-import { planRegister, isShown } from '@/lib/register-departments';
+import { getDepartmentRecords, setDepartmentShown, createDepartment } from '@/lib/nrs-pricebook';
+import { requireOwner, mapWithConcurrency, STORE_CONCURRENCY } from '@/lib/pricebook-stores';
+import { planRegister, isShown, findTemplate } from '@/lib/register-departments';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -13,6 +13,11 @@ export const maxDuration = 300;
 // Sets which department buttons one store's register shows: the named
 // departments are shown, every other department is hidden (NRS "Do not
 // show"). Without `apply` it only returns the plan. Owner-only.
+//
+// A named department the store doesn't have is created first, copied (tax,
+// age check, display) from another store that has it — the exact spelling
+// preferred — so every register ends up with the same buttons. The plan
+// lists these under `toCreate`, with the store each is copied from.
 //
 // Only departments whose flag actually changes are saved. Each save sends
 // the department's other settings back as read, and the department is
@@ -34,10 +39,48 @@ export async function POST(req) {
       .from('stores').select('id, name, nrs_store_id, nrs_elmer_id').eq('id', storeId).maybeSingle();
     if (!store?.nrs_store_id) return NextResponse.json({ error: 'Store has no NRS ID configured' }, { status: 400 });
 
-    const records = await getDepartmentRecords(store.nrs_store_id);
-    const plan = planRegister(records, show);
-    const base = { store_id: store.id, store: store.name, ...plan };
-    if (!apply) return NextResponse.json(base);
+    let records = await getDepartmentRecords(store.nrs_store_id);
+    let plan = planRegister(records, show);
+
+    // Where each missing department would be copied from.
+    let toCreate = [];
+    if (plan.missing.length) {
+      const { data: others } = await gate.admin
+        .from('stores').select('id, name, nrs_store_id').neq('id', store.id).not('nrs_store_id', 'is', null).order('created_at');
+      const lists = await mapWithConcurrency(others || [], STORE_CONCURRENCY, o => getDepartmentRecords(o.nrs_store_id));
+      const otherRecords = (others || []).map((o, i) => ({
+        store_id: o.id, store: o.name, records: lists[i].status === 'fulfilled' ? lists[i].value : null,
+      }));
+      toCreate = plan.missing.map(name => {
+        const t = findTemplate(otherRecords, name);
+        return t
+          ? { name, from_store: t.store, from_dept: t.record.dept, template: t.record }
+          : { name, from_store: null, error: 'No store has this department to copy' };
+      });
+    }
+    const describe = () => ({
+      store_id: store.id, store: store.name, ...plan,
+      toCreate: toCreate.map(({ template, ...rest }) => rest),
+    });
+    if (!apply) return NextResponse.json(describe());
+
+    // Create the missing ones, then plan again against the store as it now is.
+    const created = [];
+    for (const c of toCreate) {
+      if (!c.template) { created.push({ name: c.name, ok: false, error: c.error }); continue; }
+      try {
+        await createDepartment(store.nrs_store_id, store.nrs_elmer_id, c.name, c.template);
+        created.push({ name: c.name, ok: true, from_store: c.from_store });
+      } catch (e) {
+        console.error(`[departments/visibility] ${store.name} create “${c.name}” failed:`, e.message);
+        created.push({ name: c.name, ok: false, error: e.message });
+      }
+    }
+    if (created.some(c => c.ok)) {
+      records = await getDepartmentRecords(store.nrs_store_id);
+      plan = planRegister(records, show);
+    }
+    const base = { ...describe(), created };
 
     // A store with none of the chosen departments would end up with an empty
     // screen — never apply that.
@@ -73,7 +116,7 @@ export async function POST(req) {
       ...base,
       applied: true,
       changed: results.filter(r => r.ok && !r.warning).length,
-      failed: results.filter(r => !r.ok).length,
+      failed: results.filter(r => !r.ok).length + created.filter(c => !c.ok).length,
       warnings: results.filter(r => r.warning).length,
       results,
     });
