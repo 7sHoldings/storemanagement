@@ -4,7 +4,7 @@ vi.hoisted(() => { process.env.NRS_USER_TOKEN = 'test-token'; });
 vi.mock('@/lib/nrs-fetch', () => ({ nrsFetchJson: vi.fn() }));
 
 import { nrsFetchJson } from '@/lib/nrs-fetch';
-import { listDepartments, buildDepartmentPayload } from '@/lib/nrs-pricebook';
+import { listDepartments, buildDepartmentPayload, setDepartmentShown } from '@/lib/nrs-pricebook';
 
 // Shape captured from the NRS portal's GET departments/{store_id}.
 const RESPONSE = {
@@ -72,5 +72,29 @@ describe('buildDepartmentPayload', () => {
     expect(p.verify_age).toBeNull();
     expect(p.depttype).toBe('product');
     expect(p.color).toBe('#ffffff');
+  });
+});
+
+describe('setDepartmentShown', () => {
+  it('re-saves the department with its settings and only the flag changed', async () => {
+    vi.mocked(nrsFetchJson).mockResolvedValueOnce({ res: { rc: 0 }, data: { dept: 'Vape' } });
+    const record = {
+      dept: 'Vape', label: 'Vape', isebt: false, verify_age: 21, donotshow: false,
+      auths: [{ type: 'Tax', name: 'Tax', rate_decibps: '8250', per_item_cents: '', taxable: false }],
+      extension: { depttype: 'product', color: '#ff0000' },
+    };
+    await setDepartmentShown(61345, 60903, record, false);
+    const [path, opts] = vi.mocked(nrsFetchJson).mock.calls.at(-1);
+    const body = JSON.parse(opts.body);
+    expect(path).toBe('departments/61345');
+    expect(body).toMatchObject({
+      dept: 'Vape', newdept: 'Vape', donotshow: true, verify_age: '21', color: '#ff0000',
+      revauths: [{ store_id: 61345, elmer_id: 60903, rate_decibps: 8250, active: true }],
+    });
+  });
+
+  it('throws when NRS rejects the save', async () => {
+    vi.mocked(nrsFetchJson).mockResolvedValueOnce({ res: { rc: 1, msg: 'nope' } });
+    await expect(setDepartmentShown(61345, 60903, { dept: 'Vape' }, true)).rejects.toThrow(/rejected/);
   });
 });
