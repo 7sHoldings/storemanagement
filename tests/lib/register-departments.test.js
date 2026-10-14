@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { planRegister, isShown, DEFAULT_REGISTER_DEPARTMENTS } from '@/lib/register-departments';
+import { planRegister, isShown, findTemplate, DEFAULT_REGISTER_DEPARTMENTS } from '@/lib/register-departments';
 
 // A slice of Denison's departments as NRS returned them (names and item
 // counts from the portal capture).
@@ -49,5 +49,20 @@ describe('planRegister', () => {
 
   it('keeps the agreed list of 20', () => {
     expect(DEFAULT_REGISTER_DEPARTMENTS).toHaveLength(20);
+  });
+});
+
+
+describe('findTemplate', () => {
+  const others = [
+    { store_id: 'r', store: 'Reno', records: { 'Vapor devices': { dept: 'Vapor devices', label: 'Vapor devices', item_count: 90 } } },
+    { store_id: 'd', store: 'Denison', records: { 'Vape Devices': { dept: 'Vape Devices', label: 'Vape Devices', item_count: 151 } } },
+    { store_id: 't', store: 'Troup', records: null },
+  ];
+  it('copies from the store with the exact spelling', () => {
+    expect(findTemplate(others, 'Vape Devices').store).toBe('Denison');
+  });
+  it('returns null when no store has it', () => {
+    expect(findTemplate(others, 'Kratom')).toBeNull();
   });
 });

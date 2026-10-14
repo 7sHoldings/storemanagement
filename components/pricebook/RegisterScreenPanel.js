@@ -57,11 +57,11 @@ export default function RegisterScreenPanel({ stores }) {
       try {
         const json = await call(s, true);
         setApplied(a => ({ ...a, [s.id]: json }));
-        setPlans(p => ({ ...p, [s.id]: { ...json, changes: [] } }));
+        setPlans(p => ({ ...p, [s.id]: { ...json, changes: [], toCreate: [], missing: [] } }));
         await logActivity(supabase, profile, {
           action: 'update',
           entityType: 'nrs_department',
-          description: `${profile?.name} set ${s.name}'s register to show ${json.rows.filter(r => r.shownAfter).length} departments (${json.changed} changed${json.failed ? `, ${json.failed} failed` : ''})`,
+          description: `${profile?.name} set ${s.name}'s register to show ${json.rows.filter(r => r.shownAfter).length} departments (${(json.created || []).filter(c => c.ok).length} added, ${json.changed} changed${json.failed ? `, ${json.failed} failed` : ''})`,
           storeName: s.name,
           metadata: { show: names, results: json.results },
         });
@@ -73,14 +73,16 @@ export default function RegisterScreenPanel({ stores }) {
   };
 
   const previewed = stores.filter(s => plans[s.id] && !plans[s.id].error);
-  const pendingStores = previewed.filter(s => plans[s.id].changes?.length > 0);
+  const hasWork = (p) => (p?.changes?.length || 0) + (p?.toCreate || []).filter(c => c.from_store).length > 0;
+  const pendingStores = previewed.filter(s => hasWork(plans[s.id]));
 
   return (
     <div>
       <div className="rounded-xl border border-sw-border bg-sw-card p-4 mb-4">
         <h3 className="text-sw-text text-[15px] font-bold">Department buttons on the register</h3>
         <p className="text-sw-sub text-[12px] mt-1 max-w-2xl">
-          These departments get a button on every register (NRS sorts them A–Z). Every other department is hidden
+          These departments get a button on every register (NRS sorts them A–Z). A store missing one gets it added,
+          copied from a store that has it. Every other department is hidden
           from the register screen. Nothing is deleted, and items in hidden departments still scan and sell.
           Preview first, then try one store before applying to all.
         </p>
@@ -116,7 +118,7 @@ export default function RegisterScreenPanel({ stores }) {
             <div key={s.id} className="rounded-xl border border-sw-border bg-sw-card p-4">
               <div className="flex justify-between items-center gap-2 flex-wrap">
                 <h4 className="text-sw-text text-[14px] font-bold">{storeShortName(s.name)}</h4>
-                {p.changes.length > 0 ? (
+                {hasWork(p) ? (
                   <Button variant="primary" className="!text-[11px] !py-1" disabled={!!busy} onClick={() => setConfirm([s])}>
                     Apply to {storeShortName(s.name)}
                   </Button>
@@ -133,8 +135,15 @@ export default function RegisterScreenPanel({ stores }) {
                   Changes: hide {hideCount}, show {showCount}. {p.rows.length - shown.length} departments hidden in total.
                 </div>
               )}
-              {p.missing?.length > 0 && (
-                <div className="text-[11px] text-red-500 mt-1">Not in this store (no button): {p.missing.join(', ')}</div>
+              {p.toCreate?.some(c => c.from_store) && (
+                <div className="text-[11px] text-green-500 mt-1">
+                  Will be added to this store: {p.toCreate.filter(c => c.from_store).map(c => `${c.name} (copied from ${storeShortName(c.from_store)})`).join(', ')}
+                </div>
+              )}
+              {p.toCreate?.some(c => !c.from_store) && (
+                <div className="text-[11px] text-red-500 mt-1">
+                  No store has these to copy (no button): {p.toCreate.filter(c => !c.from_store).map(c => c.name).join(', ')}
+                </div>
               )}
               {p.substituted?.length > 0 && (
                 <div className="text-[11px] text-amber-500 mt-1">
@@ -150,7 +159,13 @@ export default function RegisterScreenPanel({ stores }) {
                 <div className="mt-2">
                   {a.error ? <Alert type="error">{a.error}</Alert> : (
                     <Alert type={a.failed || a.warnings ? 'warning' : 'success'}>
+                      {(a.created || []).some(c => c.ok) && `Added ${a.created.filter(c => c.ok).map(c => c.name).join(', ')}. `}
                       Updated {a.changed} department{a.changed === 1 ? '' : 's'}{a.failed ? `, ${a.failed} failed` : ''}{a.warnings ? `, ${a.warnings} to check` : ''}.
+                      {(a.created || []).some(c => !c.ok) && (
+                        <ul className="mt-1 text-[11px] list-disc pl-4">
+                          {a.created.filter(c => !c.ok).map(c => <li key={c.name}>Couldn’t add {c.name}: {c.error}</li>)}
+                        </ul>
+                      )}
                       {(a.results || []).some(r => !r.ok || r.warning) && (
                         <ul className="mt-1 text-[11px] list-disc pl-4">
                           {a.results.filter(r => !r.ok || r.warning).map(r => <li key={r.dept}>{r.label}: {r.error || r.warning}</li>)}
@@ -168,7 +183,7 @@ export default function RegisterScreenPanel({ stores }) {
       {confirm && (
         <ConfirmModal
           title={`Update ${confirm.length === 1 ? confirm[0].name : `${confirm.length} stores`}?`}
-          message={`The register${confirm.length === 1 ? '' : 's'} will show only these ${names.length} departments; every other department button is hidden. This takes effect on the live register${confirm.length === 1 ? '' : 's'}.`}
+          message={`Missing departments are added, then the register${confirm.length === 1 ? '' : 's'} will show only these ${names.length} departments; every other department button is hidden. This takes effect on the live register${confirm.length === 1 ? '' : 's'}.`}
           confirmLabel="Update registers"
           confirmVariant="primary"
           onCancel={() => setConfirm(null)}
