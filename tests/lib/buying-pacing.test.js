@@ -154,4 +154,39 @@ describe('computeBuyingPacing', () => {
     expect(r.daysElapsed).toBe(9);
     expect(r.daysInMonth).toBe(28);
   });
+
+  it('reports a finished period (e.g. Last Month) as actuals with no projection', () => {
+    const r = computeBuyingPacing({
+      stores: [store('a')],
+      salesRows: [sale('a', 3000)],
+      purchaseRows: [purchase('a', 1200)],
+      today: TODAY,
+      start: '2026-04-01',
+      end: '2026-04-30',
+    });
+    expect(r.label).toBe('April 1–30');
+    expect(r.monthName).toBe('April');
+    expect(r.inProgress).toBe(false);
+    expect(r.daysInPeriod).toBe(30);
+    expect(r.overall.projSales).toBe(3000);
+    expect(r.overall.projBuying).toBe(1200);
+  });
+
+  it('projects an unfinished range to its own end date', () => {
+    // May 1–20, 12 days in → ×20/12.
+    const r = computeBuyingPacing({
+      stores: [store('a')], salesRows: [sale('a', 1200)], purchaseRows: [],
+      today: TODAY, start: '2026-05-01', end: '2026-05-20',
+    });
+    expect(r.inProgress).toBe(true);
+    expect(r.daysElapsed).toBe(12);
+    expect(r.daysInPeriod).toBe(20);
+    expect(r.label).toBe('May 1–12');
+    expect(r.overall.projSales).toBeCloseTo(2000, 5);
+  });
+
+  it('labels a range that crosses months with both dates', () => {
+    const r = computeBuyingPacing({ stores: [], salesRows: [], purchaseRows: [], today: TODAY, start: '2026-03-25', end: '2026-04-07' });
+    expect(r.label).toBe('Mar 25 – Apr 7');
+  });
 });

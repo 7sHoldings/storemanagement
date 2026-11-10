@@ -16,7 +16,12 @@ export default function KpiGrid({ stats }) {
   const soBorder = soMatched ? '' : soShort ? 'border-[#E24B4A]/40' : 'border-[#39FF14]/40';
 
   const expected = stats.totalCash || 0;
-  const collected = stats.cashInHand || 0;
+  // Short/over compares the safe drops with what was actually collected;
+  // the headline is what is left in hand after games and cash paid out.
+  const collected = stats.cashCollected ?? stats.cashInHand ?? 0;
+  const inHand = stats.cashInHand || 0;
+  const paidOut = stats.cashPaidOut || 0;
+  const games = stats.totalGameMachine || 0;
   const diff = collected - expected;
   const cMatched = Math.abs(diff) < 0.01;
   const cShort = diff < 0;
@@ -46,9 +51,12 @@ export default function KpiGrid({ stats }) {
         valueClassName={soValueColor} iconClassName={soIconColor} cardClassName={soBorder}
       />
       <KpiCard
-        label="Cash in Hand" value={fmt(collected)} Icon={Landmark}
+        label="Cash in Hand" value={fmt(inHand)} Icon={Landmark}
         valueClassName="text-white" iconClassName="text-[#7F77DD]"
         breakdown={[
+          { label: 'Collected', value: fmt(collected), valueClassName: 'text-[#C4C4C4]' },
+          ...(games > 0 ? [{ label: 'Games', value: `+${fmt(games)}`, valueClassName: 'text-[#39FF14]' }] : []),
+          ...(paidOut > 0 ? [{ label: 'Paid out', value: `−${fmt(paidOut)}`, valueClassName: 'text-[#E24B4A]' }] : []),
           { label: 'Expected', value: fmt(expected), valueClassName: 'text-[#378ADD]' },
           { label: cDiffLabel, value: cMatched ? '—' : fmt(Math.abs(diff)), valueClassName: cDiffColor },
         ]}

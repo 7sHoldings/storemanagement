@@ -4,34 +4,39 @@ import { useAuth } from '@/components/AuthProvider';
 import { fmt, today } from '@/lib/utils';
 import { computeBuyingPacing } from '@/lib/buying-pacing';
 
-// Self-contained "Buying vs Sales" pacing card. Fetches its own month-to-date
-// data so it can be dropped onto any owner page. Mirrors the numbers in the
-// Wednesday Telegram report.
-export default function BuyingPacingCard({ className = '' }) {
+// Self-contained "Buying vs Sales" pacing card. Fetches its own data so it can
+// be dropped onto any owner page. Pass the page's date range (`start`/`end`)
+// and store filter (`storeIds`) so the card follows what the user picked —
+// "Last Month" shows last month. With no range it falls back to the current
+// month to date, the same numbers as the Wednesday Telegram report.
+export default function BuyingPacingCard({ className = '', start, end, storeIds }) {
   const { supabase, isOwner } = useAuth();
   const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const storeKey = (storeIds || []).filter(Boolean).join(',');
 
   useEffect(() => {
-    if (!isOwner) { setLoading(false); return undefined; }
+    if (!isOwner) return undefined;
     let cancelled = false;
     (async () => {
       const td = today();
-      const monthStart = `${td.slice(0, 7)}-01`;
+      const from = start || `${td.slice(0, 7)}-01`;
+      // Nothing after today exists yet, so an unfinished period stops there.
+      const to = end && end < td ? end : td;
       const [{ data: stores }, { data: salesRows }, { data: purchaseRows }] = await Promise.all([
         supabase.from('stores').select('id, name, color, buying_target_pct, is_active').order('created_at'),
-        supabase.from('daily_sales').select('store_id, total_sales, net_sales').gte('date', monthStart).lte('date', td),
-        supabase.from('purchases').select('store_id, total_cost, unit_cost').gte('week_of', monthStart).lte('week_of', td),
+        supabase.from('daily_sales').select('store_id, total_sales, net_sales').gte('date', from).lte('date', to),
+        supabase.from('purchases').select('store_id, total_cost, unit_cost').gte('week_of', from).lte('week_of', to),
       ]);
       if (cancelled) return;
-      const activeStores = (stores || []).filter(s => s.is_active !== false);
-      setData(computeBuyingPacing({ stores: activeStores, salesRows, purchaseRows, today: td }));
-      setLoading(false);
-    })().catch((e) => { console.error('[buying-pacing]', e); if (!cancelled) setLoading(false); });
+      const activeStores = (stores || [])
+        .filter(s => s.is_active !== false)
+        .filter(s => !storeKey || storeKey.split(',').includes(s.id));
+      setData(computeBuyingPacing({ stores: activeStores, salesRows, purchaseRows, today: td, start, end }));
+    })().catch((e) => { console.error('[buying-pacing]', e); });
     return () => { cancelled = true; };
-  }, [supabase, isOwner]);
+  }, [supabase, isOwner, start, end, storeKey]);
 
-  if (!isOwner || loading || !data) return null;
+  if (!isOwner || !data) return null;
 
   const o = data.overall;
   const pctStr = (v) => (v == null ? '—' : `${v.toFixed(1)}%`);
@@ -44,8 +49,10 @@ export default function BuyingPacingCard({ className = '' }) {
     >
       <div className="mb-3 flex items-center justify-between gap-2 flex-wrap">
         <h3 className="text-[var(--text-primary)] text-[14px] font-bold">
-          🛒 Buying vs Sales · {data.monthName} 1–{data.daysElapsed}
-          <span className="text-[var(--text-muted)] font-normal text-[12px]"> ({data.daysElapsed} of {data.daysInMonth} days)</span>
+          🛒 Buying vs Sales · {data.label}
+          {data.inProgress && (
+            <span className="text-[var(--text-muted)] font-normal text-[12px]"> ({data.daysElapsed} of {data.daysInPeriod} days)</span>
+          )}
         </h3>
         <span className="text-[10px] font-bold rounded-full px-2 py-0.5 uppercase tracking-wide" style={{ background: c(o.overBudget) + '22', color: c(o.overBudget) }}>
           {o.overBudget ? 'Over target' : 'On target'}
@@ -53,14 +60,15 @@ export default function BuyingPacingCard({ className = '' }) {
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
-        <Stat label="Sales (MTD)" value={fmt(o.mtdSales)} />
-        <Stat label="Buying (MTD)" value={fmt(o.mtdBuying)} />
+        <Stat label="Sales" value={fmt(o.mtdSales)} />
+        <Stat label="Buying" value={fmt(o.mtdBuying)} />
         <Stat label="Buying % of sales" value={pctStr(o.pct)} sub={`target ≤ ${o.targetPct.toFixed(0)}% (${fmt(o.targetBuying)})`} color={c(o.overBudget)} />
         <Stat label={o.headroom >= 0 ? 'Left to spend' : 'Over target by'} value={fmt(Math.abs(o.headroom))} color={o.headroom >= 0 ? 'var(--color-success)' : 'var(--color-danger)'} />
       </div>
 
+      {data.inProgress && (
       <div className="rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3 text-[12px]">
-        <p className="text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-wider mb-1">Projected for all of {data.monthName} (current pace)</p>
+        <p className="text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-wider mb-1">Projected for the full period (current pace)</p>
         <p className="text-[var(--text-secondary)]">
           Sales ~<span className="text-[var(--text-primary)] font-semibold tabular-nums">{fmt(o.projSales)}</span>
           {' · '}Buying ~<span className="font-semibold tabular-nums" style={{ color: c(o.projOverBudget) }}>{fmt(o.projBuying)}</span>
@@ -69,6 +77,7 @@ export default function BuyingPacingCard({ className = '' }) {
           {o.projOverBudget && <span className="text-[var(--color-danger)] font-semibold"> — on pace to overspend, buy less this weekend</span>}
         </p>
       </div>
+      )}
 
       {data.perStore.length > 1 && (
         <div className="mt-3 space-y-1.5">

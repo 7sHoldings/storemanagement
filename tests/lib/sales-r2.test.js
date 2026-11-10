@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { effectiveR2, derivedR2, hasOverride, houseAccountTotal, cashReceived, shortOver } from '@/lib/sales-r2';
+import { effectiveR2, derivedR2, hasOverride, houseAccountTotal, cashReceived, houseOnR2, shortOver } from '@/lib/sales-r2';
 
 const R2 = { usesRegister2: true };
 const SINGLE = { usesRegister2: false };
@@ -143,5 +143,25 @@ describe('house accounts', () => {
   it('an R2 owner override still reconciles against received cash', () => {
     const row = { cash_sales: 100, r1_safe_drop: 230, r2_override: 200, r1_house_account_amount: 50 };
     expect(shortOver(row, R2)).toBe(20);
+  });
+
+  it('a credit rung on R2 (R1 card-only) is not shown as short', () => {
+    // Kerens, Oct 6: R1 rang no cash, R2 took 558.79 of which 260 was a
+    // house account, and 284 went in the safe → 14.79 short, not 274.79.
+    const row = { cash_sales: 0, r1_safe_drop: 284, r2_override: 558.79, house_accounts: [{ amount: 260 }] };
+    expect(houseOnR2(row)).toBe(260);
+    expect(shortOver(row, R2)).toBeCloseTo(14.79, 2);
+  });
+
+  it('splits a credit between R1 cash and R2 when R1 cash cannot cover it', () => {
+    // R1 rang 30 cash, credit 50 → 30 off R1, 20 off R2's 200. Drop 210.
+    const row = { cash_sales: 30, r1_safe_drop: 210, r2_override: 200, r1_house_account_amount: 50 };
+    expect(houseOnR2(row)).toBe(20);
+    expect(shortOver(row, R2)).toBe(-30);
+  });
+
+  it('a derived R2 is left alone — it came from the drop, without the credit', () => {
+    const row = { cash_sales: 0, r1_safe_drop: 284, house_accounts: [{ amount: 260 }] };
+    expect(shortOver(row, R2)).toBe(0);
   });
 });

@@ -178,8 +178,9 @@ export default function ExpensesPage() {
 
       const image_urls = [...existingReceipts, ...newUrls];
 
-      // Paid From only applies to payroll — every other category is bank-paid.
-      const paidFrom = form.category === 'payroll' ? (form.paid_from || 'bank') : 'bank';
+      // Any expense can be paid out of the collected cash (cash payroll,
+      // supplies bought with store cash, …); those come off Cash in Hand.
+      const paidFrom = form.paid_from === 'cash_collection' ? 'cash_collection' : 'bank';
 
       const payload = {
         store_id: form.store_id,
@@ -636,19 +637,17 @@ export default function ExpensesPage() {
             )}
             {errors.customCategory && <p className="text-[var(--color-danger)] text-[11px] mt-1">{errors.customCategory}</p>}
           </Field>
-          {form.category === 'payroll' && (
-            <Field label="Paid From">
-              <select value={form.paid_from} onChange={e => setForm({...form, paid_from: e.target.value})}>
-                <option value="bank">🏦 Bank / Card</option>
-                <option value="cash_collection">💵 Cash in Hand (collected cash)</option>
-              </select>
-              {form.paid_from === 'cash_collection' && (
-                <p className="text-[var(--color-warning)] text-[11px] mt-1">
-                  💵 This amount will be deducted from Cash in Hand on the Cash Collection page.
-                </p>
-              )}
-            </Field>
-          )}
+          <Field label="Paid From">
+            <select value={form.paid_from} onChange={e => setForm({...form, paid_from: e.target.value})}>
+              <option value="bank">🏦 Bank / Card</option>
+              <option value="cash_collection">💵 Cash in Hand (collected cash)</option>
+            </select>
+            {form.paid_from === 'cash_collection' && (
+              <p className="text-[var(--color-warning)] text-[11px] mt-1">
+                💵 This amount will be deducted from Cash in Hand on the Cash Collection page.
+              </p>
+            )}
+          </Field>
           <Field label="Amount">
             <input type="number" min="0" step="0.01" placeholder="0.00" value={form.amount}
               onChange={e => setForm({...form, amount: e.target.value.replace(/^-/, '')})}

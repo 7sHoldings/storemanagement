@@ -369,8 +369,8 @@ export default function PurchasesPage() {
     />
     <DateBar preset={preset} onPreset={selectPreset} startDate={range.start} endDate={range.end} onStartChange={setStart} onEndChange={setEnd} />
 
-    {/* Month-to-date buying vs sales pacing (independent of the date filter above) */}
-    <BuyingPacingCard className="mb-3" />
+    {/* Buying vs sales pacing — follows the date range and store picked above */}
+    <BuyingPacingCard className="mb-3" start={range.start} end={range.end} storeIds={pageStoreIds} />
 
     {/* Vendor filter + search */}
     <div className="bg-[var(--bg-elevated)] rounded-lg p-2.5 border border-[var(--border-subtle)] mb-3 flex gap-2 flex-wrap items-center">
