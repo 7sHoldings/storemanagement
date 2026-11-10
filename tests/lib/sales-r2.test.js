@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { effectiveR2, derivedR2, hasOverride, houseAccountTotal, cashReceived, houseOnR2, shortOver } from '@/lib/sales-r2';
+import { effectiveR2, derivedR2, basketR2, hasOverride, houseAccountTotal, cashReceived, houseOnR2, shortOver } from '@/lib/sales-r2';
 
 const R2 = { usesRegister2: true };
 const SINGLE = { usesRegister2: false };
@@ -45,9 +45,9 @@ describe('hasOverride', () => {
 });
 
 describe('effectiveR2 at a two-register store', () => {
-  it('uses the safe-drop rule when no override is set', () => {
+  it('falls back to the safe-drop rule with no override and no basket figure', () => {
     expect(effectiveR2({ r1_safe_drop: 300, cash_sales: 100 }, R2))
-      .toEqual({ amount: 200, estimated: true, overridden: false });
+      .toMatchObject({ amount: 200, estimated: true, overridden: false });
   });
 
   it('marks a derived figure as estimated so reports can flag it', () => {
@@ -56,25 +56,25 @@ describe('effectiveR2 at a two-register store', () => {
 
   it('does not call a zero R2 an estimate — there is nothing inferred', () => {
     expect(effectiveR2({ r1_safe_drop: 100, cash_sales: 100 }, R2))
-      .toEqual({ amount: 0, estimated: false, overridden: false });
+      .toMatchObject({ amount: 0, estimated: false, overridden: false });
   });
 
   it("prefers the owner's correction over the derived figure", () => {
     expect(effectiveR2({ r1_safe_drop: 300, cash_sales: 100, r2_override: '250' }, R2))
-      .toEqual({ amount: 250, estimated: false, overridden: true });
+      .toMatchObject({ amount: 250, estimated: false, overridden: true });
   });
 
   it('honours an override of zero instead of falling back to the rule', () => {
     // Guards the bug this whole change exists to prevent: if 0 were treated
     // as "unset", an owner could never correct a day down to nothing.
     expect(effectiveR2({ r1_safe_drop: 300, cash_sales: 100, r2_override: 0 }, R2))
-      .toEqual({ amount: 0, estimated: false, overridden: true });
+      .toMatchObject({ amount: 0, estimated: false, overridden: true });
   });
 
   it('returns to the derived figure when the override is cleared', () => {
     const cleared = { r1_safe_drop: 300, cash_sales: 100, r2_override: '' };
     expect(effectiveR2(cleared, R2))
-      .toEqual({ amount: 200, estimated: true, overridden: false });
+      .toMatchObject({ amount: 200, estimated: true, overridden: false });
   });
 
   it('clamps a negative override at zero', () => {
@@ -91,7 +91,7 @@ describe('effectiveR2 at a two-register store', () => {
 describe('effectiveR2 at a single-register store', () => {
   it('ignores the safe drop entirely — there is no second till', () => {
     expect(effectiveR2({ r1_safe_drop: 300, cash_sales: 100 }, SINGLE))
-      .toEqual({ amount: 0, estimated: false, overridden: false });
+      .toMatchObject({ amount: 0, estimated: false, overridden: false });
   });
 
   it('is never marked estimated, since nothing is being inferred', () => {
@@ -163,5 +163,40 @@ describe('house accounts', () => {
   it('a derived R2 is left alone — it came from the drop, without the credit', () => {
     const row = { cash_sales: 0, r1_safe_drop: 284, house_accounts: [{ amount: 260 }] };
     expect(shortOver(row, R2)).toBe(0);
+  });
+});
+
+describe('R2 from the canceled basket (Bells, Kerens)', () => {
+  it('books the canceled basket as R2 sales', () => {
+    expect(basketR2({ r1_canceled_basket: '127.77' })).toBe(127.77);
+    expect(effectiveR2({ r1_safe_drop: 144, cash_sales: 93.34, r1_canceled_basket: 127.77 }, R2))
+      .toEqual({ amount: 127.77, estimated: false, overridden: false, source: 'basket' });
+  });
+
+  it('Bells, Nov 6: cash that never reached the safe now shows as short', () => {
+    // R1 cash 93.34 + R2 (basket) 127.77 = 221.11 expected, 144 dropped.
+    const row = { cash_sales: 93.34, r1_safe_drop: 144, r1_canceled_basket: 127.77 };
+    expect(shortOver(row, R2)).toBeCloseTo(77.11, 2);
+  });
+
+  it('Kerens, Nov 6: basket matches the drop → essentially even', () => {
+    const row = { cash_sales: 0, r1_safe_drop: 428, r1_canceled_basket: 428.6 };
+    expect(shortOver(row, R2)).toBeCloseTo(0.6, 2);
+  });
+
+  it("an owner's override still beats the basket figure", () => {
+    const row = { cash_sales: 0, r1_safe_drop: 300, r1_canceled_basket: 250, r2_override: 300 };
+    expect(effectiveR2(row, R2).source).toBe('override');
+    expect(shortOver(row, R2)).toBe(0);
+  });
+
+  it('a house account rung on R2 comes out of the basket cash', () => {
+    const row = { cash_sales: 0, r1_safe_drop: 284, r1_canceled_basket: 558.44, house_accounts: [{ amount: 260 }] };
+    expect(shortOver(row, R2)).toBeCloseTo(14.44, 2);
+  });
+
+  it('a day with no safe drop recorded shows the whole cash as short', () => {
+    const row = { cash_sales: 0, r1_safe_drop: 0, r1_canceled_basket: 120.96 };
+    expect(shortOver(row, R2)).toBeCloseTo(120.96, 2);
   });
 });
