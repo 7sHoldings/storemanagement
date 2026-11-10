@@ -8,7 +8,7 @@ import { fmt, fK, dayLabel, today, downloadCSV } from '@/lib/utils';
 import { logActivity, fmtMoney, shortDate } from '@/lib/activity';
 import { uploadReceipt, compressImage } from '@/lib/storage';
 import { clampShiftHours } from '@/lib/shift-hours';
-import { effectiveR2, derivedR2 as deriveR2, hasOverride, shortOver as calcShortOver } from '@/lib/sales-r2';
+import { effectiveR2, hasOverride, shortOver as calcShortOver } from '@/lib/sales-r2';
 import { missingColumn } from '@/lib/postgrest-errors';
 import NRSSyncModal from '@/components/NRSSyncModal';
 import DailySalesHeader from '@/components/daily-sales/DailySalesHeader';
@@ -551,7 +551,7 @@ export default function SalesPage() {
       // employee's simple save: they never see the field, and sending their
       // blank would wipe whatever the NRS sync had already filled in.
       ...(simpleSave ? {} : { non_tax_sales: num(form.non_tax_sales) }),
-      // An owner's hand correction. Blank means "work it out from the drop",
+      // An owner's hand correction. Blank means "work it out" (canceled basket, else the drop),
       // which is the normal case. Only owners send this key at all, so an
       // employee's entry can never quietly clear a correction.
       ...(isOwner
@@ -887,7 +887,11 @@ export default function SalesPage() {
   // The form's house accounts ride along so the rule can take the credit
   // out of POS cash, exactly as the trigger does.
   const formWithHA    = { ...form, r1_house_account_amount: r1HouseAmount };
-  const derivedR2     = deriveR2(formWithHA);
+  // Worked-out R2 when the owner hasn't typed one: the canceled basket,
+  // or the safe-drop rule on a day with no basket figure yet.
+  const autoR2        = effectiveR2({ ...formWithHA, r2_override: '' }, { usesRegister2: currentUsesReg2 });
+  const derivedR2     = autoR2.amount;
+  const r2FromBasket  = autoR2.source === 'basket';
   const hasR2Override = currentUsesReg2 && hasOverride(form.r2_override);
   const r2Net         = effectiveR2(formWithHA, { usesRegister2: currentUsesReg2 }).amount;
   const r2Cash        = currentUsesReg2 ? r2Net : 0;
@@ -1249,9 +1253,10 @@ export default function SalesPage() {
         {activeTab === 'r2' && usesReg2 && (
           <div>
             <div className="bg-sw-blueD/40 border border-sw-blue/20 rounded-lg p-2.5 mb-3 text-[11px] text-sw-sub">
-              R2 is the cash-only register and its sales are now worked out
-              for you: whatever was dropped above the cash R1 rang came from
-              R2.{' '}
+              R2 is the cash-only register and its sales are worked out for
+              you from the day&apos;s canceled basket in NRS (every R2 sale is
+              rung and canceled). If there is no canceled basket yet, it falls
+              back to the safe drop minus the cash R1 rang.{' '}
               {isOwner
                 ? 'Leave the box below empty to keep that figure, or type a number to correct the day by hand.'
                 : 'Nothing to type here — just upload the R2 receipt photo.'}
@@ -1285,8 +1290,10 @@ export default function SalesPage() {
                         <>
                           Worked out as{' '}
                           <span className="font-mono text-sw-text">{fmt(derivedR2)}</span>
-                          {' '}— safe drop {fmt(num(form.r1_safe_drop))} − R1 cash {fmt(num(form.cash_sales))}.
-                          Type a number only to correct it.
+                          {r2FromBasket
+                            ? <>{' '}— canceled basket {fmt(num(form.r1_canceled_basket))}.</>
+                            : <>{' '}— safe drop {fmt(num(form.r1_safe_drop))} − R1 cash {fmt(num(form.cash_sales))} (no canceled basket yet).</>}
+                          {' '}Type a number only to correct it.
                         </>
                       )}
                     </div>
@@ -1297,10 +1304,12 @@ export default function SalesPage() {
                       {fmt(r2Net)}
                     </div>
                     <div className="mt-1 text-[11px] text-sw-sub">
-                      Safe drop {fmt(num(form.r1_safe_drop))} − R1 cash {fmt(num(form.cash_sales))}
-                      {num(form.r1_safe_drop) < num(form.cash_sales)
-                        ? ' — drop is under R1 cash, so R2 is counted as zero and the shortfall shows as short.'
-                        : ''}
+                      {r2FromBasket
+                        ? <>Canceled basket {fmt(num(form.r1_canceled_basket))}</>
+                        : <>Safe drop {fmt(num(form.r1_safe_drop))} − R1 cash {fmt(num(form.cash_sales))}
+                          {num(form.r1_safe_drop) < num(form.cash_sales)
+                            ? ' — drop is under R1 cash, so R2 is counted as zero and the shortfall shows as short.'
+                            : ''}</>}
                     </div>
                   </>
                 )}

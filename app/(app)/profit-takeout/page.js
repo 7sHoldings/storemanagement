@@ -17,6 +17,7 @@ export default function ProfitTakeoutPage() {
   const [profitMetrics, setProfitMetrics] = useState({ revenue: 0, purchases: 0, expenses: 0 });
   const [salesCashCollected, setSalesCashCollected] = useState(0);
   const [gameCashCollected, setGameCashCollected] = useState(0);
+  const [cashPaidOut, setCashPaidOut] = useState(0);
   const [modal, setModal] = useState(null);   // 'add' | 'edit' | null
   const [editRow, setEditRow] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -28,13 +29,16 @@ export default function ProfitTakeoutPage() {
 
   const load = async () => {
     setLoading(true);
-    const [{ data: tk }, { data: sales }, { data: purch }, { data: exps }, { data: salesCash }, { data: gameCash }] = await Promise.all([
+    const [{ data: tk }, { data: sales }, { data: purch }, { data: exps }, { data: salesCash }, { data: gameCash }, { data: paidOut }] = await Promise.all([
       supabase.from('profit_takeouts').select('*').order('date', { ascending: false }),
       supabase.from('daily_sales').select('total_sales, gross_sales, net_sales'),
       supabase.from('purchases').select('total_cost, unit_cost'),
       supabase.from('expenses').select('amount'),
       supabase.from('cash_collections').select('cash_collected'),
       supabase.from('game_machine_collections').select('amount'),
+      // Expenses paid out of the collected cash (e.g. cash payroll) left the
+      // sales cash pool, so they come off what is available to take out.
+      supabase.from('expenses').select('amount').eq('paid_from', 'cash_collection'),
     ]);
     setRows(tk || []);
     setProfitMetrics({
@@ -44,6 +48,7 @@ export default function ProfitTakeoutPage() {
     });
     setSalesCashCollected((salesCash || []).reduce((s, r) => s + (r.cash_collected || 0), 0));
     setGameCashCollected((gameCash || []).reduce((s, r) => s + (r.amount || 0), 0));
+    setCashPaidOut((paidOut || []).reduce((s, r) => s + (r.amount || 0), 0));
     setLoading(false);
   };
   useEffect(() => { if (isOwner) load(); }, [isOwner]);
@@ -72,10 +77,10 @@ export default function ProfitTakeoutPage() {
     // Per-source cash availability — cumulative pools after all take-outs.
     const salesTaken = rows.filter(r => (r.source || 'sales') === 'sales').reduce((s, r) => s + (r.amount || 0), 0);
     const gameTaken = rows.filter(r => r.source === 'game_machines').reduce((s, r) => s + (r.amount || 0), 0);
-    const salesCashAvail = salesCashCollected - salesTaken;
+    const salesCashAvail = salesCashCollected - salesTaken - cashPaidOut;
     const gameCashAvail = gameCashCollected - gameTaken;
     return { totalCash, totalCard, totalRange, totalAllTime, netProfit, available, thisMonth, salesTaken, gameTaken, salesCashAvail, gameCashAvail };
-  }, [rows, filteredRows, profitMetrics, salesCashCollected, gameCashCollected]);
+  }, [rows, filteredRows, profitMetrics, salesCashCollected, gameCashCollected, cashPaidOut]);
 
   const openAdd = () => { setEditRow(null); setForm({ ...blank }); setModal('add'); };
   const openEdit = (r) => {
@@ -187,7 +192,7 @@ export default function ProfitTakeoutPage() {
         <V2StatCard
           label="Cash Available — Sales"
           value={fmt(stats.salesCashAvail)}
-          sub={`${fmt(salesCashCollected)} collected · ${fmt(stats.salesTaken)} taken out`}
+          sub={`${fmt(salesCashCollected)} collected · ${fmt(stats.salesTaken)} taken out${cashPaidOut > 0 ? ` · ${fmt(cashPaidOut)} paid out (cash payroll)` : ''}`}
           icon="💵"
           variant={stats.salesCashAvail < 0 ? 'danger' : 'info'}
         />

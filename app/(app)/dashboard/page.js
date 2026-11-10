@@ -104,6 +104,14 @@ export default function DashboardPage() {
         if (storeId) gmQ = gmQ.eq('store_id', storeId);
         const { data: gmRows } = await gmQ;
 
+        // Expenses paid out of the collected cash (e.g. cash payroll) —
+        // deducted from Cash in Hand, same as the Cash Collection page.
+        let paidOutQ = supabase.from('expenses').select('amount, store_id')
+          .eq('paid_from', 'cash_collection')
+          .gte('expense_date', range.start).lte('expense_date', range.end);
+        if (storeId) paidOutQ = paidOutQ.eq('store_id', storeId);
+        const { data: paidOutRows } = await paidOutQ;
+
         const totalGross = sales?.reduce((s, r) => s + (r.gross_sales ?? r.total_sales ?? 0), 0) || 0;
         // Cash counted = what was actually dropped in the safe across both
         // registers. Falls back to cash_sales + register2_cash for legacy
@@ -127,7 +135,11 @@ export default function DashboardPage() {
         // single day was reporting losses that never happened.
         const totalExp = proratedExpenses(exps, range.start, range.end);
         const totalGameMachine = gmRows?.reduce((s, r) => s + (r.amount || 0), 0) || 0;
-        const cashInHand = cashRows?.reduce((s, r) => s + (r.cash_collected || 0), 0) || 0;
+        const cashCollected = cashRows?.reduce((s, r) => s + (r.cash_collected || 0), 0) || 0;
+        const cashPaidOut = paidOutRows?.reduce((s, r) => s + (r.amount || 0), 0) || 0;
+        // Same formula as the Cash Collection page and the P&L Report:
+        // collected sales cash + game-machine cash − cash paid out.
+        const cashInHand = cashCollected + totalGameMachine - cashPaidOut;
         // Net Profit formula mirrors the P&L Report: sales revenue plus
         // game-machine income, less purchases and expenses. Margin uses total
         // income (revenue + games) as the denominator, same as the P&L.
@@ -135,7 +147,7 @@ export default function DashboardPage() {
         const netProfit = totalRevenue + totalGameMachine - totalPurch - totalExp;
         const margin = totalIncome > 0 ? (netProfit / totalIncome * 100) : 0;
 
-        setStats({ totalGross, totalNet, totalNonTax, totalCash, totalCard, totalShortOver, totalTax, totalPurch, totalExp, totalGameMachine, totalIncome, cashInHand, netProfit, margin });
+        setStats({ totalGross, totalNet, totalNonTax, totalCash, totalCard, totalShortOver, totalTax, totalPurch, totalExp, totalGameMachine, totalIncome, cashInHand, cashCollected, cashPaidOut, netProfit, margin });
 
         if (storeData?.length && !storeId) {
           const perf = storeData.map(st => {
@@ -377,8 +389,8 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* 5. Buying vs Sales pacing (month-to-date — independent of the filters above) */}
-      <BuyingPacingCard className="mb-4" />
+      {/* 5. Buying vs Sales pacing — follows the date range and store picked above */}
+      <BuyingPacingCard className="mb-4" start={range.start} end={range.end} storeIds={storeId ? [storeId] : []} />
 
       {/* 6. Attention needed */}
       {alerts.length > 0 ? (
