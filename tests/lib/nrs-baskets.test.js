@@ -381,4 +381,38 @@ describe('extractDayTotals — Register 2 and tax', () => {
     } };
     expect(extractDayTotals(noTax, { hasRegister2: true }).r2_sales_cents).toBe(5000);
   });
+
+  // Bells, 2026-11-06: R1 cash 93.34, R2 rang 127.77 (rung and cancelled),
+  // only 144.00 dropped. The feed used to quote R2 from the drop — 50.66,
+  // and 0 all day until the drop was made.
+  const nov6 = { data: {
+    byday: { baskets: 20, sales: 82459 },
+    payamts: { total: 87660, cash: 9334, credit_debit: 78326 },
+    collections: { 'Tax': { amt: 5201 } },
+    drops: { amt: 14400 },
+    cancelbasketinfo: [{ amount: 5000 }, { amount: 7777 }],
+  } };
+
+  it('takes R2 from the cancelled baskets at a two-register store', () => {
+    const t = extractDayTotals(nov6, { hasRegister2: true });
+    expect(t.r2_sales_cents).toBe(12777);
+    expect(t.cancelled_cents).toBe(12777);
+  });
+
+  it('knows R2 before the safe drop is made', () => {
+    const beforeDrop = { data: { ...nov6.data, drops: { amt: 0 } } };
+    expect(extractDayTotals(beforeDrop, { hasRegister2: true }).r2_sales_cents).toBe(12777);
+  });
+
+  it('counts R2 in the cash figure (it is a cash-only till)', () => {
+    const t = extractDayTotals(nov6, { hasRegister2: true });
+    expect(t.r1_cash_cents).toBe(9334);
+    expect(t.cash_cents).toBe(9334 + 12777);
+  });
+
+  it('cancelled baskets are not R2 at a single-register store', () => {
+    const t = extractDayTotals(nov6);
+    expect(t.r2_sales_cents).toBe(0);
+    expect(t.cash_cents).toBe(9334);
+  });
 });
