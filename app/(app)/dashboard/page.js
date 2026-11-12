@@ -112,6 +112,15 @@ export default function DashboardPage() {
         if (storeId) paidOutQ = paidOutQ.eq('store_id', storeId);
         const { data: paidOutRows } = await paidOutQ;
 
+        // Cash pulled out on the Profit Take Out page left the cash in hand.
+        // Profit take-outs are company-wide (no store), so only the All Stores view deducts them.
+        let takeoutRows = [];
+        if (!storeId) {
+          const { data } = await supabase.from('profit_takeouts').select('cash_amount')
+            .gte('date', range.start).lte('date', range.end);
+          takeoutRows = data || [];
+        }
+
         const totalGross = sales?.reduce((s, r) => s + (r.gross_sales ?? r.total_sales ?? 0), 0) || 0;
         // Cash counted = what was actually dropped in the safe across both
         // registers. Falls back to cash_sales + register2_cash for legacy
@@ -139,7 +148,8 @@ export default function DashboardPage() {
         const cashPaidOut = paidOutRows?.reduce((s, r) => s + (r.amount || 0), 0) || 0;
         // Same formula as the Cash Collection page and the P&L Report:
         // collected sales cash + game-machine cash − cash paid out.
-        const cashInHand = cashCollected + totalGameMachine - cashPaidOut;
+        const cashTakenOut = takeoutRows.reduce((s, r) => s + (r.cash_amount || 0), 0);
+        const cashInHand = cashCollected + totalGameMachine - cashPaidOut - cashTakenOut;
         // Net Profit formula mirrors the P&L Report: sales revenue plus
         // game-machine income, less purchases and expenses. Margin uses total
         // income (revenue + games) as the denominator, same as the P&L.
@@ -147,7 +157,7 @@ export default function DashboardPage() {
         const netProfit = totalRevenue + totalGameMachine - totalPurch - totalExp;
         const margin = totalIncome > 0 ? (netProfit / totalIncome * 100) : 0;
 
-        setStats({ totalGross, totalNet, totalNonTax, totalCash, totalCard, totalShortOver, totalTax, totalPurch, totalExp, totalGameMachine, totalIncome, cashInHand, cashCollected, cashPaidOut, netProfit, margin });
+        setStats({ totalGross, totalNet, totalNonTax, totalCash, totalCard, totalShortOver, totalTax, totalPurch, totalExp, totalGameMachine, totalIncome, cashInHand, cashCollected, cashPaidOut, cashTakenOut, netProfit, margin });
 
         if (storeData?.length && !storeId) {
           const perf = storeData.map(st => {

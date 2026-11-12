@@ -21,6 +21,7 @@ export default function KpiGrid({ stats }) {
   const collected = stats.cashCollected ?? stats.cashInHand ?? 0;
   const inHand = stats.cashInHand || 0;
   const paidOut = stats.cashPaidOut || 0;
+  const takenOut = stats.cashTakenOut || 0;
   const games = stats.totalGameMachine || 0;
   const diff = collected - expected;
   const cMatched = Math.abs(diff) < 0.01;
@@ -57,6 +58,7 @@ export default function KpiGrid({ stats }) {
           { label: 'Collected', value: fmt(collected), valueClassName: 'text-[#C4C4C4]' },
           ...(games > 0 ? [{ label: 'Games', value: `+${fmt(games)}`, valueClassName: 'text-[#39FF14]' }] : []),
           ...(paidOut > 0 ? [{ label: 'Paid out', value: `−${fmt(paidOut)}`, valueClassName: 'text-[#E24B4A]' }] : []),
+          ...(takenOut > 0 ? [{ label: 'Taken out', value: `−${fmt(takenOut)}`, valueClassName: 'text-[#E24B4A]' }] : []),
           { label: 'Expected', value: fmt(expected), valueClassName: 'text-[#378ADD]' },
           { label: cDiffLabel, value: cMatched ? '—' : fmt(Math.abs(diff)), valueClassName: cDiffColor },
         ]}

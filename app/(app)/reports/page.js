@@ -64,6 +64,7 @@ export default function ReportsPage() {
           { data: cashPrev },
           { data: gmCur },
           { data: gmPrev },
+          { data: takeoutsCur },
         ] = await Promise.all([
           scope(supabase.from('daily_sales').select('*').gte('date', range.start).lte('date', range.end)),
           scope(supabase.from('daily_sales').select('date, store_id, total_sales, cash_sales, card_sales, r1_safe_drop, r2_safe_drop').gte('date', prev.start).lte('date', prev.end)),
@@ -75,6 +76,11 @@ export default function ReportsPage() {
           scope(supabase.from('cash_collections').select('store_id, date, cash_collected').gte('date', prev.start).lte('date', prev.end)),
           scope(supabase.from('game_machine_collections').select('store_id, amount').gte('date', range.start).lte('date', range.end)),
           scope(supabase.from('game_machine_collections').select('amount').gte('date', prev.start).lte('date', prev.end)),
+          // Profit take-outs are company-wide (no store), so they are only
+          // deducted from Cash in Hand in the All Stores view.
+          filterStoreId
+            ? Promise.resolve({ data: [] })
+            : supabase.from('profit_takeouts').select('cash_amount').gte('date', range.start).lte('date', range.end),
         ]);
 
         setRawSales(salesCur || []);
@@ -108,6 +114,8 @@ export default function ReportsPage() {
         // are already counted in totalExpenses for the P&L.
         const cashPaidOut = (expCur || []).reduce((s, r) =>
           s + (r.paid_from === 'cash_collection' && r.expense_date && r.expense_date >= range.start && r.expense_date <= range.end ? (r.amount || 0) : 0), 0);
+        // Cash pulled out on the Profit Take Out page left the cash in hand.
+        const cashTakenOut = (takeoutsCur || []).reduce((s, r) => s + (r.cash_amount || 0), 0);
         const grossProfit = totalRevenue - totalPurchases;
         const netProfit = totalRevenue + totalGameMachine - totalPurchases - totalExpenses;
         const totalIncome = totalRevenue + totalGameMachine;
@@ -130,7 +138,7 @@ export default function ReportsPage() {
         setSummary({
           totalGross, totalRevenue, totalGameMachine, totalIncome,
           totalCash, totalCard, totalCheck, totalTax,
-          totalPurchases, totalExpenses, cashPaidOut,
+          totalPurchases, totalExpenses, cashPaidOut, cashTakenOut,
           grossProfit, netProfit, margin, cashPct, cardPct, checkPct,
           revenueChange: prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue) * 100 : null,
         });
@@ -674,7 +682,7 @@ export default function ReportsPage() {
               <V2StatCard
                 className="h-full"
                 label="Cash in Hand"
-                value={fmt((cashRecon?.collected || 0) + (summary.totalGameMachine || 0) - (summary.cashPaidOut || 0))}
+                value={fmt((cashRecon?.collected || 0) + (summary.totalGameMachine || 0) - (summary.cashPaidOut || 0) - (summary.cashTakenOut || 0))}
                 variant="info"
                 icon="🏦"
                 sub={
@@ -682,6 +690,7 @@ export default function ReportsPage() {
                     { label: '💵 Sales', value: fmt(cashRecon?.collected || 0), color: 'text-[var(--text-primary)]' },
                     { label: '🎮 Games', value: fmt(summary.totalGameMachine || 0), color: 'text-[var(--text-primary)]' },
                     ...(summary.cashPaidOut > 0 ? [{ label: '📋 Paid Out', value: `−${fmt(summary.cashPaidOut)}`, color: 'text-[var(--color-danger)]' }] : []),
+                    ...(summary.cashTakenOut > 0 ? [{ label: '💸 Taken Out', value: `−${fmt(summary.cashTakenOut)}`, color: 'text-[var(--color-danger)]' }] : []),
                   ]} />
                 }
               />

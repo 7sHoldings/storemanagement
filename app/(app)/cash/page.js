@@ -39,6 +39,7 @@ export default function CashPage() {
   const [stores, setStores] = useState([]);
   const [gameMachineCash, setGameMachineCash] = useState(0);
   const [cashPaidOut, setCashPaidOut] = useState(0);
+  const [cashTakenOut, setCashTakenOut] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [modal, setModal] = useState(null);
@@ -110,6 +111,15 @@ export default function CashPage() {
       const { data: cash } = await cashQ;
       const { data: gm } = await gmQ;
       const { data: paidOut } = await paidOutQ;
+      // Cash pulled out on the Profit Take Out page left the cash in hand.
+      // Profit take-outs are company-wide (no store), so only the All Stores view deducts them.
+      if (storeFilter.length) {
+        setCashTakenOut(0);
+      } else {
+        const { data: takeouts } = await supabase.from('profit_takeouts')
+          .select('cash_amount').gte('date', range.start).lte('date', range.end);
+        setCashTakenOut((takeouts || []).reduce((s, r) => s + (r.cash_amount || 0), 0));
+      }
       setGameMachineCash((gm || []).reduce((s, r) => s + (r.amount || 0), 0));
       setCashPaidOut((paidOut || []).reduce((s, r) => s + (r.amount || 0), 0));
 
@@ -388,7 +398,7 @@ export default function CashPage() {
           <V2StatCard label="Expected Cash" value={fmt(totalExpected)} sub="From sales" icon="💵" variant="warning" />
           <V2StatCard
             label="Cash in Hand"
-            value={fmt(totalCashInHand + gameMachineCash - cashPaidOut)}
+            value={fmt(totalCashInHand + gameMachineCash - cashPaidOut - cashTakenOut)}
             icon="💰"
             variant="info"
             sub={
@@ -405,6 +415,12 @@ export default function CashPage() {
                   <span className="flex items-baseline justify-between gap-2">
                     <span className="text-[var(--text-muted)]">📋 Paid Out</span>
                     <span className="font-semibold tabular-nums text-[var(--color-danger)]">−{fmt(cashPaidOut)}</span>
+                  </span>
+                )}
+                {cashTakenOut > 0 && (
+                  <span className="flex items-baseline justify-between gap-2">
+                    <span className="text-[var(--text-muted)]">💸 Taken Out</span>
+                    <span className="font-semibold tabular-nums text-[var(--color-danger)]">−{fmt(cashTakenOut)}</span>
                   </span>
                 )}
               </span>
