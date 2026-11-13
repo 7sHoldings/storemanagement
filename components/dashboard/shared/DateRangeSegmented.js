@@ -92,7 +92,7 @@ export default function DateRangeSegmented({ preset, onPreset, startDate, endDat
             {preset && preset !== 'custom' && (
               <button type="button" onClick={() => { onPreset('custom'); setOpen(false); }}
                 className="mt-2.5 w-full border-t border-[#E4E4E7] pt-2.5 text-left text-[12px] font-medium text-[#71717A] hover:text-[#3F3F46]">
-                ✕ Clear preset
+                Clear preset
               </button>
             )}
           </div>

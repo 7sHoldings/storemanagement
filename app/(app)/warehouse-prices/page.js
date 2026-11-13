@@ -80,7 +80,7 @@ function UploadPanel({ onIngested }) {
 
   return (
     <div className="rounded-xl border border-sw-border bg-sw-card p-4">
-      <h3 className="text-sw-text text-[15px] font-bold mb-1">Upload invoices</h3>
+      <h3 className="text-sw-text text-[15px] font-semibold mb-1">Upload invoices</h3>
       <p className="text-sw-sub text-[12px] mb-3">
         Drop one or many PDFs. We auto-extract line items and save them to your price history.
         Known layouts (Rave Distribution, NEPA Dallas) parse instantly; unknown layouts are handled by Claude.
@@ -175,7 +175,7 @@ function SearchPanel() {
 
   return (
     <div className="rounded-xl border border-sw-border bg-sw-card p-4">
-      <h3 className="text-sw-text text-[15px] font-bold mb-1">Find best price</h3>
+      <h3 className="text-sw-text text-[15px] font-semibold mb-1">Find best price</h3>
       <p className="text-sw-sub text-[12px] mb-3">
         Search by product name, brand, variant, or UPC. Results show every warehouse that's carried the item, cheapest first.
       </p>
@@ -224,7 +224,7 @@ function SearchPanel() {
                             ? 'text-sw-text border border-sw-border/60 bg-sw-card2/50'
                             : 'text-sw-sub border border-transparent'}`}>
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className={`text-[12px] font-bold shrink-0
+                        <span className={`text-[12px] font-semibold shrink-0
                           ${i === 0 ? 'text-sw-blue' : i === 1 ? 'text-sw-text' : 'text-sw-dim'}`}>
                           {rank}
                         </span>
@@ -244,7 +244,7 @@ function SearchPanel() {
                           </span>
                         )}
                         <span className="text-sw-dim text-[12px]">last {fmtDate(o.last_bought)}</span>
-                        <span className={`font-bold ${i === 0 ? 'text-sw-blue' : 'text-sw-text'}`}>{fmtMoney(o.unit_price)}</span>
+                        <span className={`font-semibold ${i === 0 ? 'text-sw-blue' : 'text-sw-text'}`}>{fmtMoney(o.unit_price)}</span>
                       </div>
                     </div>
                   );
@@ -299,7 +299,7 @@ function AllProductsTable({ refreshToken = 0 }) {
     <div className="mt-6 rounded-xl border border-sw-border bg-sw-card p-4">
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
         <div className="flex-1 min-w-[260px]">
-          <h3 className="text-sw-text text-[15px] font-bold mb-2">All products</h3>
+          <h3 className="text-sw-text text-[15px] font-semibold mb-2">All products</h3>
           <input
             type="text"
             value={q}

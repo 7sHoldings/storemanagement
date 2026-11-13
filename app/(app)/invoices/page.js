@@ -141,7 +141,7 @@ export default function InvoicesPage() {
 
   return (
     <div>
-      <PageHeader title="🧾 Invoices" subtitle={`${invoices.length} total · ${vendorGroups.length} vendors`} />
+      <PageHeader title="Invoices" subtitle={`${invoices.length} total · ${vendorGroups.length} vendors`} />
 
       {loadError && <Alert type="error">{loadError}</Alert>}
 
@@ -172,9 +172,9 @@ export default function InvoicesPage() {
         {selected.size > 0 && (
           <button
             onClick={() => setConfirmBulk(true)}
-            className="text-[var(--color-danger)] text-[12px] font-bold border border-sw-red/40 rounded px-3 py-1.5 bg-sw-redD"
+            className="text-[var(--color-danger)] text-[12px] font-semibold border border-sw-red/40 rounded px-3 py-1.5 bg-sw-redD"
           >
-            🗑 Delete Selected ({selected.size})
+            Delete Selected ({selected.size})
           </button>
         )}
       </div>
@@ -193,7 +193,7 @@ export default function InvoicesPage() {
                 className={`flex-shrink-0 md:flex-shrink text-left flex items-center justify-between gap-2 px-3 py-2 rounded-lg border min-h-[44px]
                   ${vendorFilter.length === 0 ? 'bg-sw-blueD text-[var(--color-info)] border-sw-blue/30' : 'bg-[var(--bg-card)] text-[var(--text-primary)] border-[var(--border-subtle)] hover:border-sw-blue/30'}`}
               >
-                <span className="text-[12px] font-semibold truncate">📁 All Vendors</span>
+                <span className="text-[12px] font-semibold truncate">All Vendors</span>
                 <span className="text-[12px] text-[var(--text-secondary)] flex-shrink-0">{invoices.length}</span>
               </button>
               {vendorGroups.map(g => {
@@ -205,7 +205,7 @@ export default function InvoicesPage() {
                     className={`flex-shrink-0 md:flex-shrink text-left flex items-center justify-between gap-2 px-3 py-2 rounded-lg border min-h-[44px]
                       ${active ? 'bg-sw-blueD text-[var(--color-info)] border-sw-blue/30' : 'bg-[var(--bg-card)] text-[var(--text-primary)] border-[var(--border-subtle)] hover:border-sw-blue/30'}`}
                   >
-                    <span className="text-[12px] font-semibold truncate">📁 {g.name}</span>
+                    <span className="text-[12px] font-semibold truncate">{g.name}</span>
                     <span className="text-[12px] text-[var(--text-secondary)] flex-shrink-0">{g.list.length}</span>
                   </button>
                 );
@@ -267,10 +267,10 @@ export default function InvoicesPage() {
                         )}
                       </div>
                       <div className="p-2 space-y-0.5">
-                        <div className="text-[var(--text-primary)] text-[12px] font-bold truncate">{inv.vendor_name || 'Unknown'}</div>
+                        <div className="text-[var(--text-primary)] text-[12px] font-semibold truncate">{inv.vendor_name || 'Unknown'}</div>
                         <div className="text-[var(--text-muted)] text-[12px] truncate">{inv.stores?.name || '—'}</div>
                         <div className="text-[var(--text-secondary)] text-[12px]">{utilDate(inv.date)}</div>
-                        <div className="text-[var(--color-warning)] text-[12px] font-mono font-bold">{fmtMoney(inv.amount)}</div>
+                        <div className="text-[var(--color-warning)] text-[12px] font-mono font-semibold">{fmtMoney(inv.amount)}</div>
                       </div>
                     </button>
                     <button

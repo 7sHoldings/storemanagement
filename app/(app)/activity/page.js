@@ -85,7 +85,7 @@ export default function ActivityPage() {
   return (
     <div>
       <PageHeader
-        title="🕐 Activity Log"
+        title="Activity Log"
         subtitle={`${rows.length} events · ${counts.create} created · ${counts.update} updated · ${counts.delete} deleted`}
       />
 
@@ -138,12 +138,12 @@ export default function ActivityPage() {
             return (
               <div key={r.id} className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] p-3">
                 <div className="flex items-start gap-3">
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${style.bg} ${style.text} text-base font-bold flex-shrink-0`}>
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${style.bg} ${style.text} text-base font-semibold flex-shrink-0`}>
                     {style.icon}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                      <span className={`text-[12px] font-bold px-1.5 py-0.5 rounded ${style.bg} ${style.text}`}>
+                      <span className={`text-[12px] font-semibold px-1.5 py-0.5 rounded ${style.bg} ${style.text}`}>
                         {style.label}
                       </span>
                       <span className="text-[var(--text-secondary)] text-[12px] font-semibold">

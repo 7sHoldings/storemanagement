@@ -79,7 +79,7 @@ export default function RegisterScreenPanel({ stores }) {
   return (
     <div>
       <div className="rounded-xl border border-sw-border bg-sw-card p-4 mb-4">
-        <h3 className="text-sw-text text-[15px] font-bold">Department buttons on the register</h3>
+        <h3 className="text-sw-text text-[15px] font-semibold">Department buttons on the register</h3>
         <p className="text-sw-sub text-[12px] mt-1 max-w-2xl">
           These departments get a button on every register (NRS sorts them A–Z). A store missing one gets it added,
           copied from a store that has it. Every other department is hidden
@@ -117,7 +117,7 @@ export default function RegisterScreenPanel({ stores }) {
           return (
             <div key={s.id} className="rounded-xl border border-sw-border bg-sw-card p-4">
               <div className="flex justify-between items-center gap-2 flex-wrap">
-                <h4 className="text-sw-text text-[14px] font-bold">{storeShortName(s.name)}</h4>
+                <h4 className="text-sw-text text-[14px] font-semibold">{storeShortName(s.name)}</h4>
                 {hasWork(p) ? (
                   <Button variant="primary" className="!text-[12px] !py-1" disabled={!!busy} onClick={() => setConfirm([s])}>
                     Apply to {storeShortName(s.name)}

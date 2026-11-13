@@ -334,7 +334,7 @@ function SearchPanel({ storeId, stores, pending, onStage }) {
           placeholder="Search by name or UPC…"
           className="flex-1 min-w-0 rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text"
         />
-        <Button variant="secondary" onClick={() => setScanOpen(true)} title="Scan a barcode to find the item">📷 Scan</Button>
+        <Button variant="secondary" onClick={() => setScanOpen(true)} title="Scan a barcode to find the item">Scan</Button>
       </div>
       {error && <Alert type="error">{error}</Alert>}
       {loading && <Loading text="Searching pricebook…" />}
@@ -573,7 +573,7 @@ function CopyToStoresModal({ item, sourceStoreId, stores, onClose }) {
 function ReviewPanel({ pendingList, onRemove, onApply, applying, result }) {
   return (
     <div className="rounded-xl border border-sw-border bg-sw-card p-4 h-fit lg:sticky lg:top-4">
-      <h3 className="text-sw-text text-[15px] font-bold mb-1">Pending changes</h3>
+      <h3 className="text-sw-text text-[15px] font-semibold mb-1">Pending changes</h3>
       <p className="text-sw-sub text-[12px] mb-3">Review before applying. Nothing is sent until you click Update.</p>
 
       {pendingList.length === 0 ? (
@@ -843,7 +843,7 @@ function AddItemPanel({ stores }) {
     <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
       {/* Item details */}
       <div className="rounded-xl border border-sw-border bg-sw-card p-4">
-        <h3 className="text-sw-text text-[15px] font-bold mb-3">Item details</h3>
+        <h3 className="text-sw-text text-[15px] font-semibold mb-3">Item details</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="UPC / barcode">
             <div className="flex gap-2">
@@ -858,7 +858,7 @@ function AddItemPanel({ stores }) {
                 onKeyDown={e => { if (e.key === 'Enter') lookupUpc(upc); }}
                 placeholder="Scan or type…"
                 className="flex-1 min-w-0 rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text" />
-              <Button variant="secondary" onClick={() => setScanOpen(true)} title="Scan with camera">📷 Scan</Button>
+              <Button variant="secondary" onClick={() => setScanOpen(true)} title="Scan with camera">Scan</Button>
             </div>
             {lookup?.msg && (
               <span className={`text-[12px] ${lookup.status === 'found' ? 'text-green-500' : lookup.status === 'searching' ? 'text-[var(--text-muted)]' : 'text-amber-500'}`}>
@@ -912,7 +912,7 @@ function AddItemPanel({ stores }) {
 
       {/* Stores + per-store price */}
       <div className="rounded-xl border border-sw-border bg-sw-card p-4 h-fit lg:sticky lg:top-4">
-        <h3 className="text-sw-text text-[15px] font-bold mb-1">Add to stores</h3>
+        <h3 className="text-sw-text text-[15px] font-semibold mb-1">Add to stores</h3>
         <p className="text-sw-sub text-[12px] mb-3">Tick stores and set each price. Use “set all” when the price is the same.</p>
 
         {carried.length > 0 && (
@@ -931,7 +931,7 @@ function AddItemPanel({ stores }) {
                       <button key={o.cents} type="button" onClick={() => applyPriceToAll((o.cents / 100).toFixed(2))}
                         title={`Use ${fmtCents(o.cents)} at every store`}
                         className="rounded-md border border-sw-border bg-sw-card px-2 py-0.5 text-[12px] text-sw-text hover:border-amber-500">
-                        <span className="font-mono font-bold">{fmtCents(o.cents)}</span>
+                        <span className="font-mono font-semibold">{fmtCents(o.cents)}</span>
                         <span className="text-[var(--text-muted)]"> · {o.stores.join(', ')}</span>
                       </button>
                     ))}

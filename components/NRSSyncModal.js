@@ -96,14 +96,14 @@ export default function NRSSyncModal({ stores, onClose, onSuccess }) {
 
       {preview && (
         <div className="bg-sw-card2 border border-sw-border rounded-lg p-4 mb-4">
-          <div className="text-sw-text text-[13px] font-bold mb-3">
+          <div className="text-sw-text text-[13px] font-semibold mb-3">
             Preview — {storeName} — {date}
           </div>
           <div className="grid grid-cols-2 gap-y-1.5 gap-x-4 text-[12px]">
             <div className="text-sw-sub">Gross Sales</div>
-            <div className="text-right font-mono text-sw-text font-bold">{fmt(preview.r1_gross)}</div>
+            <div className="text-right font-mono text-sw-text font-semibold">{fmt(preview.r1_gross)}</div>
             <div className="text-sw-sub">Net Sales</div>
-            <div className="text-right font-mono text-sw-green font-bold">{fmt(preview.r1_net)}</div>
+            <div className="text-right font-mono text-sw-green font-semibold">{fmt(preview.r1_net)}</div>
             <div className="text-sw-sub">Cash</div>
             <div className="text-right font-mono">{fmt(preview.cash_sales)}</div>
             <div className="text-sw-sub">Card</div>
@@ -118,7 +118,7 @@ export default function NRSSyncModal({ stores, onClose, onSuccess }) {
 
           {existingId && (
             <div className="mt-3 bg-sw-amberD border border-sw-amber/30 rounded-lg p-2.5 text-[12px] text-sw-amber">
-              <div className="font-bold mb-1">An entry already exists for this date.</div>
+              <div className="font-semibold mb-1">An entry already exists for this date.</div>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"

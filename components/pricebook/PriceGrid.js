@@ -99,7 +99,7 @@ function MobileCards({
               <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] text-[var(--text-muted)]">
                 {showUpc && <span className="font-mono">{row.upc}</span>}
                 {row.nameConflict && (
-                  <span className="text-[var(--color-warning)]">⚠ name differs by store</span>
+                  <span className="text-[var(--color-warning)]">name differs by store</span>
                 )}
               </div>
             )}
@@ -174,7 +174,7 @@ function DesktopTable({
                   <span className="text-[var(--text-secondary)]">{row.variant || row.name}</span>
                   {row.nameConflict && (
                     <span className="ml-1.5 text-[12px] text-[var(--color-warning)]" title="Stores spell this item differently">
-                      ⚠ name differs
+                      name differs
                     </span>
                   )}
                   {showUpc && <div className="font-mono text-[12px] text-[var(--text-muted)]">{row.upc}</div>}

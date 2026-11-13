@@ -172,7 +172,7 @@ export default function DepartmentsPanel() {
       <div className="rounded-xl border border-sw-border bg-sw-card p-4 mb-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-sw-text text-[15px] font-bold">One department list for every store</h3>
+            <h3 className="text-sw-text text-[15px] font-semibold">One department list for every store</h3>
             <p className="text-sw-sub text-[12px] mt-1 max-w-2xl">
               {totals.departments} departments · {totals.inSync} already the same everywhere ·{' '}
               <span className="text-red-500 font-semibold">{totals.toCreate} to add</span> ·{' '}
@@ -218,7 +218,7 @@ export default function DepartmentsPanel() {
 
       {pending.length > 0 && (
         <div className="rounded-xl border border-amber-500/40 bg-sw-card p-4 mb-4">
-          <h3 className="text-sw-text text-[14px] font-bold mb-1">Are these the same department? ({pending.length})</h3>
+          <h3 className="text-sw-text text-[14px] font-semibold mb-1">Are these the same department? ({pending.length})</h3>
           <p className="text-sw-sub text-[12px] mb-3">Similar names. Say “Same” to treat them as one department, so items get moved to one name.</p>
           <ul className="space-y-2">
             {pending.map(([a, b]) => (
@@ -294,7 +294,7 @@ export default function DepartmentsPanel() {
                 {stores.map(s => {
                   const c = p.perStore[s.id];
                   if (c.status === 'ok') {
-                    return <td key={s.id} className="px-2 py-2 text-center text-green-500" title={`${c.have[0].name}`}>✓ <span className="text-[12px] text-[var(--text-muted)]">{c.have[0].item_count}</span></td>;
+                    return <td key={s.id} className="px-2 py-2 text-center text-green-500" title={`${c.have[0].name}`}><span className="text-[12px] text-[var(--text-muted)]">{c.have[0].item_count}</span></td>;
                   }
                   if (c.status === 'create') {
                     return <td key={s.id} className="px-2 py-2 text-center text-red-500 font-semibold" title={`Add “${p.name}” (copy from ${storeShortName(stores.find(x => x.id === p.source.store_id)?.name)})`}>+ add</td>;
@@ -304,7 +304,7 @@ export default function DepartmentsPanel() {
                       <td key={s.id} className="px-2 py-2 text-center text-amber-500 text-[12px]">
                         {c.have.map(h => (
                           <div key={h.name} title={`Move ${h.item_count} items from “${h.name}” to “${p.name}”`}>
-                            {h.name === p.name ? '✓ ' : '↪ '}{h.name} <span className="text-[var(--text-muted)]">({h.item_count})</span>
+                            {h.name === p.name ? '' : '↪ '}{h.name} <span className="text-[var(--text-muted)]">({h.item_count})</span>
                           </div>
                         ))}
                       </td>
@@ -334,7 +334,7 @@ export default function DepartmentsPanel() {
           <div className="space-y-3 max-h-[50vh] overflow-auto mb-4">
             {createsByStore.map(({ store, items }) => (
               <div key={store.id}>
-                <div className="text-sw-text text-[13px] font-bold">{store.name} · {items.length}</div>
+                <div className="text-sw-text text-[13px] font-semibold">{store.name} · {items.length}</div>
                 <div className="text-[12px] text-sw-sub">
                   {items.map(c => `${c.name}${c.tax.length === 1 ? ` (${pctTax(c.tax[0])})` : ''}`).join(', ')}
                 </div>

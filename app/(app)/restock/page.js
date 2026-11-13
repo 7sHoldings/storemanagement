@@ -144,7 +144,7 @@ function OwnerListView() {
 
 function StatusBadge({ status }) {
   const cfg = STATUS_BADGES[status] || STATUS_BADGES.pending;
-  return <span className={`text-[12px] font-bold px-2 py-0.5 rounded-full ${cfg.cls}`}>{cfg.label}</span>;
+  return <span className={`text-[12px] font-semibold px-2 py-0.5 rounded-full ${cfg.cls}`}>{cfg.label}</span>;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -258,7 +258,7 @@ function EmployeeCartView() {
       </div>
 
       <div className="mt-6 rounded-xl border border-sw-border bg-sw-card p-4">
-        <h3 className="text-sw-text text-[15px] font-bold mb-3">Your recent requests</h3>
+        <h3 className="text-sw-text text-[15px] font-semibold mb-3">Your recent requests</h3>
         {recentLoading ? (
           <div className="text-sw-sub text-[12px]">Loading…</div>
         ) : !recent.length ? (
@@ -335,7 +335,7 @@ function SearchPanel({ onAdd }) {
   if (empty) {
     return (
       <div className="rounded-xl border border-sw-border bg-sw-card p-4">
-        <h3 className="text-sw-text text-[15px] font-bold mb-1">Find products</h3>
+        <h3 className="text-sw-text text-[15px] font-semibold mb-1">Find products</h3>
         <EmptyState
           icon="📦"
           title="No catalog yet"
@@ -347,7 +347,7 @@ function SearchPanel({ onAdd }) {
 
   return (
     <div className="rounded-xl border border-sw-border bg-sw-card p-4">
-      <h3 className="text-sw-text text-[15px] font-bold mb-1">Find products</h3>
+      <h3 className="text-sw-text text-[15px] font-semibold mb-1">Find products</h3>
       <p className="text-sw-sub text-[12px] mb-3">
         Search by product name, brand, variant, or UPC. Click to add to your request.
       </p>
@@ -390,7 +390,7 @@ function SearchPanel({ onAdd }) {
                   <span className="text-sw-sub">
                     Cheapest: <span className="text-sw-text font-semibold">{cheapest.vendor_name}</span>
                   </span>
-                  <span className="text-sw-blue font-bold">{fmtMoney(cheapest.unit_price)}</span>
+                  <span className="text-sw-blue font-semibold">{fmtMoney(cheapest.unit_price)}</span>
                 </div>
               ) : (
                 <div className="mt-1 text-sw-dim text-[12px]">No price history yet — will submit without a suggestion.</div>
@@ -408,7 +408,7 @@ function CartPanel({ cart, note, onNote, onQty, onRemove, onSubmit, submitting, 
   return (
     <div className="rounded-xl border border-sw-border bg-sw-card p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sw-text text-[15px] font-bold">Your cart</h3>
+        <h3 className="text-sw-text text-[15px] font-semibold">Your cart</h3>
         <span className="text-sw-sub text-[12px]">{cart.length} {cart.length === 1 ? 'item' : 'items'}</span>
       </div>
 
@@ -466,7 +466,7 @@ function CartPanel({ cart, note, onNote, onQty, onRemove, onSubmit, submitting, 
       )}
 
       <div className="mt-3">
-        <label className="block text-sw-sub text-[12px] font-bold mb-1">Note (optional)</label>
+        <label className="block text-sw-sub text-[12px] font-semibold mb-1">Note (optional)</label>
         <textarea
           value={note}
           onChange={e => onNote(e.target.value)}
@@ -479,7 +479,7 @@ function CartPanel({ cart, note, onNote, onQty, onRemove, onSubmit, submitting, 
       {cart.length > 0 && (
         <div className="mt-3 flex items-center justify-between text-[12px]">
           <span className="text-sw-sub">Estimated total</span>
-          <span className="text-sw-text font-bold">{fmtMoney(grandTotal)}</span>
+          <span className="text-sw-text font-semibold">{fmtMoney(grandTotal)}</span>
         </div>
       )}
 

@@ -1,4 +1,5 @@
 'use client';
+import { Camera, FolderOpen, Check } from 'lucide-react';
 import StatusIndicator from '@/components/daily-sales/shared/StatusIndicator';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -73,7 +74,7 @@ export default function SalesPage() {
   const [editItem, setEditItem] = useState(null);
   const [msg, setMsg] = useState('');
   // Most banners report a failure, but a save that stored everything except
-  // one field is a warning, not an error — a red ❌ over a sale that did save
+  // one field is a warning, not an error — a red over a sale that did save
   // reads as "nothing worked".
   const [msgType, setMsgType] = useState('error');
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -142,7 +143,7 @@ export default function SalesPage() {
   const r2LibraryRef = useRef(null);
   const creditCameraRef = useRef(null);
   const creditLibraryRef = useRef(null);
-  // Receipt gallery modal (click 📷 in the owner table).
+  // Receipt gallery modal (click in the owner table).
   const [viewReceipts, setViewReceipts] = useState(null); // { images: [urls], idx, storeName, date }
   const [viewReceipt, setViewReceipt] = useState(null); // { url, caption } for full-screen viewer
   const [activeTab, setActiveTab] = useState('r1'); // 'r1' | 'r2' | 'summary'
@@ -994,8 +995,8 @@ export default function SalesPage() {
     const houseAccountSection = (
       <div className="mt-3 bg-sw-card2 border border-sw-border rounded-lg p-3">
         <div className="flex items-center justify-between mb-1.5">
-          <div className="text-sw-sub text-[12px] font-bold uppercase">House Account</div>
-          {haTotal > 0 && <div className="text-sw-text text-[12px] font-mono font-bold">Total: {fmt(haTotal)}</div>}
+          <div className="text-sw-sub text-[12px] font-semibold ">House Account</div>
+          {haTotal > 0 && <div className="text-sw-text text-[12px] font-mono font-semibold">Total: {fmt(haTotal)}</div>}
         </div>
         {houseAccounts.length === 0 && (
           <p className="text-sw-dim text-[12px] italic mb-2">No house accounts — add below if needed</p>
@@ -1062,8 +1063,8 @@ export default function SalesPage() {
         {/* Credit / House Account receipt — required when an employee enters
             a credit so we have proof of the IOU. Optional for owners. */}
         <div className="mt-3 pt-3 border-t border-sw-border">
-          <div className="text-sw-sub text-[12px] font-bold uppercase mb-1.5 flex items-center gap-2">
-            <span>📷 Credit Receipts</span>
+          <div className="text-sw-sub text-[12px] font-semibold  mb-1.5 flex items-center gap-2">
+            <span>Credit Receipts</span>
             {creditImages.length > 0 && (
               <span className="text-sw-dim text-[12px]">({creditImages.length})</span>
             )}
@@ -1086,7 +1087,7 @@ export default function SalesPage() {
                   <button
                     type="button"
                     onClick={() => removeImage(setCreditImages, idx)}
-                    className="absolute top-0.5 right-0.5 w-6 h-6 rounded-full bg-sw-red text-white text-[12px] font-bold flex items-center justify-center shadow"
+                    className="absolute top-0.5 right-0.5 w-6 h-6 rounded-full bg-sw-red text-white text-[12px] font-semibold flex items-center justify-center shadow"
                     title="Remove"
                   >
                     ✕
@@ -1102,14 +1103,14 @@ export default function SalesPage() {
               onClick={() => creditCameraRef.current?.click()}
               className="flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg border-2 border-dashed border-sw-blue/40 bg-sw-blueD text-sw-blue text-[12px] font-semibold min-h-[44px]"
             >
-              <span className="text-lg">📷</span><span>Take Photo</span>
+              <Camera size={18} strokeWidth={1.75} aria-hidden="true" /><span>Take Photo</span>
             </button>
             <button
               type="button"
               onClick={() => creditLibraryRef.current?.click()}
               className="flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg border-2 border-dashed border-sw-blue/40 bg-sw-blueD text-sw-blue text-[12px] font-semibold min-h-[44px]"
             >
-              <span className="text-lg">📁</span><span>From Library</span>
+              <FolderOpen size={18} strokeWidth={1.75} aria-hidden="true" /><span>From Library</span>
             </button>
             <input ref={creditCameraRef} type="file" accept="image/*" capture="environment" multiple onChange={handleCreditPick} className="hidden" />
             <input ref={creditLibraryRef} type="file" accept="image/*" multiple onChange={handleCreditPick} className="hidden" />
@@ -1127,7 +1128,7 @@ export default function SalesPage() {
               key={t.id}
               type="button"
               onClick={() => setActiveTab(t.id)}
-              className={`flex-1 px-3 py-2 text-[12px] font-bold whitespace-nowrap border-b-2 transition-colors
+              className={`flex-1 px-3 py-2 text-[12px] font-semibold whitespace-nowrap border-b-2 transition-colors
                 ${activeTab === t.id ? 'border-sw-blue text-sw-blue' : 'border-transparent text-sw-sub hover:text-sw-text'}`}
             >
               {t.label}
@@ -1184,22 +1185,22 @@ export default function SalesPage() {
             {/* Live R1 short/over preview — Cash Sales − (Safe Drop + House Account). */}
             {(form.r1_safe_drop !== '' || form.cash_sales !== '') && (
               <div className="mt-3 bg-sw-card2 border border-sw-border rounded-lg p-2.5 flex justify-between items-center">
-                <span className="text-sw-sub text-[12px] font-semibold uppercase">R1 Short/Over</span>
+                <span className="text-sw-sub text-[12px] font-semibold ">R1 Short/Over</span>
                 {(() => {
                   const cash = parseFloat(form.cash_sales) || 0;
                   const r1Drop = parseFloat(form.r1_safe_drop) || 0;
                   const v = cash - (r1Drop + haTotal);
-                  if (Math.abs(v) < 0.01) return <span className="text-sw-dim font-mono font-bold">Matched {fmt(0)}</span>;
-                  if (v > 0) return <span className="text-sw-red font-mono font-bold">Short -{fmt(v)}</span>;
-                  return <span className="text-sw-green font-mono font-bold">Over +{fmt(Math.abs(v))}</span>;
+                  if (Math.abs(v) < 0.01) return <span className="text-sw-dim font-mono font-semibold">Matched {fmt(0)}</span>;
+                  if (v > 0) return <span className="text-sw-red font-mono font-semibold">Short -{fmt(v)}</span>;
+                  return <span className="text-sw-green font-mono font-semibold">Over +{fmt(Math.abs(v))}</span>;
                 })()}
               </div>
             )}
 
             {/* R1 receipt upload — multiple images */}
             <div className="mt-3 bg-sw-card2 border border-sw-border rounded-lg p-3">
-              <div className="text-sw-sub text-[12px] font-bold uppercase mb-1.5 flex items-center gap-2">
-                <span>📷 Register 1 Receipts</span>
+              <div className="text-sw-sub text-[12px] font-semibold  mb-1.5 flex items-center gap-2">
+                <span>Register 1 Receipts</span>
                 {r1Images.length > 0 && (
                   <span className="text-sw-dim text-[12px]">({r1Images.length})</span>
                 )}
@@ -1222,7 +1223,7 @@ export default function SalesPage() {
                       <button
                         type="button"
                         onClick={() => removeImage(setR1Images, idx)}
-                        className="absolute top-0.5 right-0.5 w-6 h-6 rounded-full bg-sw-red text-white text-[12px] font-bold flex items-center justify-center shadow"
+                        className="absolute top-0.5 right-0.5 w-6 h-6 rounded-full bg-sw-red text-white text-[12px] font-semibold flex items-center justify-center shadow"
                         title="Remove"
                       >
                         ✕
@@ -1238,14 +1239,14 @@ export default function SalesPage() {
                   onClick={() => r1CameraRef.current?.click()}
                   className="flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg border-2 border-dashed border-sw-blue/40 bg-sw-blueD text-sw-blue text-[12px] font-semibold min-h-[44px]"
                 >
-                  <span className="text-lg">📷</span><span>Take Photo</span>
+                  <Camera size={18} strokeWidth={1.75} aria-hidden="true" /><span>Take Photo</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => r1LibraryRef.current?.click()}
                   className="flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg border-2 border-dashed border-sw-blue/40 bg-sw-blueD text-sw-blue text-[12px] font-semibold min-h-[44px]"
                 >
-                  <span className="text-lg">📁</span><span>From Library</span>
+                  <FolderOpen size={18} strokeWidth={1.75} aria-hidden="true" /><span>From Library</span>
                 </button>
                 <input ref={r1CameraRef} type="file" accept="image/*" capture="environment" multiple onChange={handleR1Pick} className="hidden" />
                 <input ref={r1LibraryRef} type="file" accept="image/*" multiple onChange={handleR1Pick} className="hidden" />
@@ -1335,8 +1336,8 @@ export default function SalesPage() {
 
             {/* R2 receipt upload — multiple images */}
             <div className="mt-3 bg-sw-card2 border border-sw-border rounded-lg p-3">
-              <div className="text-sw-sub text-[12px] font-bold uppercase mb-1.5 flex items-center gap-2">
-                <span>📷 Register 2 Receipts</span>
+              <div className="text-sw-sub text-[12px] font-semibold  mb-1.5 flex items-center gap-2">
+                <span>Register 2 Receipts</span>
                 {r2Images.length > 0 && (
                   <span className="text-sw-dim text-[12px]">({r2Images.length})</span>
                 )}
@@ -1359,7 +1360,7 @@ export default function SalesPage() {
                       <button
                         type="button"
                         onClick={() => removeImage(setR2Images, idx)}
-                        className="absolute top-0.5 right-0.5 w-6 h-6 rounded-full bg-sw-red text-white text-[12px] font-bold flex items-center justify-center shadow"
+                        className="absolute top-0.5 right-0.5 w-6 h-6 rounded-full bg-sw-red text-white text-[12px] font-semibold flex items-center justify-center shadow"
                         title="Remove"
                       >
                         ✕
@@ -1375,14 +1376,14 @@ export default function SalesPage() {
                   onClick={() => r2CameraRef.current?.click()}
                   className="flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg border-2 border-dashed border-sw-blue/40 bg-sw-blueD text-sw-blue text-[12px] font-semibold min-h-[44px]"
                 >
-                  <span className="text-lg">📷</span><span>Take Photo</span>
+                  <Camera size={18} strokeWidth={1.75} aria-hidden="true" /><span>Take Photo</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => r2LibraryRef.current?.click()}
                   className="flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg border-2 border-dashed border-sw-blue/40 bg-sw-blueD text-sw-blue text-[12px] font-semibold min-h-[44px]"
                 >
-                  <span className="text-lg">📁</span><span>From Library</span>
+                  <FolderOpen size={18} strokeWidth={1.75} aria-hidden="true" /><span>From Library</span>
                 </button>
                 <input ref={r2CameraRef} type="file" accept="image/*" capture="environment" multiple onChange={handleR2Pick} className="hidden" />
                 <input ref={r2LibraryRef} type="file" accept="image/*" multiple onChange={handleR2Pick} className="hidden" />
@@ -1394,7 +1395,7 @@ export default function SalesPage() {
         {activeTab === 'summary' && simpleR2Mode && (
           <div className="space-y-3">
             <div className="bg-sw-card2 border border-sw-border rounded-lg p-3">
-              <div className="text-sw-sub text-[12px] font-bold uppercase mb-1.5">Register 2</div>
+              <div className="text-sw-sub text-[12px] font-semibold  mb-1.5">Register 2</div>
               <div className="grid grid-cols-2 gap-y-1 gap-x-2 text-[12px]">
                 <div className="text-sw-sub">Net Sales</div>
                 <div className="text-right font-mono text-sw-text">{fmt(r2Net)}</div>
@@ -1432,7 +1433,7 @@ export default function SalesPage() {
         {activeTab === 'summary' && simpleSingleMode && (
           <div className="space-y-3">
             <div className="bg-sw-card2 border border-sw-border rounded-lg p-3">
-              <div className="text-sw-sub text-[12px] font-bold uppercase mb-1.5">Credit</div>
+              <div className="text-sw-sub text-[12px] font-semibold  mb-1.5">Credit</div>
               <div className="grid grid-cols-2 gap-y-1 gap-x-2 text-[12px]">
                 <div className="text-sw-sub">House Account</div>
                 <div className="text-right font-mono">
@@ -1464,7 +1465,7 @@ export default function SalesPage() {
         {activeTab === 'summary' && !simpleR2Mode && !simpleSingleMode && (
           <div className="space-y-3">
             <div className="bg-sw-card2 border border-sw-border rounded-lg p-3">
-              <div className="text-sw-sub text-[12px] font-bold uppercase mb-1.5">Register 1</div>
+              <div className="text-sw-sub text-[12px] font-semibold  mb-1.5">Register 1</div>
               <div className="grid grid-cols-2 gap-y-1 gap-x-2 text-[12px]">
                 <div className="text-sw-sub">Gross</div><div className="text-right font-mono text-sw-text">{fmt(r1Gross)}</div>
                 <div className="text-sw-sub">Net</div><div className="text-right font-mono text-sw-text">{fmt(r1Net)}</div>
@@ -1483,9 +1484,9 @@ export default function SalesPage() {
                   <div className="text-sw-sub col-span-2 border-t border-sw-border pt-1 mt-1 flex justify-between">
                     <span>Short/Over <span className="text-sw-dim text-[12px]">(Cash − Safe Drop − House Account)</span></span>
                     {(() => {
-                      if (Math.abs(r1ShortOverCalc) < 0.01) return <span className="text-sw-dim font-mono font-bold">Matched {fmt(0)}</span>;
-                      if (r1ShortOverCalc > 0) return <span className="text-sw-red font-mono font-bold">Short -{fmt(r1ShortOverCalc)}</span>;
-                      return <span className="text-sw-green font-mono font-bold">Over +{fmt(Math.abs(r1ShortOverCalc))}</span>;
+                      if (Math.abs(r1ShortOverCalc) < 0.01) return <span className="text-sw-dim font-mono font-semibold">Matched {fmt(0)}</span>;
+                      if (r1ShortOverCalc > 0) return <span className="text-sw-red font-mono font-semibold">Short -{fmt(r1ShortOverCalc)}</span>;
+                      return <span className="text-sw-green font-mono font-semibold">Over +{fmt(Math.abs(r1ShortOverCalc))}</span>;
                     })()}
                   </div>
                 )}
@@ -1494,7 +1495,7 @@ export default function SalesPage() {
 
             {usesReg2 && (
               <div className="bg-sw-card2 border border-sw-border rounded-lg p-3">
-                <div className="text-sw-sub text-[12px] font-bold uppercase mb-1.5">Register 2</div>
+                <div className="text-sw-sub text-[12px] font-semibold  mb-1.5">Register 2</div>
                 <div className="grid grid-cols-2 gap-y-1 gap-x-2 text-[12px]">
                   <div className="text-sw-sub">Net Sales</div><div className="text-right font-mono text-sw-text">{fmt(r2Net)}</div>
                 </div>
@@ -1502,19 +1503,19 @@ export default function SalesPage() {
             )}
 
             <div className="bg-sw-blueD border border-sw-blue/30 rounded-lg p-3">
-              <div className="text-sw-blue text-[12px] font-bold uppercase mb-1.5">Combined Totals</div>
+              <div className="text-sw-blue text-[12px] font-semibold  mb-1.5">Combined Totals</div>
               <div className="grid grid-cols-2 gap-y-1 gap-x-2 text-[12px]">
-                <div className="text-sw-sub">Total Gross</div><div className="text-right font-mono font-bold">{fmt(totalGross)}</div>
-                <div className="text-sw-sub">Total Net</div><div className="text-right font-mono font-bold text-sw-green">{fmt(totalNet)}</div>
+                <div className="text-sw-sub">Total Gross</div><div className="text-right font-mono font-semibold">{fmt(totalGross)}</div>
+                <div className="text-sw-sub">Total Net</div><div className="text-right font-mono font-semibold text-sw-green">{fmt(totalNet)}</div>
                 <div className="text-sw-sub">Total Cash</div><div className="text-right font-mono">{fmt(totalCash)}</div>
                 <div className="text-sw-sub">Total Card</div><div className="text-right font-mono">{fmt(totalCard)}</div>
               </div>
             </div>
 
             <div className="bg-sw-card2 border border-sw-border rounded-lg p-3">
-              <div className="text-sw-sub text-[12px] font-bold uppercase mb-1.5">Short / Over</div>
+              <div className="text-sw-sub text-[12px] font-semibold  mb-1.5">Short / Over</div>
               <div className="flex justify-between items-center text-[13px]">
-                <span className="text-sw-text font-bold">
+                <span className="text-sw-text font-semibold">
                   Total Short/Over
                   <span className="block text-sw-dim text-[12px] font-normal normal-case tracking-normal">
                     {usesReg2
@@ -1533,15 +1534,15 @@ export default function SalesPage() {
             {/* Basket vs R2 — displayed separately, NOT part of Total Short/Over. */}
             {usesReg2 && (
               <div className="bg-sw-card2 border border-sw-border rounded-lg p-3">
-                <div className="text-sw-sub text-[12px] font-bold uppercase mb-1.5">Basket vs R2 Difference</div>
+                <div className="text-sw-sub text-[12px] font-semibold  mb-1.5">Basket vs R2 Difference</div>
                 <div className="flex justify-between items-center text-[12px]">
                   <span className="text-sw-sub">
                     R2 Net {fmt(r2Net)} − Canceled Basket {fmt(r1CancelBasket)}
                   </span>
                   {(() => {
-                    if (Math.abs(basketR2Diff) < 0.01) return <span className="text-sw-green font-mono font-bold">{fmt(0)} ✅</span>;
-                    if (basketR2Diff < 0) return <span className="text-sw-red font-mono font-bold">-{fmt(Math.abs(basketR2Diff))}</span>;
-                    return <span className="text-sw-green font-mono font-bold">+{fmt(basketR2Diff)}</span>;
+                    if (Math.abs(basketR2Diff) < 0.01) return <span className="text-sw-green font-semibold tabular-nums">{fmt(0)} · matched</span>;
+                    if (basketR2Diff < 0) return <span className="text-sw-red font-mono font-semibold">-{fmt(Math.abs(basketR2Diff))}</span>;
+                    return <span className="text-sw-green font-mono font-semibold">+{fmt(basketR2Diff)}</span>;
                   })()}
                 </div>
                 <p className="text-sw-dim text-[12px] mt-1 italic">Tracked separately — not included in Total Short/Over.</p>
@@ -1616,7 +1617,7 @@ export default function SalesPage() {
         <div className="bg-sw-card rounded-xl border border-sw-border mb-4 overflow-hidden">
           <div className="px-4 py-2.5 border-b border-sw-border flex items-center justify-between gap-2 flex-wrap">
             <div className="flex items-center gap-2">
-              <span className="text-sw-text text-[13px] font-bold">My Stats</span>
+              <span className="text-sw-text text-[13px] font-semibold">My Stats</span>
               <span className="text-sw-dim text-[12px]">· {presetLabel} · {profile?.name}</span>
             </div>
             {myStatsEmpty && (
@@ -1663,7 +1664,6 @@ export default function SalesPage() {
           <div className="divide-y divide-sw-border">
             <div className="flex items-center justify-between px-4 py-2.5">
               <div className="flex items-center gap-2 text-sw-sub text-[12px]">
-                <span className="text-base">🕐</span>
                 <span className="font-semibold text-[12px]">Hours</span>
               </div>
               <div className="text-right">
@@ -1673,7 +1673,6 @@ export default function SalesPage() {
             </div>
             <div className="flex items-center justify-between px-4 py-2.5">
               <div className="flex items-center gap-2 text-sw-sub text-[12px]">
-                <span className="text-base">📊</span>
                 <span className="font-semibold text-[12px]">Short / Over</span>
               </div>
               <div className="text-right">
@@ -1683,7 +1682,6 @@ export default function SalesPage() {
             </div>
             <div className="flex items-center justify-between px-4 py-2.5">
               <div className="flex items-center gap-2 text-sw-sub text-[12px]">
-                <span className="text-base">🪙</span>
                 <span className="font-semibold text-[12px]">House Credit</span>
               </div>
               <div className="text-right">
@@ -1697,7 +1695,7 @@ export default function SalesPage() {
         {todayEntry ? (
           <div className="bg-sw-greenD rounded-xl p-5 border border-sw-green/30 mb-4">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-2xl">✅</span>
+              <span className="w-8 h-8 rounded-full bg-[#15803D] text-white flex items-center justify-center shrink-0"><Check size={18} strokeWidth={2.5} aria-hidden="true" /></span>
               <div>
                 <div className="text-sw-green text-base font-semibold">Today's sales have been submitted</div>
                 <div className="text-sw-sub text-[12px]">{dayLabel(todayEntry.date)} · {storeName}</div>
@@ -1707,7 +1705,7 @@ export default function SalesPage() {
             {/* R1 detail — hidden for single-register employees (they don't enter R1) */}
             {empUsesReg2 && (
             <div className="bg-sw-card2 rounded-lg p-3 border border-sw-border mb-2">
-              <div className="text-sw-sub text-[12px] font-bold uppercase mb-1.5">Register 1</div>
+              <div className="text-sw-sub text-[12px] font-semibold  mb-1.5">Register 1</div>
               <div className="grid grid-cols-2 gap-y-0.5 gap-x-2 text-[12px]">
                 <div className="text-sw-sub">Gross</div><div className="text-right font-mono">{fmt(todayEntry.r1_gross ?? todayEntry.gross_sales)}</div>
                 <div className="text-sw-sub">Net</div><div className="text-right font-mono">{fmt(todayEntry.r1_net ?? todayEntry.net_sales)}</div>
@@ -1730,9 +1728,9 @@ export default function SalesPage() {
                   <span>R1 Short/Over</span>
                   {(() => {
                     const v = Number(todayEntry.r1_short_over || 0);
-                    if (Math.abs(v) < 0.01) return <span className="text-sw-dim font-mono font-bold">Matched $0.00</span>;
-                    if (v > 0) return <span className="text-sw-red font-mono font-bold">Short -{fmt(v)}</span>;
-                    return <span className="text-sw-green font-mono font-bold">Over +{fmt(Math.abs(v))}</span>;
+                    if (Math.abs(v) < 0.01) return <span className="text-sw-dim font-mono font-semibold">Matched $0.00</span>;
+                    if (v > 0) return <span className="text-sw-red font-mono font-semibold">Short -{fmt(v)}</span>;
+                    return <span className="text-sw-green font-mono font-semibold">Over +{fmt(Math.abs(v))}</span>;
                   })()}
                 </div>
               </div>
@@ -1742,7 +1740,7 @@ export default function SalesPage() {
             {/* R2 detail */}
             {empUsesReg2 && (
               <div className="bg-sw-card2 rounded-lg p-3 border border-sw-border mb-2">
-                <div className="text-sw-sub text-[12px] font-bold uppercase mb-1.5">Register 2</div>
+                <div className="text-sw-sub text-[12px] font-semibold  mb-1.5">Register 2</div>
                 <div className="grid grid-cols-2 gap-y-0.5 gap-x-2 text-[12px]">
                   <div className="text-sw-sub">Net Sales</div><div className="text-right font-mono">{fmt(todayEntry.r2_net || 0)}</div>
                   <div className="text-sw-sub">House Account</div>
@@ -1766,7 +1764,7 @@ export default function SalesPage() {
               const credit = Array.isArray(todayEntry.credit_receipt_urls) ? todayEntry.credit_receipt_urls : [];
               return (
                 <div className="bg-sw-card2 rounded-lg p-3 border border-sw-border mb-2">
-                  <div className="text-sw-sub text-[12px] font-bold uppercase mb-1.5">Credit</div>
+                  <div className="text-sw-sub text-[12px] font-semibold  mb-1.5">Credit</div>
                   <div className="grid grid-cols-2 gap-y-0.5 gap-x-2 text-[12px]">
                     <div className="text-sw-sub">House Account</div>
                     <div className="text-right font-mono">
@@ -1792,7 +1790,7 @@ export default function SalesPage() {
             {/* Total S/O — only for R2 stores; single-register employees haven't entered cash so it's not meaningful */}
             {empUsesReg2 && (
             <div className="bg-sw-blueD border border-sw-blue/30 rounded-lg p-2.5 flex justify-between items-center">
-              <span className="text-sw-blue text-[12px] font-bold uppercase">Total Short/Over</span>
+              <span className="text-sw-blue text-[12px] font-semibold ">Total Short/Over</span>
               {(() => {
                 const v = Number(todayEntry.short_over || 0);
                 if (Math.abs(v) < 0.01) return <span className="text-sw-dim font-mono font-semibold">Matched $0.00</span>;
@@ -1803,14 +1801,14 @@ export default function SalesPage() {
             )}
 
             <p className="text-sw-sub text-[12px] mt-3">
-              🔒 Only the owner can edit today's entry. Contact the owner if you need to make a correction.
+              Only the owner can edit today's entry. Contact the owner if you need to make a correction.
             </p>
           </div>
         ) : (
           <div className="bg-sw-card rounded-xl p-5 border border-sw-border mb-4">
             {modalError && (
               <div className="mb-3 rounded-lg border border-sw-red/30 bg-sw-redD text-sw-red text-[12px] p-2.5">
-                ⚠️ {modalError}
+                {modalError}
               </div>
             )}
             {renderTabbedForm(empUsesReg2, /*allowShortOver*/ false, (
@@ -2056,7 +2054,7 @@ export default function SalesPage() {
               if (Math.abs(n) < 0.01) return <span className="text-[var(--text-muted)]">{fmt(0)}</span>;
               // Positive short_over = SHORT (missing cash, red, shown with −).
               // Negative = OVER (extra cash, green, shown with +).
-              return <span className={`font-bold ${n > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>{n > 0 ? '−' : '+'}{fmt(Math.abs(n))}</span>;
+              return <span className={`font-semibold ${n > 0 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>{n > 0 ? '−' : '+'}{fmt(Math.abs(n))}</span>;
             },
             total: rows => {
               const n = rows.reduce((s, r) => s + Number(r.short_over || 0), 0);
@@ -2089,7 +2087,7 @@ export default function SalesPage() {
               if (diff < 0) return <span className="text-sw-red">-{fmt(Math.abs(diff))}</span>;
               return <span className="text-sw-amber">+{fmt(diff)}</span>;
             } },
-          { key: '_receipt', label: '📷', align: 'center', sortable: false, render: (_, r) => {
+          { key: '_receipt', label: 'Receipts', align: 'center', sortable: false, render: (_, r) => {
             const r1 = Array.isArray(r.r1_receipt_urls) ? r.r1_receipt_urls : (r.shift_report_url ? [r.shift_report_url] : []);
             const r2 = Array.isArray(r.r2_receipt_urls) ? r.r2_receipt_urls : (r.safe_drop_url ? [r.safe_drop_url] : []);
             const credit = Array.isArray(r.credit_receipt_urls) ? r.credit_receipt_urls : [];
@@ -2101,8 +2099,8 @@ export default function SalesPage() {
                 title={`View ${all.length} receipt${all.length > 1 ? 's' : ''}`}
                 className="inline-flex items-center gap-0.5 text-sw-blue"
               >
-                <span className="text-lg">📷</span>
-                <span className="text-[12px] font-bold">{all.length}</span>
+                <Camera size={18} strokeWidth={1.75} aria-hidden="true" />
+                <span className="text-[12px] font-semibold">{all.length}</span>
               </button>
             );
           } },
@@ -2157,7 +2155,7 @@ export default function SalesPage() {
         <Modal title={modal === 'edit' ? 'Edit Sale' : 'Add Sale'} onClose={closeModal}>
           {modalError && (
             <div className="mb-3 rounded-lg border border-sw-red/30 bg-sw-redD text-sw-red text-[12px] p-2.5">
-              ⚠️ {modalError}
+              {modalError}
             </div>
           )}
           {modal === 'edit' && editItem && ownerUsesReg2
@@ -2207,14 +2205,14 @@ export default function SalesPage() {
         const next = () => setViewReceipts(v => ({ ...v, idx: (i + 1) % imgs.length }));
         return (
           <Modal title={`Receipts · ${viewReceipts.storeName} · ${shortDate(viewReceipts.date)}`} onClose={() => setViewReceipts(null)} wide>
-            <div className="relative bg-black/30 rounded-lg border border-sw-border overflow-hidden">
+            <div className="relative bg-[#F4F4F5] rounded-lg border border-sw-border overflow-hidden">
               <img src={url} alt={`Receipt ${i + 1}`} className="w-full max-h-[60vh] object-contain" />
               {imgs.length > 1 && (
                 <>
                   <button
                     type="button"
                     onClick={prev}
-                    className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 text-white text-xl font-bold flex items-center justify-center"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 text-white text-xl font-semibold flex items-center justify-center"
                     title="Previous"
                   >
                     ‹
@@ -2222,7 +2220,7 @@ export default function SalesPage() {
                   <button
                     type="button"
                     onClick={next}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 text-white text-xl font-bold flex items-center justify-center"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/60 text-white text-xl font-semibold flex items-center justify-center"
                     title="Next"
                   >
                     ›

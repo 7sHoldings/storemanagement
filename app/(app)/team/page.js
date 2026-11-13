@@ -173,7 +173,7 @@ export default function TeamPage() {
 
   return (
     <div>
-      <PageHeader title="👤 Admin" subtitle={`${users.length} users`}>
+      <PageHeader title="Admin" subtitle={`${users.length} users`}>
         <Button onClick={() => setAddModal(true)}>+ Add User</Button>
       </PageHeader>
 
@@ -188,15 +188,15 @@ export default function TeamPage() {
           return (
             <div key={u.id} className="bg-[var(--bg-elevated)] rounded-xl p-4 border border-[var(--border-subtle)]">
               <div className="flex items-center gap-2 mb-2">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-[14px] font-bold
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-[14px] font-semibold
                   ${u.role === 'owner' ? 'bg-sw-blue text-black' : active ? 'bg-sw-blueD text-[var(--color-info)]' : 'bg-[var(--bg-card)] text-[var(--text-muted)]'}`}>
                   {u.name?.[0] || '?'}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[var(--text-primary)] text-[14px] font-bold truncate">{u.name}</div>
+                  <div className="text-[var(--text-primary)] text-[14px] font-semibold truncate">{u.name}</div>
                   <div className="text-[var(--text-muted)] text-[12px] capitalize">{u.role}</div>
                 </div>
-                <span className={`text-[12px] font-bold px-1.5 py-0.5 rounded uppercase flex-shrink-0
+                <span className={`text-[12px] font-semibold px-1.5 py-0.5 rounded  flex-shrink-0
                   ${active ? 'bg-sw-greenD text-[var(--color-success)]' : 'bg-sw-redD text-[var(--color-danger)]'}`}>
                   {active ? 'Active' : 'Inactive'}
                 </span>

@@ -284,12 +284,12 @@ export default function RestockDetailPage() {
         title={`Restock #${id.slice(0, 8)}`}
         subtitle={request.stores?.name ? `${request.stores.name} · submitted ${fmtDate(request.created_at)} by ${request.created_by_name || '—'}` : fmtDate(request.created_at)}
       >
-        <span className={`text-[12px] font-bold px-2 py-1 rounded-full ${cfg.cls}`}>{cfg.label}</span>
+        <span className={`text-[12px] font-semibold px-2 py-1 rounded-full ${cfg.cls}`}>{cfg.label}</span>
       </PageHeader>
 
       {request.note && (
         <div className="mb-4 bg-sw-card border border-sw-border rounded-xl p-3 text-sw-sub text-[12px]">
-          <span className="text-sw-dim text-[12px] font-bold block mb-1">Note from {request.created_by_name || 'employee'}</span>
+          <span className="text-sw-dim text-[12px] font-semibold block mb-1">Note from {request.created_by_name || 'employee'}</span>
           {request.note}
         </div>
       )}
@@ -339,12 +339,12 @@ export default function RestockDetailPage() {
         <div key={group.vendor} className="mb-4 rounded-xl border border-sw-border bg-sw-card overflow-hidden">
           <div className="px-4 py-2.5 border-b border-sw-border flex items-center justify-between bg-sw-card2/40">
             <div>
-              <div className="text-sw-text text-[14px] font-bold">{group.vendor}</div>
+              <div className="text-sw-text text-[14px] font-semibold">{group.vendor}</div>
               <div className="text-sw-sub text-[12px]">{group.items.length} {group.items.length === 1 ? 'item' : 'items'}</div>
             </div>
             <div className="text-right">
-              <div className="text-sw-dim text-[12px] font-bold">Subtotal</div>
-              <div className="text-sw-text text-[14px] font-bold font-mono">{fmtMoney(group.subtotal)}</div>
+              <div className="text-sw-dim text-[12px] font-semibold">Subtotal</div>
+              <div className="text-sw-text text-[14px] font-semibold font-mono">{fmtMoney(group.subtotal)}</div>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -452,7 +452,7 @@ export default function RestockDetailPage() {
       {grouped.length > 0 && (
         <div className="flex justify-end mt-2 mb-6">
           <div className="bg-sw-card border border-sw-border rounded-xl px-5 py-3 text-right">
-            <div className="text-sw-dim text-[12px] font-bold">Grand total</div>
+            <div className="text-sw-dim text-[12px] font-semibold">Grand total</div>
             <div className="text-sw-text text-[20px] font-semibold font-mono">{fmtMoney(grandTotal)}</div>
           </div>
         </div>

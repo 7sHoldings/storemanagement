@@ -1,4 +1,5 @@
 'use client';
+import { Camera, FolderOpen } from 'lucide-react';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { DataTable, PageHeader, Modal, Field, Button, Loading, ConfirmModal, Alert, DateBar, useDateRange, StoreBadge, MultiSelect, SmartDatePicker, SortDropdown, StorePills } from '@/components/UI';
@@ -108,7 +109,7 @@ export default function ExpensesPage() {
   const catLabel = id => EXPENSE_CATEGORIES.find(c => c.id === id);
   const renderCatInTable = (v) => {
     const c = catLabel(v);
-    return c ? `${c.icon} ${c.label}` : `✨ ${v}`;
+    return c ? c.label : `${v}`;
   };
 
   // ── Single-expense form validation ──────────────────────────
@@ -506,9 +507,9 @@ export default function ExpensesPage() {
 
   return (
     <div>
-      <PageHeader title="📋 Expenses" subtitle={pageStoreId ? selectedStoreName : 'All Stores'}>
-        <Button variant="secondary" onClick={() => downloadCSV('expenses.csv', ['Month','Store','Category','Amount','Paid From','Note'], visibleItems.map(e => [e.month, e.stores?.name, catLabel(e.category)?.label || e.category, e.amount, e.paid_from === 'cash_collection' ? 'Cash in Hand' : 'Bank', e.note]))} className="!text-[12px]">📥 CSV</Button>
-        <Button variant="secondary" onClick={() => openTemplate()}>📝 Fill Monthly</Button>
+      <PageHeader title="Expenses" subtitle={pageStoreId ? selectedStoreName : 'All Stores'}>
+        <Button variant="secondary" onClick={() => downloadCSV('expenses.csv', ['Month','Store','Category','Amount','Paid From','Note'], visibleItems.map(e => [e.month, e.stores?.name, catLabel(e.category)?.label || e.category, e.amount, e.paid_from === 'cash_collection' ? 'Cash in Hand' : 'Bank', e.note]))} className="!text-[12px]">CSV</Button>
+        <Button variant="secondary" onClick={() => openTemplate()}>Fill Monthly</Button>
         <Button onClick={tryOpenAdd}>+ Add</Button>
       </PageHeader>
 
@@ -565,7 +566,7 @@ export default function ExpensesPage() {
               <span className="inline-flex items-center gap-1.5">
                 {renderCatInTable(v)}
                 {r.paid_from === 'cash_collection' && (
-                  <span title="Paid from Cash in Hand — deducted on the Cash Collection page" className="bg-sw-greenD text-[var(--color-success)] border border-sw-green/30 text-[12px] font-bold px-1.5 py-0.5 rounded uppercase">💵 Cash</span>
+                  <span title="Paid from Cash in Hand — deducted on the Cash Collection page" className="bg-sw-greenD text-[var(--color-success)] border border-sw-green/30 text-[12px] font-semibold px-1.5 py-0.5 rounded ">Cash</span>
                 )}
               </span>
             ), sortValue: r => catLabel(r.category)?.label || r.category },
@@ -579,8 +580,8 @@ export default function ExpensesPage() {
                   title={urls.length > 1 ? `View receipts (${urls.length})` : 'View receipt'}
                   className="relative inline-flex items-center justify-center w-10 h-10 rounded-md bg-sw-blueD text-[var(--color-info)] border border-sw-blue/30 text-base"
                 >
-                  📷
-                  {urls.length > 1 && <span className="absolute -top-1 -right-1 bg-sw-blue text-black text-[12px] rounded-full px-1 font-bold">{urls.length}</span>}
+                  <Camera size={18} strokeWidth={1.75} aria-hidden="true" />
+                  {urls.length > 1 && <span className="absolute -top-1 -right-1 bg-sw-blue text-black text-[12px] rounded-full px-1 font-semibold">{urls.length}</span>}
                 </button>
               );
             } },
@@ -593,7 +594,7 @@ export default function ExpensesPage() {
         />
         {visibleItems.length > 0 && (
           <div className="px-3 py-2 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] flex justify-between items-center flex-wrap gap-2">
-            <span className="text-[var(--text-secondary)] text-[12px] font-bold">
+            <span className="text-[var(--text-secondary)] text-[12px] font-semibold">
               Showing {visibleItems.length} of {items.length} expenses
             </span>
             <span className="text-[var(--color-danger)] text-[16px] font-semibold font-mono">
@@ -623,8 +624,8 @@ export default function ExpensesPage() {
           </Field>
           <Field label="Category">
             <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} className={errors.category ? '!border-sw-red' : ''}>
-              {EXPENSE_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.icon} {c.label}</option>)}
-              <option value="__other__">✨ Other (custom)</option>
+              {EXPENSE_CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+              <option value="__other__">Other (custom)</option>
             </select>
             {form.category === '__other__' && (
               <input
@@ -639,12 +640,12 @@ export default function ExpensesPage() {
           </Field>
           <Field label="Paid From">
             <select value={form.paid_from} onChange={e => setForm({...form, paid_from: e.target.value})}>
-              <option value="bank">🏦 Bank / Card</option>
-              <option value="cash_collection">💵 Cash in Hand (collected cash)</option>
+              <option value="bank">Bank / Card</option>
+              <option value="cash_collection">Cash in Hand (collected cash)</option>
             </select>
             {form.paid_from === 'cash_collection' && (
               <p className="text-[var(--color-warning)] text-[12px] mt-1">
-                💵 This amount will be deducted from Cash in Hand on the Cash Collection page.
+                This amount will be deducted from Cash in Hand on the Cash Collection page.
               </p>
             )}
           </Field>
@@ -663,14 +664,14 @@ export default function ExpensesPage() {
                 onClick={() => receiptCameraRef.current?.click()}
                 className="flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg border-2 border-dashed border-sw-blue/40 bg-sw-blueD text-[var(--color-info)] text-[13px] font-semibold min-h-[44px]"
               >
-                <span className="text-lg">📷</span><span>Take Photo</span>
+                <Camera size={18} strokeWidth={1.75} aria-hidden="true" /><span>Take Photo</span>
               </button>
               <button
                 type="button"
                 onClick={() => receiptLibraryRef.current?.click()}
                 className="flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg border-2 border-dashed border-sw-blue/40 bg-sw-blueD text-[var(--color-info)] text-[13px] font-semibold min-h-[44px]"
               >
-                <span className="text-lg">📁</span><span>From Library</span>
+                <FolderOpen size={18} strokeWidth={1.75} aria-hidden="true" /><span>From Library</span>
               </button>
               <input ref={receiptCameraRef} type="file" accept="image/*" capture="environment" onChange={handleReceiptPick} className="hidden" />
               <input ref={receiptLibraryRef} type="file" accept="image/*" multiple onChange={handleReceiptPick} className="hidden" />
@@ -705,7 +706,7 @@ export default function ExpensesPage() {
                     >
                       <img src={p.preview} alt="New receipt" className="w-full h-full object-cover" />
                     </button>
-                    <span className="absolute top-1 left-1 bg-sw-blueD text-[var(--color-info)] border border-sw-blue/40 text-[12px] font-bold px-1 rounded">NEW</span>
+                    <span className="absolute top-1 left-1 bg-sw-blueD text-[var(--color-info)] border border-sw-blue/40 text-[12px] font-semibold px-1 rounded">NEW</span>
                     <button
                       type="button"
                       onClick={() => removePendingReceipt(p.id)}
@@ -733,7 +734,7 @@ export default function ExpensesPage() {
       {tplOpen && (
         <Modal title="Fill Monthly Expenses" onClose={() => setTplOpen(false)} wide>
           <div className="mb-3 flex items-center gap-2 flex-wrap">
-            <label className="text-[var(--text-secondary)] text-[12px] font-bold uppercase">Store</label>
+            <label className="text-[var(--text-secondary)] text-[12px] font-semibold ">Store</label>
             <select
               value={tplStoreId}
               onChange={e => setTplStoreId(e.target.value)}
@@ -742,7 +743,7 @@ export default function ExpensesPage() {
               <option value="">All Stores</option>
               {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
-            <label className="text-[var(--text-secondary)] text-[12px] font-bold uppercase">Date</label>
+            <label className="text-[var(--text-secondary)] text-[12px] font-semibold ">Date</label>
             <SmartDatePicker value={tplDate} onChange={v => { setTplDate(v); if (v) setTplMonth(v.slice(0, 7)); }} />
             <span className="text-[var(--text-muted)] text-[12px]">Blank rows are skipped.</span>
           </div>
@@ -758,9 +759,9 @@ export default function ExpensesPage() {
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <span className="w-2 h-2 rounded-sm" style={{ background: st.color }} />
-                        <span className="text-[var(--text-primary)] text-[13px] font-bold">{st.name}</span>
+                        <span className="text-[var(--text-primary)] text-[13px] font-semibold">{st.name}</span>
                       </div>
-                      <span className="text-[var(--color-success)] text-[12px] font-mono font-bold">{fmt(total)}</span>
+                      <span className="text-[var(--color-success)] text-[12px] font-mono font-semibold">{fmt(total)}</span>
                     </div>
 
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
@@ -769,7 +770,7 @@ export default function ExpensesPage() {
                         return (
                           <div key={key}>
                             <label className="block text-[var(--text-secondary)] text-[12px] font-semibold mb-0.5">
-                              {cat.icon} {cat.label}
+                              {cat.label}
                             </label>
                             <input
                               type="number" min="0" step="0.01" placeholder="0.00"
@@ -783,7 +784,7 @@ export default function ExpensesPage() {
                     </div>
 
                     <div className="border-t border-[var(--border-subtle)] pt-2">
-                      <div className="text-[var(--text-secondary)] text-[12px] font-bold mb-1.5">Custom Expenses</div>
+                      <div className="text-[var(--text-secondary)] text-[12px] font-semibold mb-1.5">Custom Expenses</div>
                       {(tplCustom[st.id] || []).length === 0 && (
                         <p className="text-[var(--text-muted)] text-[12px] italic mb-1.5">No custom expenses — add below for items like camera repair, pest control, signage, etc.</p>
                       )}
@@ -830,7 +831,7 @@ export default function ExpensesPage() {
 
           <div className="flex justify-between items-center mt-4 sticky bottom-0 bg-[var(--bg-elevated)] pt-2 border-t border-[var(--border-subtle)]">
             <div className="text-[12px] text-[var(--text-secondary)]">
-              Grand total: <span className="text-[var(--color-success)] font-mono font-bold text-[13px]">{fmt(grandTotal)}</span>
+              Grand total: <span className="text-[var(--color-success)] font-mono font-semibold text-[13px]">{fmt(grandTotal)}</span>
             </div>
             <div className="flex gap-2">
               <Button variant="secondary" onClick={() => setTplOpen(false)}>Cancel</Button>

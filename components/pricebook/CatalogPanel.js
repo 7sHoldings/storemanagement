@@ -269,7 +269,7 @@ function PrefixGroup({ group, stores, onChanged }) {
         <span className="mt-0.5 text-[12px] text-[var(--text-muted)]">{open ? '▾' : '▸'}</span>
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <span className="font-mono text-[14px] font-bold text-sw-text">{group.prefix}•••</span>
+            <span className="font-mono text-[14px] font-semibold text-sw-text">{group.prefix}•••</span>
             <span className="text-[12px] text-[var(--text-muted)]">
               {group.upc_count} UPC{group.upc_count === 1 ? '' : 's'} · {group.store_count} store
               {group.store_count === 1 ? '' : 's'}
@@ -311,7 +311,7 @@ function PrefixGroup({ group, stores, onChanged }) {
                         on ? 'border-amber-500 bg-amber-500/15 text-sw-text' : 'border-sw-border text-[var(--text-muted)]'
                       }`}
                     >
-                      {on ? '✓ ' : ''}{storeShortName(s.name)}
+                      {on ? '' : ''}{storeShortName(s.name)}
                     </button>
                   );
                 })}
@@ -333,7 +333,7 @@ function PrefixGroup({ group, stores, onChanged }) {
                           className="flex min-w-[60%] flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 text-left"
                         >
                           <span className="text-[12px] text-[var(--text-muted)]">{isOpen ? '▾' : '▸'}</span>
-                          <span className={`text-[14px] font-bold ${b.cents == null ? 'text-[var(--color-warning)]' : 'text-sw-text'}`}>
+                          <span className={`text-[14px] font-semibold ${b.cents == null ? 'text-[var(--color-warning)]' : 'text-sw-text'}`}>
                             {b.cents == null ? 'Price differs by store' : fmtCents(b.cents)}
                           </span>
                           <span className="text-[12px] text-[var(--text-muted)]">

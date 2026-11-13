@@ -16,8 +16,10 @@ export function V2StatCard({ label, value, sub, variant = 'default', icon, class
     default: 'text-[var(--text-primary)]',
     success: 'text-[var(--color-success)]',
     danger: 'text-[var(--color-danger)]',
-    warning: 'text-[var(--color-warning)]',
-    info: 'text-[var(--color-info)]',
+    // Amber and blue were used as decoration; numbers read as plain ink
+    // unless they mean good (green) or bad (red).
+    warning: 'text-[var(--text-primary)]',
+    info: 'text-[var(--text-primary)]',
   }[variant] || 'text-[var(--text-primary)]';
 
   return (

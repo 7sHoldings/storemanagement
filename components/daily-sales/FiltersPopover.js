@@ -33,8 +33,8 @@ export default function FiltersPopover({
             <label className="mb-1 block text-[13px] font-medium text-[#71717A]">Status</label>
             <select value={mismatchFilter} onChange={e => setMismatchFilter(e.target.value)} className="!min-h-0 !w-full !py-1.5 !text-[12px]">
               <option value="">All</option>
-              <option value="mismatch">Mismatches only ⚠️</option>
-              <option value="clean">Clean only ✅</option>
+              <option value="mismatch">Mismatches only</option>
+              <option value="clean">Clean only</option>
             </select>
           </div>
           {onClear && (

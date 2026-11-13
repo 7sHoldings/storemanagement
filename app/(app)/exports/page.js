@@ -33,14 +33,14 @@ export default function ExportsPage() {
   ];
 
   return (<div>
-    <PageHeader title="📥 Export Data" subtitle="Download CSV for any date range" />
+    <PageHeader title="Export Data" subtitle="Download CSV for any date range" />
     <DateBar preset={preset} onPreset={selectPreset} startDate={range.start} endDate={range.end} onStartChange={setStart} onEndChange={setEnd} />
     <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-3.5">
       {cards.map(c => (<div key={c.type} className="bg-[var(--bg-elevated)] rounded-xl p-5 border border-[var(--border-subtle)]">
-        <div className="text-3xl mb-2.5">{c.icon}</div>
-        <h3 className="text-[var(--text-primary)] text-base font-bold mb-1">{c.title}</h3>
+        
+        <h3 className="text-[var(--text-primary)] text-base font-semibold mb-1">{c.title}</h3>
         <p className="text-[var(--text-secondary)] text-xs mb-4">{c.desc}</p>
-        <Button variant="secondary" onClick={() => exportData(c.type)} className="!text-[12px]">📥 Download CSV</Button>
+        <Button variant="secondary" onClick={() => exportData(c.type)} className="!text-[12px]">Download CSV</Button>
       </div>))}
     </div>
   </div>);

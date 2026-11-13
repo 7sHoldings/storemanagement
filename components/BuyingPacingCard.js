@@ -54,7 +54,7 @@ export default function BuyingPacingCard({ className = '', start, end, storeIds 
             <span className="text-[var(--text-muted)] font-normal text-[12px]"> ({data.daysElapsed} of {data.daysInPeriod} days)</span>
           )}
         </h3>
-        <span className="text-[12px] font-bold rounded-full px-2 py-0.5" style={{ background: c(o.overBudget) + '22', color: c(o.overBudget) }}>
+        <span className="text-[12px] font-semibold rounded-full px-2 py-0.5" style={{ background: c(o.overBudget) + '22', color: c(o.overBudget) }}>
           {o.overBudget ? 'Over target' : 'On target'}
         </span>
       </div>
@@ -68,7 +68,7 @@ export default function BuyingPacingCard({ className = '', start, end, storeIds 
 
       {data.inProgress && (
       <div className="rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3 text-[12px]">
-        <p className="text-[var(--text-muted)] text-[12px] font-bold mb-1">Projected for the full period (current pace)</p>
+        <p className="text-[var(--text-muted)] text-[12px] font-semibold mb-1">Projected for the full period (current pace)</p>
         <p className="text-[var(--text-secondary)]">
           Sales ~<span className="text-[var(--text-primary)] font-semibold tabular-nums">{fmt(o.projSales)}</span>
           {' · '}Buying ~<span className="font-semibold tabular-nums" style={{ color: c(o.projOverBudget) }}>{fmt(o.projBuying)}</span>
