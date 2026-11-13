@@ -163,7 +163,7 @@ export default function NRSBackfillPage() {
         </p>
 
         <div className="mb-4">
-          <div className="text-[var(--text-secondary)] text-[10px] font-bold uppercase mb-2">Stores</div>
+          <div className="text-[var(--text-secondary)] text-[12px] font-bold uppercase mb-2">Stores</div>
           <div className="flex gap-2 flex-wrap">
             {stores.map(s => (
               <label key={s.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer min-h-[44px] ${selectedStores.includes(s.id) ? 'bg-sw-blueD border-sw-blue/30 text-[var(--color-info)]' : 'bg-[var(--bg-card)] border-[var(--border-subtle)] text-[var(--text-primary)]'}`}>
@@ -188,7 +188,7 @@ export default function NRSBackfillPage() {
         {/* Live progress */}
         {(running || (current > 0 && !done)) && (
           <div className="mb-4">
-            <div className="flex justify-between text-[11px] mb-1">
+            <div className="flex justify-between text-[12px] mb-1">
               <span className="text-[var(--text-primary)] font-semibold">
                 {current} / {total || '?'} processed
                 {currentTask && <span className="text-[var(--text-muted)] ml-2">— {currentTask}</span>}
@@ -200,10 +200,10 @@ export default function NRSBackfillPage() {
             <div className="w-full bg-[var(--bg-card)] rounded-full h-3 border border-[var(--border-subtle)]">
               <div
                 className="h-full rounded-full transition-all duration-200"
-                style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #22C55E, #3B82F6)' }}
+                style={{ width: `${pct}%`, background: 'linear-gradient(90deg, #15803D, #3B82F6)' }}
               />
             </div>
-            <div className="flex justify-between text-[var(--text-muted)] text-[10px] mt-1">
+            <div className="flex justify-between text-[var(--text-muted)] text-[12px] mt-1">
               <span>{pct}%</span>
               {remaining > 0 && <span>~{remMin > 0 ? `${remMin}m ` : ''}{remSec}s remaining</span>}
             </div>
@@ -234,7 +234,7 @@ export default function NRSBackfillPage() {
             <Button variant="secondary" onClick={cancel}>Cancel</Button>
           )}
           {results.length > 0 && !running && (
-            <Button variant="secondary" onClick={exportResults} className="!text-[11px]">Download CSV</Button>
+            <Button variant="secondary" onClick={exportResults} className="!text-[12px]">Download CSV</Button>
           )}
         </div>
       </div>
@@ -259,15 +259,15 @@ export default function NRSBackfillPage() {
                     <td className="text-[12px]">{r.store}</td>
                     <td className="text-[12px] font-mono">{r.date}</td>
                     <td>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${
+                      <span className={`text-[12px] font-bold px-2 py-0.5 rounded uppercase ${
                         r.status === 'created' ? 'bg-sw-greenD text-[var(--color-success)]' :
                         r.status === 'updated' ? 'bg-sw-greenD text-[var(--color-success)]' :
                         r.status === 'skipped' ? 'bg-sw-amberD text-[var(--color-warning)]' :
                         'bg-sw-redD text-[var(--color-danger)]'
                       }`}>{r.status}</span>
                     </td>
-                    <td className="hidden sm:table-cell text-[var(--text-muted)] text-[11px] font-mono">{r.gross ? `$${r.gross}` : '—'}</td>
-                    <td className="hidden sm:table-cell text-[var(--text-muted)] text-[10px]">{r.duration_ms}ms</td>
+                    <td className="hidden sm:table-cell text-[var(--text-muted)] text-[12px] font-mono">{r.gross ? `$${r.gross}` : '—'}</td>
+                    <td className="hidden sm:table-cell text-[var(--text-muted)] text-[12px]">{r.duration_ms}ms</td>
                   </tr>
                 ))}
               </tbody>

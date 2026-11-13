@@ -4,7 +4,7 @@ import clsx from 'clsx';
 export function Card({ children, className, padding = 'md' }) {
   const pad = { sm: 'p-3', md: 'p-4', lg: 'p-6' }[padding] || 'p-4';
   return (
-    <div className={clsx('bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl', pad, className)}>
+    <div className={clsx('bg-white border border-[var(--border-subtle)] rounded-xl', pad, className)}>
       {children}
     </div>
   );
@@ -21,11 +21,12 @@ export function V2StatCard({ label, value, sub, variant = 'default', icon, class
   }[variant] || 'text-[var(--text-primary)]';
 
   return (
-    <Card className={clsx('relative overflow-hidden', className)}>
-      {icon && <span className="absolute top-3 right-3 text-[18px] opacity-60">{icon}</span>}
-      <p className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] font-semibold mb-1.5">{label}</p>
-      <p className={clsx('text-[22px] font-bold tracking-tight tabular-nums', valColor)}>{value}</p>
-      {sub && <p className="text-[11px] text-[var(--text-muted)] mt-1">{sub}</p>}
+    // `icon` is accepted for compatibility but no longer drawn: the cards
+    // read as numbers first, without emoji decoration.
+    <Card className={clsx('relative overflow-hidden !px-[18px] !py-4', className)}>
+      <p className="text-[13px] text-[var(--text-secondary)] font-medium mb-2">{label}</p>
+      <p className={clsx('text-[24px] font-semibold tracking-tight tabular-nums leading-tight', valColor)}>{value}</p>
+      {sub && <div className="text-[12px] text-[var(--text-muted)] mt-1.5">{sub}</div>}
     </Card>
   );
 }
@@ -41,7 +42,7 @@ export function Badge({ children, variant = 'default', className }) {
   }[variant] || '';
 
   return (
-    <span className={clsx('inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide', styles, className)}>
+    <span className={clsx('inline-flex items-center px-2 py-0.5 rounded-md text-[12px] font-semibold', styles, className)}>
       {children}
     </span>
   );
@@ -57,7 +58,7 @@ export function V2Alert({ children, type = 'info', className }) {
   }[type] || '';
 
   return (
-    <div className={clsx('rounded-lg border px-3 py-2 text-[12px] font-semibold', styles, className)}>
+    <div className={clsx('rounded-lg border px-3.5 py-2.5 text-[13px] font-medium', styles, className)}>
       {children}
     </div>
   );
@@ -67,7 +68,7 @@ export function V2Alert({ children, type = 'info', className }) {
 export function SectionHeader({ title, action, className }) {
   return (
     <div className={clsx('flex items-center justify-between mb-3', className)}>
-      <h2 className="text-[var(--text-primary)] text-[14px] font-bold tracking-tight">{title}</h2>
+      <h2 className="text-[var(--text-primary)] text-[15px] font-semibold">{title}</h2>
       {action}
     </div>
   );

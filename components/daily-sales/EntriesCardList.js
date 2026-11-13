@@ -7,7 +7,7 @@ import EntryCard from './EntryCard';
 // formulas the table's totals row uses.
 export default function EntriesCardList({ entries, stores, isOwner, onEdit, onDelete, onViewReceipts, getStatus }) {
   if (!entries.length) {
-    return <div className="rounded-[10px] border border-[#2C2C2A] bg-[#0A0A0A] px-4 py-8 text-center text-[12px] text-[#5F5E5A]">No data</div>;
+    return <div className="rounded-[10px] border border-[#E4E4E7] bg-[#FFFFFF] px-4 py-8 text-center text-[12px] text-[#71717A]">No data</div>;
   }
 
   const sum = (fn) => entries.reduce((s, r) => s + fn(r), 0);
@@ -16,8 +16,8 @@ export default function EntriesCardList({ entries, stores, isOwner, onEdit, onDe
   const tSO = sum(r => Number(r.short_over || 0));
   const tDiff = sum(r => { const st = stores.find(s => s.id === r.store_id); return st?.has_register2 ? (Number(r.r2_net || 0) - Number(r.r1_canceled_basket || 0)) : 0; });
 
-  const soDisp = Math.abs(tSO) < 0.01 ? { t: fmt(0), c: 'text-[#5F5E5A]' } : (tSO > 0 ? { t: `−${fmt(Math.abs(tSO))}`, c: 'text-[#E24B4A]' } : { t: `+${fmt(Math.abs(tSO))}`, c: 'text-[#39FF14]' });
-  const diffDisp = Math.abs(tDiff) < 0.01 ? { t: fmt(0), c: 'text-[#39FF14]' } : (tDiff < 0 ? { t: `-${fmt(Math.abs(tDiff))}`, c: 'text-[#E24B4A]' } : { t: `+${fmt(tDiff)}`, c: 'text-[#EF9F27]' });
+  const soDisp = Math.abs(tSO) < 0.01 ? { t: fmt(0), c: 'text-[#71717A]' } : (tSO > 0 ? { t: `−${fmt(Math.abs(tSO))}`, c: 'text-[#B91C1C]' } : { t: `+${fmt(Math.abs(tSO))}`, c: 'text-[#A21CAF]' });
+  const diffDisp = Math.abs(tDiff) < 0.01 ? { t: fmt(0), c: 'text-[#A21CAF]' } : (tDiff < 0 ? { t: `-${fmt(Math.abs(tDiff))}`, c: 'text-[#B91C1C]' } : { t: `+${fmt(tDiff)}`, c: 'text-[#B45309]' });
 
   return (
     <div className="flex flex-col gap-2">
@@ -38,15 +38,15 @@ export default function EntriesCardList({ entries, stores, isOwner, onEdit, onDe
         );
       })}
 
-      <div className="rounded-[10px] border border-[#2C2C2A] p-3" style={{ background: 'linear-gradient(180deg, #141414, #0A0A0A)' }}>
-        <p className="mb-2 text-[10px] font-semibold uppercase tracking-[1px] text-[#888780]">
+      <div className="rounded-[10px] border border-[#E4E4E7] p-3" style={{ background: 'linear-gradient(180deg, #FFFFFF, #FFFFFF)' }}>
+        <p className="mb-2 text-[13px] font-medium text-[#71717A]">
           Totals ({entries.length} entr{entries.length === 1 ? 'y' : 'ies'})
         </p>
         <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-[12px]">
-          <div className="flex justify-between"><span className="text-[#888780]">Gross</span><span className="font-medium tabular-nums text-white">{fmt(tGross)}</span></div>
-          <div className="flex justify-between"><span className="text-[#888780]">Total</span><span className="font-medium tabular-nums text-[#39FF14]">{fmt(tTotal)}</span></div>
-          <div className="flex justify-between"><span className="text-[#888780]">Diff</span><span className={`font-medium tabular-nums ${diffDisp.c}`}>{diffDisp.t}</span></div>
-          <div className="flex justify-between"><span className="text-[#888780]">S/O</span><span className={`font-medium tabular-nums ${soDisp.c}`}>{soDisp.t}</span></div>
+          <div className="flex justify-between"><span className="text-[#71717A]">Gross</span><span className="font-medium tabular-nums text-[#18181B]">{fmt(tGross)}</span></div>
+          <div className="flex justify-between"><span className="text-[#71717A]">Total</span><span className="font-medium tabular-nums text-[#A21CAF]">{fmt(tTotal)}</span></div>
+          <div className="flex justify-between"><span className="text-[#71717A]">Diff</span><span className={`font-medium tabular-nums ${diffDisp.c}`}>{diffDisp.t}</span></div>
+          <div className="flex justify-between"><span className="text-[#71717A]">S/O</span><span className={`font-medium tabular-nums ${soDisp.c}`}>{soDisp.t}</span></div>
         </div>
       </div>
     </div>

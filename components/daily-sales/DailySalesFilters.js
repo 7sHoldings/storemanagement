@@ -6,7 +6,7 @@ import DateRangeSegmented from '@/components/dashboard/shared/DateRangeSegmented
 import FiltersPopover from './FiltersPopover';
 
 const ctrlBtn =
-  'inline-flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-[#2C2C2A] bg-[#141414] px-2.5 py-1.5 text-[11px] font-medium text-[#C4C4C4] transition-colors hover:bg-[#1A1A1A] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#39FF14]';
+  'inline-flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-[#E4E4E7] bg-[#FFFFFF] px-2.5 py-1.5 text-[12px] font-medium text-[#3F3F46] transition-colors hover:bg-[#F4F4F5] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#A21CAF]';
 
 // Consolidated filter card. Store-pill toggle, date-range handlers, search,
 // the advanced-filter controls and the sort options are all passed through
@@ -26,7 +26,7 @@ export default function DailySalesFilters({
   const currentSortLabel = salesSortOptions.find(o => o.key === sortState.key && o.dir === sortState.dir)?.label || 'Sort';
 
   return (
-    <div className="mb-3 rounded-[10px] border border-[#2C2C2A] bg-[#0A0A0A] p-3">
+    <div className="mb-3 rounded-[10px] border border-[#E4E4E7] bg-[#FFFFFF] p-3">
       {/* Row 1: store pills + date range */}
       <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex gap-1.5 overflow-x-auto pb-1 lg:pb-0">
@@ -45,21 +45,21 @@ export default function DailySalesFilters({
       {/* Row 2: search + filters popover + sort */}
       <div className="mt-2.5 flex flex-wrap items-center gap-2">
         <div className="relative min-w-[180px] flex-1">
-          <Search size={13} strokeWidth={1.75} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#888780]" />
+          <Search size={13} strokeWidth={1.75} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[#71717A]" />
           <input
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search… (store, amount, employee)"
             aria-label="Search entries"
-            className="!min-h-0 !w-full !py-1.5 !pl-8 !pr-2.5 !text-[11px]"
+            className="!min-h-0 !w-full !py-1.5 !pl-8 !pr-2.5 !text-[12px]"
           />
         </div>
 
         <div className="relative flex-shrink-0">
           <button type="button" onClick={() => setFiltersOpen(o => !o)} className={ctrlBtn} aria-haspopup="true" aria-expanded={filtersOpen}>
             <SlidersHorizontal size={13} strokeWidth={1.75} />Filters
-            {activeCount > 0 && <span className="ml-0.5 rounded-full bg-[#FF1493] px-1.5 text-[9px] font-semibold text-white">{activeCount}</span>}
+            {activeCount > 0 && <span className="ml-0.5 rounded-full bg-[#BE185D] px-1.5 text-[12px] font-semibold text-white">{activeCount}</span>}
           </button>
           <FiltersPopover
             open={filtersOpen}
@@ -83,12 +83,12 @@ export default function DailySalesFilters({
           {sortOpen && (
             <>
               <div className="fixed inset-0 z-30" onClick={() => setSortOpen(false)} />
-              <div className="absolute right-0 top-full z-40 mt-1.5 w-[200px] rounded-lg border border-[#2C2C2A] bg-[#141414] py-1 shadow-xl">
+              <div className="absolute right-0 top-full z-40 mt-1.5 w-[200px] rounded-lg border border-[#E4E4E7] bg-[#FFFFFF] py-1 shadow-xl">
                 {salesSortOptions.map(o => {
                   const active = o.key === sortState.key && o.dir === sortState.dir;
                   return (
                     <button key={`${o.key}-${o.dir}`} type="button" onClick={() => { setSortState({ key: o.key, dir: o.dir }); setSortOpen(false); }}
-                      className={`block w-full px-3 py-1.5 text-left text-[11px] font-medium transition-colors ${active ? 'bg-[rgba(57,255,20,0.12)] text-[#39FF14]' : 'text-[#C4C4C4] hover:bg-[#1A1A1A]'}`}>
+                      className={`block w-full px-3 py-1.5 text-left text-[12px] font-medium transition-colors ${active ? 'bg-[rgba(162,28,175,0.12)] text-[#A21CAF]' : 'text-[#3F3F46] hover:bg-[#F4F4F5]'}`}>
                       {o.label}
                     </button>
                   );

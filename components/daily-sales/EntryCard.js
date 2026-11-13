@@ -10,7 +10,7 @@ import StatusIndicator from './shared/StatusIndicator';
 export default function EntryCard({ entry, store, status, statusTitle, isOwner, onEdit, onDelete, onViewReceipts }) {
   const warning = status === 'warning';
   const storeName = entry.stores?.name?.split(' - ').pop()?.trim() || entry.stores?.name || store?.name || '—';
-  const dotColor = entry.stores?.color || store?.color || '#5F5E5A';
+  const dotColor = entry.stores?.color || store?.color || '#71717A';
   const total = Number(entry.total_sales ?? entry.net_sales ?? 0);
   const gross = Number(entry.gross_sales ?? entry.total_sales ?? 0);
   const cash = Number(entry.cash_sales || 0) + Number(entry.r2_net || 0);
@@ -23,11 +23,11 @@ export default function EntryCard({ entry, store, status, statusTitle, isOwner, 
 
   // Positive short_over = SHORT (red, −); negative = OVER (green, +).
   const soDisp = Math.abs(so) < 0.01
-    ? { t: fmt(0), c: 'text-[#5F5E5A]' }
-    : (so > 0 ? { t: `−${fmt(Math.abs(so))}`, c: 'text-[#E24B4A]' } : { t: `+${fmt(Math.abs(so))}`, c: 'text-[#39FF14]' });
+    ? { t: fmt(0), c: 'text-[#71717A]' }
+    : (so > 0 ? { t: `−${fmt(Math.abs(so))}`, c: 'text-[#B91C1C]' } : { t: `+${fmt(Math.abs(so))}`, c: 'text-[#A21CAF]' });
   const diffDisp = basketDiff == null
-    ? { t: '—', c: 'text-[#5F5E5A]' }
-    : (Math.abs(basketDiff) < 0.01 ? { t: fmt(0), c: 'text-[#39FF14]' } : (basketDiff < 0 ? { t: `-${fmt(Math.abs(basketDiff))}`, c: 'text-[#E24B4A]' } : { t: `+${fmt(basketDiff)}`, c: 'text-[#EF9F27]' }));
+    ? { t: '—', c: 'text-[#71717A]' }
+    : (Math.abs(basketDiff) < 0.01 ? { t: fmt(0), c: 'text-[#A21CAF]' } : (basketDiff < 0 ? { t: `-${fmt(Math.abs(basketDiff))}`, c: 'text-[#B91C1C]' } : { t: `+${fmt(basketDiff)}`, c: 'text-[#B45309]' }));
 
   const r1 = Array.isArray(entry.r1_receipt_urls) ? entry.r1_receipt_urls : (entry.shift_report_url ? [entry.shift_report_url] : []);
   const r2 = Array.isArray(entry.r2_receipt_urls) ? entry.r2_receipt_urls : (entry.safe_drop_url ? [entry.safe_drop_url] : []);
@@ -36,32 +36,32 @@ export default function EntryCard({ entry, store, status, statusTitle, isOwner, 
 
   return (
     <div
-      className="rounded-[10px] border border-[#2C2C2A] bg-[#0A0A0A] p-3"
-      style={warning ? { borderLeft: '2px solid #EF9F27', background: 'linear-gradient(90deg, rgba(239,159,39,0.08), transparent 30%), #0A0A0A' } : undefined}
+      className="rounded-[10px] border border-[#E4E4E7] bg-[#FFFFFF] p-3"
+      style={warning ? { borderLeft: '2px solid #B45309', background: 'linear-gradient(90deg, rgba(239,159,39,0.08), transparent 30%), #FFFFFF' } : undefined}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
             <span className="h-1.5 w-1.5 shrink-0 rounded-sm" style={{ background: dotColor }} />
-            <span className="truncate text-[12px] font-medium text-white">{storeName}</span>
+            <span className="truncate text-[12px] font-medium text-[#18181B]">{storeName}</span>
           </div>
-          <p className="mt-0.5 text-[10px] text-[#888780]">{dayLabel(entry.date)}</p>
+          <p className="mt-0.5 text-[12px] text-[#71717A]">{dayLabel(entry.date)}</p>
         </div>
         <StatusIndicator state={status} variant="pill" title={statusTitle} />
       </div>
 
-      <div className="mt-2 flex items-end justify-between border-t border-[#2C2C2A] pt-2">
+      <div className="mt-2 flex items-end justify-between border-t border-[#E4E4E7] pt-2">
         <div>
-          <p className="text-[9px] font-semibold uppercase tracking-[1px] text-[#5F5E5A]">Total</p>
-          <p className="text-[15px] font-medium tabular-nums text-[#39FF14]">{fmt(total)}</p>
+          <p className="text-[13px] font-medium text-[#71717A]">Total</p>
+          <p className="text-[15px] font-medium tabular-nums text-[#A21CAF]">{fmt(total)}</p>
         </div>
         <div className="text-right">
-          <p className="text-[9px] font-semibold uppercase tracking-[1px] text-[#5F5E5A]">Diff</p>
+          <p className="text-[13px] font-medium text-[#71717A]">Diff</p>
           <p className={`text-[13px] font-medium tabular-nums ${diffDisp.c}`}>{diffDisp.t}</p>
         </div>
       </div>
 
-      <p className="mt-1.5 text-[10px] text-[#888780]">
+      <p className="mt-1.5 text-[12px] text-[#71717A]">
         Cash {fmt(cash)} · Card {fmt(card)} · Gross {fmt(gross)} · <span className={soDisp.c}>S/O {soDisp.t}</span>
         {cappChk !== 0 && <> · CApp/Chk {fmt(cappChk)}</>}
         {ha !== 0 && <> · H/A {fmt(ha)}</>}
@@ -74,17 +74,17 @@ export default function EntryCard({ entry, store, status, statusTitle, isOwner, 
               type="button"
               onClick={() => onViewReceipts({ images: allReceipts, idx: 0, storeName: entry.stores?.name || '', date: entry.date })}
               title={`View ${allReceipts.length} receipt${allReceipts.length > 1 ? 's' : ''}`}
-              className="inline-flex items-center gap-1 rounded-md border border-[#2C2C2A] bg-[#141414] px-2 py-1 text-[10px] font-medium text-[#378ADD] transition-colors hover:bg-[#1A1A1A]"
+              className="inline-flex items-center gap-1 rounded-md border border-[#E4E4E7] bg-[#FFFFFF] px-2 py-1 text-[12px] font-medium text-[#1D4ED8] transition-colors hover:bg-[#F4F4F5]"
             >
               <ImageIcon size={12} strokeWidth={1.75} />{allReceipts.length}
             </button>
           )}
           {isOwner && (
             <>
-              <button type="button" onClick={() => onEdit(entry)} className="inline-flex items-center gap-1 rounded-md border border-[#378ADD]/30 bg-[#378ADD]/10 px-2.5 py-1 text-[10px] font-medium text-[#378ADD] transition-colors hover:bg-[#378ADD]/20">
+              <button type="button" onClick={() => onEdit(entry)} className="inline-flex items-center gap-1 rounded-md border border-[#1D4ED8]/30 bg-[#1D4ED8]/10 px-2.5 py-1 text-[12px] font-medium text-[#1D4ED8] transition-colors hover:bg-[#1D4ED8]/20">
                 <Pencil size={11} strokeWidth={1.75} />Edit
               </button>
-              <button type="button" onClick={() => onDelete(entry)} className="inline-flex items-center gap-1 rounded-md border border-[#E24B4A]/30 bg-[#E24B4A]/10 px-2.5 py-1 text-[10px] font-medium text-[#E24B4A] transition-colors hover:bg-[#E24B4A]/20">
+              <button type="button" onClick={() => onDelete(entry)} className="inline-flex items-center gap-1 rounded-md border border-[#B91C1C]/30 bg-[#B91C1C]/10 px-2.5 py-1 text-[12px] font-medium text-[#B91C1C] transition-colors hover:bg-[#B91C1C]/20">
                 <Trash2 size={11} strokeWidth={1.75} />Delete
               </button>
             </>

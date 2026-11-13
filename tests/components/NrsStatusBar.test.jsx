@@ -33,25 +33,18 @@ describe('<NrsStatusBar />', () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it('renders the Live badge for owners', () => {
-    global.fetch.mockResolvedValue({ json: async () => ({ valid: true }) });
-    supabase.from.mockImplementation(() => chain([]));
-    render(<NrsStatusBar />);
-    expect(screen.getByText('Live')).toBeInTheDocument();
-  });
-
-  it('renders "NRS Connected" when /api/nrs/validate returns valid=true', async () => {
+  it('renders "NRS connected" when /api/nrs/validate returns valid=true', async () => {
     global.fetch.mockResolvedValueOnce({ json: async () => ({ valid: true }) });
     supabase.from.mockImplementation(() => chain([]));
     render(<NrsStatusBar />);
-    await waitFor(() => expect(screen.getByText('NRS Connected')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('NRS connected')).toBeInTheDocument());
   });
 
-  it('renders "NRS Invalid" when /api/nrs/validate fails', async () => {
+  it('renders "NRS login invalid" when /api/nrs/validate fails', async () => {
     global.fetch.mockRejectedValueOnce(new Error('boom'));
     supabase.from.mockImplementation(() => chain([]));
     render(<NrsStatusBar />);
-    await waitFor(() => expect(screen.getByText('NRS Invalid')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('NRS login invalid')).toBeInTheDocument());
   });
 
   it('renders the last-sync date when nrs_sync_log returns rows', async () => {

@@ -30,8 +30,8 @@ export function SmartDatePicker({ value, onChange }) {
   const yearEnd = curYear + 1;
 
   const selStyle = {
-    background: '#131C28', border: '1px solid #1A2536', borderRadius: 8,
-    color: '#E2E8F0', fontSize: 13, padding: '9px 8px', minHeight: 44,
+    background: '#FAFAFA', border: '1px solid #E4E4E7', borderRadius: 8,
+    color: '#18181B', fontSize: 13, padding: '9px 8px', minHeight: 44,
     outline: 'none', flex: 1, minWidth: 0, cursor: 'pointer',
   };
 
@@ -65,7 +65,7 @@ export function SmartDatePicker({ value, onChange }) {
         type="button"
         onClick={() => nativeRef.current?.showPicker?.()}
         title="Open calendar"
-        style={{ background: '#131C28', border: '1px solid #1A2536', borderRadius: 8, minHeight: 44, width: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18, flexShrink: 0 }}
+        style={{ background: '#FAFAFA', border: '1px solid #E4E4E7', borderRadius: 8, minHeight: 44, width: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18, flexShrink: 0 }}
       >
         📅
       </button>
@@ -84,13 +84,10 @@ export function SmartDatePicker({ value, onChange }) {
 // ── Stat Card ───────────────────────────────────────────────
 export function StatCard({ label, value, sub, color, icon }) {
   return (
-    <div className="bg-sw-card rounded-xl p-3.5 sm:p-4 border border-sw-border flex-1 basis-full sm:basis-auto min-w-0 sm:min-w-[150px]">
-      <div className="flex justify-between mb-2">
-        <span className="text-sw-sub text-[10px] font-bold uppercase tracking-wide">{label}</span>
-        <span className="text-[15px]">{icon}</span>
-      </div>
-      <div className="text-[20px] sm:text-[22px] font-extrabold font-mono" style={{ color: color || '#E2E8F0' }}>{value}</div>
-      {sub && <div className="text-sw-sub text-[11px] mt-1">{sub}</div>}
+    <div className="bg-sw-card rounded-xl px-[18px] py-4 border border-sw-border flex-1 basis-full sm:basis-auto min-w-0 sm:min-w-[150px]">
+      <div className="text-sw-sub text-[13px] font-medium mb-2">{label}</div>
+      <div className="text-[24px] font-semibold tracking-tight tabular-nums" style={{ color: color || '#18181B' }}>{value}</div>
+      {sub && <div className="text-sw-dim text-[12px] mt-1">{sub}</div>}
     </div>
   );
 }
@@ -132,22 +129,22 @@ export function DatePresets({ active, onChange }) {
   return (
     <div className="flex gap-1 items-center relative flex-wrap">
       <div
-        className="flex gap-1 md:flex-wrap flex-nowrap overflow-x-auto items-center"
+        className="flex flex-nowrap overflow-x-auto items-stretch border border-sw-border rounded-lg bg-white"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {PRIMARY_PRESETS.map(p => (
           <button key={p.id} onClick={() => togglePreset(p.id)}
             title={active === p.id ? 'Click to clear' : ''}
-            className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors flex-shrink-0
-              ${active === p.id ? 'bg-sw-blueD text-sw-blue border border-sw-blue/20' : 'bg-sw-card2 text-sw-sub border border-sw-border hover:text-sw-text'}`}>
+            className={`h-9 px-3 text-[13px] transition-colors flex-shrink-0 border-r border-sw-border last:border-r-0
+              ${active === p.id ? 'bg-[#F4F4F5] text-sw-text font-semibold' : 'bg-white text-sw-sub font-medium hover:text-sw-text'}`}>
             {p.l}
           </button>
         ))}
       </div>
       <button
         onClick={() => setOpen(o => !o)}
-        className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors flex-shrink-0
-          ${activeInOverflow ? 'bg-sw-blueD text-sw-blue border border-sw-blue/20' : 'bg-sw-card2 text-sw-sub border border-sw-border hover:text-sw-text'}`}
+        className={`h-9 px-3 rounded-lg text-[13px] transition-colors flex-shrink-0 border border-sw-border
+          ${activeInOverflow ? 'bg-[#F4F4F5] text-sw-text font-semibold' : 'bg-white text-sw-sub font-medium hover:text-sw-text'}`}
       >
         {activeInOverflow ? activeLabel : 'More'} ▾
       </button>
@@ -156,13 +153,13 @@ export function DatePresets({ active, onChange }) {
           {/* Tap-outside backdrop */}
           <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
           {/* Dropdown — absolute relative to the non-overflow wrapper */}
-          <div className="absolute right-0 top-full mt-1 z-40 bg-sw-card border border-sw-border rounded-lg shadow-lg py-1 min-w-[180px]">
+          <div className="absolute right-0 top-full mt-1 z-40 bg-white border border-sw-border rounded-xl shadow-lg py-1.5 min-w-[190px]">
             {OVERFLOW_PRESETS.map(p => (
               <button
                 key={p.id}
                 onClick={() => { togglePreset(p.id); setOpen(false); }}
-                className={`block w-full text-left px-3 py-2 text-[12px] font-semibold transition-colors
-                  ${active === p.id ? 'bg-sw-blueD text-sw-blue' : 'text-sw-sub hover:bg-sw-card2 hover:text-sw-text'}`}
+                className={`block w-full text-left px-3 py-2 text-[14px] transition-colors
+                  ${active === p.id ? 'bg-sw-blueD text-[#86198F] font-semibold' : 'text-sw-text hover:bg-[#F4F4F5]'}`}
               >
                 {p.l}
               </button>
@@ -170,9 +167,9 @@ export function DatePresets({ active, onChange }) {
             {active && active !== 'custom' && (
               <button
                 onClick={() => { onChange('custom'); setOpen(false); }}
-                className="block w-full text-left px-3 py-2 text-[12px] font-semibold text-sw-dim hover:bg-sw-card2 hover:text-sw-text border-t border-sw-border"
+                className="block w-full text-left px-3 py-2 text-[13px] text-sw-dim hover:bg-[#F4F4F5] hover:text-sw-text border-t border-sw-border mt-1"
               >
-                ✕ Clear preset
+                Clear preset
               </button>
             )}
           </div>
@@ -223,13 +220,13 @@ export function DateBar({ preset, onPreset, startDate, endDate, onStartChange, o
   };
 
   return (
-    <div className="bg-sw-card rounded-lg p-2.5 border border-sw-border mb-3">
+    <div className="mb-4">
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-2">
         <DatePresets active={preset} onChange={onPreset} />
         <div className="flex gap-1.5 items-center w-full md:w-auto">
-          <input type="date" value={localStart} onChange={e => handleStart(e.target.value)} onBlur={flushStart} className="!flex-1 md:!w-[130px] md:!flex-none" />
-          <span className="text-sw-dim text-xs">→</span>
-          <input type="date" value={localEnd} onChange={e => handleEnd(e.target.value)} onBlur={flushEnd} className="!flex-1 md:!w-[130px] md:!flex-none" />
+          <input type="date" aria-label="Start date" value={localStart} onChange={e => handleStart(e.target.value)} onBlur={flushStart} className="!flex-1 md:!w-[150px] md:!flex-none !h-9 !min-h-0 !py-0 !text-[13px]" />
+          <span className="text-sw-dim text-[13px]">to</span>
+          <input type="date" aria-label="End date" value={localEnd} onChange={e => handleEnd(e.target.value)} onBlur={flushEnd} className="!flex-1 md:!w-[150px] md:!flex-none !h-9 !min-h-0 !py-0 !text-[13px]" />
         </div>
       </div>
     </div>
@@ -284,7 +281,7 @@ export function useDateRange(defaultPreset = 'last30') {
 //   value: array of selected values (controlled)
 //   onChange: (newArray) => void
 //   placeholder: string shown when nothing is selected
-//   label: short uppercase label on the left (optional)
+//   label: short label on the left (optional)
 //   unitLabel: singular noun used in summary ("store", "vendor")
 export function MultiSelect({ options, value = [], onChange, placeholder = 'All', label, unitLabel = 'selected', className = '' }) {
   const [open, setOpen] = useState(false);
@@ -321,7 +318,7 @@ export function MultiSelect({ options, value = [], onChange, placeholder = 'All'
     }
     if (value.length > 3) {
       return (
-        <span style={{ color: '#60A5FA', fontSize: 11, fontWeight: 600 }}>
+        <span style={{ color: '#1D4ED8', fontSize: 11, fontWeight: 600 }}>
           {value.length} {unitLabel}{value.length === 1 ? '' : 's'} selected
         </span>
       );
@@ -335,7 +332,7 @@ export function MultiSelect({ options, value = [], onChange, placeholder = 'All'
           title="Remove"
           style={{
             display: 'inline-flex', alignItems: 'center', gap: 4,
-            background: 'rgba(59,130,246,0.15)', color: '#60A5FA',
+            background: 'rgba(59,130,246,0.15)', color: '#1D4ED8',
             border: '1px solid rgba(59,130,246,0.4)', borderRadius: 4,
             padding: '2px 6px', fontSize: 10, fontWeight: 600,
             cursor: 'pointer',
@@ -355,7 +352,7 @@ export function MultiSelect({ options, value = [], onChange, placeholder = 'All'
       style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', gap: 8 }}
     >
       {label && (
-        <label style={{ color: '#64748B', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+        <label style={{ color: '#71717A', fontSize: 13, fontWeight: 500 }}>
           {label}
         </label>
       )}
@@ -363,8 +360,8 @@ export function MultiSelect({ options, value = [], onChange, placeholder = 'All'
         type="button"
         onClick={() => setOpen(o => !o)}
         style={{
-          background: '#131C28',
-          border: '1px solid #1A2536',
+          background: '#FAFAFA',
+          border: '1px solid #E4E4E7',
           borderRadius: 8,
           padding: '6px 10px',
           minHeight: 36,
@@ -374,7 +371,7 @@ export function MultiSelect({ options, value = [], onChange, placeholder = 'All'
           alignItems: 'center',
           gap: 6,
           flexWrap: 'wrap',
-          color: '#E2E8F0',
+          color: '#18181B',
           cursor: 'pointer',
           textAlign: 'left',
         }}
@@ -391,8 +388,8 @@ export function MultiSelect({ options, value = [], onChange, placeholder = 'All'
             top: '100%',
             marginTop: 4,
             zIndex: 50,
-            background: '#131C28',
-            border: '1px solid #1A2536',
+            background: '#FAFAFA',
+            border: '1px solid #E4E4E7',
             borderRadius: 8,
             boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
             minWidth: 240,
@@ -406,23 +403,23 @@ export function MultiSelect({ options, value = [], onChange, placeholder = 'All'
               display: 'flex',
               justifyContent: 'space-between',
               padding: '8px 12px',
-              borderBottom: '1px solid #1A2536',
+              borderBottom: '1px solid #E4E4E7',
               position: 'sticky',
               top: 0,
-              background: '#131C28',
+              background: '#FAFAFA',
             }}
           >
             <button
               type="button"
               onClick={selectAll}
-              style={{ background: 'transparent', border: 0, color: '#60A5FA', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer' }}
+              style={{ background: 'transparent', border: 0, color: '#A21CAF', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
             >
               Select all
             </button>
             <button
               type="button"
               onClick={clearAll}
-              style={{ background: 'transparent', border: 0, color: '#64748B', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', cursor: 'pointer' }}
+              style={{ background: 'transparent', border: 0, color: '#71717A', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
             >
               Clear
             </button>
@@ -441,12 +438,12 @@ export function MultiSelect({ options, value = [], onChange, placeholder = 'All'
                   padding: '10px 12px',
                   cursor: 'pointer',
                   background: active ? 'rgba(59,130,246,0.12)' : 'transparent',
-                  color: active ? '#93C5FD' : '#E2E8F0',
+                  color: active ? '#1D4ED8' : '#18181B',
                   fontSize: 12,
                   fontWeight: 600,
                   transition: 'background 120ms',
                 }}
-                onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = '#1A2536'; }}
+                onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = '#E4E4E7'; }}
                 onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
               >
                 <div
@@ -549,11 +546,11 @@ export function TrendChart({ data, height = 170 }) {
             >
               <div className="flex items-end gap-2" style={{ height: barsH }}>
                 <div className="flex flex-col items-center justify-end h-full">
-                  {purchases > 0 && <span className="text-[9px] font-mono font-bold text-sw-amber whitespace-nowrap leading-tight mb-0.5">{fmt(purchases)}</span>}
+                  {purchases > 0 && <span className="text-[12px] font-mono font-bold text-sw-amber whitespace-nowrap leading-tight mb-0.5">{fmt(purchases)}</span>}
                   <div style={{ width: bw, height: Math.max(pH, 2), borderRadius: '3px 3px 1px 1px', background: '#FBBF2488' }} />
                 </div>
                 <div className="flex flex-col items-center justify-end h-full">
-                  {sales > 0 && <span className="text-[9px] font-mono font-bold text-sw-green whitespace-nowrap leading-tight mb-0.5">{fmt(sales)}</span>}
+                  {sales > 0 && <span className="text-[12px] font-mono font-bold text-sw-green whitespace-nowrap leading-tight mb-0.5">{fmt(sales)}</span>}
                   <div style={{ width: bw, height: Math.max(sH, 2), borderRadius: '3px 3px 1px 1px', background: '#34D39999' }} />
                 </div>
               </div>
@@ -563,8 +560,8 @@ export function TrendChart({ data, height = 170 }) {
         })}
       </div>
       <div className="flex justify-center gap-4 mt-2">
-        <span className="flex items-center gap-1 text-[10px] text-sw-sub"><span className="w-2 h-2 rounded-sm bg-sw-amber" />Purchases</span>
-        <span className="flex items-center gap-1 text-[10px] text-sw-sub"><span className="w-2 h-2 rounded-sm bg-sw-green" />Sales</span>
+        <span className="flex items-center gap-1 text-[12px] text-sw-sub"><span className="w-2 h-2 rounded-sm bg-sw-amber" />Purchases</span>
+        <span className="flex items-center gap-1 text-[12px] text-sw-sub"><span className="w-2 h-2 rounded-sm bg-sw-green" />Sales</span>
       </div>
     </div>
   );
@@ -574,15 +571,15 @@ export function TrendChart({ data, height = 170 }) {
 export function Modal({ title, onClose, children, wide }) {
   return (
     <div className="fixed inset-0 z-50 flex md:items-center md:justify-center md:p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/65 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-[#18181B]/40" />
       <div onClick={e => e.stopPropagation()}
-        className={`relative bg-sw-card border border-sw-border overflow-auto
+        className={`relative bg-white border border-sw-border overflow-auto shadow-xl
           w-full h-full md:h-auto md:max-h-[88vh] md:rounded-2xl rounded-none
           p-5 md:p-6
           ${wide ? 'md:max-w-[700px]' : 'md:max-w-[480px]'}`}>
-        <div className="flex justify-between items-center mb-4 sticky top-0 bg-sw-card pt-1 -mt-1 pb-2 -mx-1 px-1">
-          <h3 className="text-sw-text text-base font-bold">{title}</h3>
-          <button onClick={onClose} className="text-sw-dim hover:text-sw-text text-xl w-10 h-10 flex items-center justify-center -mr-2">✕</button>
+        <div className="flex justify-between items-center mb-4 sticky top-0 bg-white pt-1 -mt-1 pb-3 -mx-1 px-1 border-b border-[#F0F0F2]">
+          <h3 className="text-sw-text text-[17px] font-semibold">{title}</h3>
+          <button onClick={onClose} aria-label="Close" className="text-sw-dim hover:text-sw-text hover:bg-[#F4F4F5] rounded-lg text-lg w-9 h-9 flex items-center justify-center -mr-1">✕</button>
         </div>
         {children}
       </div>
@@ -714,7 +711,7 @@ export function StoreRequiredModal({ stores, onSelectStore, onCancel, title = 'S
       </div>
       {/* Mobile: single dropdown */}
       <div className="sm:hidden mb-3">
-        <label className="block text-sw-sub text-[10px] font-bold uppercase mb-1">Choose store</label>
+        <label className="block text-[#3F3F46] text-[13px] font-medium mb-1.5">Choose store</label>
         <select
           defaultValue=""
           onChange={(e) => {
@@ -750,7 +747,7 @@ export function ConfirmModal({ title = 'Are you sure?', message, onCancel, onCon
 export function Field({ label, children }) {
   return (
     <div className="mb-3.5">
-      <label className="block text-sw-sub text-[10px] font-bold uppercase tracking-wider mb-1">{label}</label>
+      <label className="block text-[#3F3F46] text-[13px] font-medium mb-1.5">{label}</label>
       {children}
     </div>
   );
@@ -759,27 +756,26 @@ export function Field({ label, children }) {
 // ── Button ──────────────────────────────────────────────────
 export function Button({ children, variant = 'primary', className = '', ...props }) {
   const styles = {
-    primary: 'text-black font-bold border-none',
-    secondary: 'bg-transparent text-sw-text border border-sw-border hover:bg-sw-card2',
-    danger: 'bg-sw-redD text-sw-red border-none',
-    success: 'bg-sw-greenD text-sw-green border-none',
+    primary: 'bg-[#A21CAF] hover:bg-[#86198F] text-white font-semibold border border-[#A21CAF]',
+    secondary: 'bg-white text-sw-text font-medium border border-sw-border hover:bg-[#F4F4F5]',
+    danger: 'bg-white text-[#B91C1C] font-semibold border border-[#FECACA] hover:bg-[#FEF2F2]',
+    success: 'bg-[#15803D] hover:bg-[#166534] text-white font-semibold border border-[#15803D]',
   };
   return (
     <button {...props}
-      className={`px-4 py-2.5 md:py-2 rounded-lg text-[13px] cursor-pointer transition-colors min-h-[44px] md:min-h-0 ${styles[variant]} ${className}`}
-      style={variant === 'primary' ? { background: 'linear-gradient(135deg, #39FF14, #FF1493)', color: '#0A0A0A', boxShadow: '0 0 18px rgba(57,255,20,0.35)' } : {}}>
+      className={`px-3.5 rounded-lg text-[13px] cursor-pointer transition-colors h-10 md:h-9 inline-flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A21CAF] focus-visible:ring-offset-1 ${styles[variant] || styles.primary} ${className}`}>
       {children}
     </button>
   );
 }
 
 // ── Empty State ─────────────────────────────────────────────
-export function EmptyState({ icon = '📭', title = 'Nothing here yet', message, action }) {
+export function EmptyState({ icon = null, title = 'Nothing here yet', message, action }) {
   return (
-    <div className="py-10 px-4 text-center">
-      <div className="text-4xl mb-2">{icon}</div>
-      <div className="text-sw-text text-sm font-bold mb-1">{title}</div>
-      {message && <p className="text-sw-sub text-xs mb-3 max-w-sm mx-auto">{message}</p>}
+    <div className="py-12 px-4 text-center">
+      {icon && <div className="text-3xl mb-2 opacity-70">{icon}</div>}
+      <div className="text-sw-text text-[15px] font-semibold mb-1">{title}</div>
+      {message && <p className="text-sw-dim text-[13px] mb-3 max-w-sm mx-auto">{message}</p>}
       {action}
     </div>
   );
@@ -795,14 +791,14 @@ export function SortDropdown({ options, value, onChange }) {
   const selected = options.findIndex(o => o.key === value?.key && o.dir === value?.dir);
   return (
     <div className="inline-flex items-center gap-2">
-      <label className="text-sw-sub text-[10px] font-bold uppercase">Sort</label>
+      <label className="text-sw-dim text-[13px] font-medium">Sort</label>
       <select
         value={selected >= 0 ? selected : ''}
         onChange={e => {
           const idx = Number(e.target.value);
           if (!isNaN(idx) && options[idx]) onChange({ key: options[idx].key, dir: options[idx].dir });
         }}
-        className="!w-auto !min-w-[180px] !py-1.5 !text-[11px]"
+        className="!w-auto !min-w-[180px] !h-9 !min-h-0 !py-0 !text-[13px]"
       >
         {selected < 0 && <option value="">Custom</option>}
         {options.map((o, i) => <option key={i} value={i}>{o.label}</option>)}
@@ -932,7 +928,7 @@ export function DataTable({ columns, rows, onEdit, onDelete, isOwner = true, emp
                   <td
                     key={c.key}
                     className={colClass(c)}
-                    style={{ textAlign: c.align || 'left', fontFamily: c.mono ? "'IBM Plex Mono', monospace" : 'inherit' }}
+                    style={{ textAlign: c.align || 'left', fontVariantNumeric: c.mono ? 'tabular-nums' : undefined }}
                   >
                     {c.render ? c.render(row[c.key], row) : row[c.key]}
                   </td>
@@ -943,7 +939,7 @@ export function DataTable({ columns, rows, onEdit, onDelete, isOwner = true, emp
                       {onEdit && (
                         <button
                           onClick={() => onEdit(row)}
-                          className="inline-flex items-center justify-center px-3 rounded-md bg-sw-blueD border border-sw-blue/30 text-sw-blue text-[12px] font-semibold min-h-[32px] md:min-h-[32px]"
+                          className="inline-flex items-center justify-center px-3 rounded-md bg-white border border-sw-border text-sw-text hover:bg-[#F4F4F5] text-[13px] font-medium min-h-[32px]"
                           style={{ minHeight: 32 }}
                         >
                           Edit
@@ -952,7 +948,7 @@ export function DataTable({ columns, rows, onEdit, onDelete, isOwner = true, emp
                       {onDelete && (
                         <button
                           onClick={() => onDelete(row.id)}
-                          className="inline-flex items-center justify-center px-3 rounded-md bg-sw-redD border border-sw-red/30 text-sw-red text-[12px] font-semibold"
+                          className="inline-flex items-center justify-center px-3 rounded-md bg-white border border-[#FECACA] text-[#B91C1C] hover:bg-[#FEF2F2] text-[13px] font-medium min-h-[32px]"
                           style={{ minHeight: 32 }}
                         >
                           Delete
@@ -967,16 +963,16 @@ export function DataTable({ columns, rows, onEdit, onDelete, isOwner = true, emp
           </tbody>
           {columns.some(c => typeof c.total === 'function') && total > 0 && (
             <tfoot>
-              <tr className="bg-[var(--bg-elevated)] border-t-2 border-[var(--border-strong)] font-bold">
+              <tr className="bg-[#FAFAFA] border-t border-[var(--border-subtle)] font-semibold">
                 {columns.map((c, i) => {
                   const totalNode = typeof c.total === 'function' ? c.total(sortedRows) : null;
                   return (
                     <td
                       key={c.key}
                       className="!py-2.5"
-                      style={{ textAlign: c.align || 'left', fontFamily: c.mono ? "'IBM Plex Mono', monospace" : 'inherit', fontWeight: 700 }}
+                      style={{ textAlign: c.align || 'left', fontVariantNumeric: c.mono ? 'tabular-nums' : undefined, fontWeight: 700 }}
                     >
-                      {totalNode != null ? totalNode : (i === 0 ? <span className="text-sw-sub text-[10px] uppercase tracking-wider">Totals</span> : null)}
+                      {totalNode != null ? totalNode : (i === 0 ? <span className="text-sw-sub text-[12px] font-semibold">Totals</span> : null)}
                     </td>
                   );
                 })}
@@ -987,8 +983,8 @@ export function DataTable({ columns, rows, onEdit, onDelete, isOwner = true, emp
         </table>
       </div>
       {total > 0 && (
-        <div className="px-3 py-2 border-t border-sw-border flex items-center justify-between gap-2 flex-wrap">
-          <div className="text-sw-dim text-[10px]">
+        <div className="px-4 py-2.5 border-t border-sw-border flex items-center justify-between gap-2 flex-wrap">
+          <div className="text-sw-dim text-[12px]">
             Showing {startIdx + 1}–{endIdx} of {total} entries
           </div>
           {totalPages > 1 && (
@@ -997,7 +993,7 @@ export function DataTable({ columns, rows, onEdit, onDelete, isOwner = true, emp
                 type="button"
                 onClick={() => setPage(1)}
                 disabled={safePage === 1}
-                className="px-2 py-1 text-[11px] rounded border border-sw-border bg-sw-card2 text-sw-text disabled:opacity-40 disabled:cursor-not-allowed hover:bg-sw-card"
+                className="h-8 px-2.5 text-[13px] rounded-md border border-sw-border bg-white text-sw-text disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F4F4F5]"
                 title="First page"
               >
                 ‹‹
@@ -1006,18 +1002,18 @@ export function DataTable({ columns, rows, onEdit, onDelete, isOwner = true, emp
                 type="button"
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={safePage === 1}
-                className="px-2 py-1 text-[11px] rounded border border-sw-border bg-sw-card2 text-sw-text disabled:opacity-40 disabled:cursor-not-allowed hover:bg-sw-card"
+                className="h-8 px-2.5 text-[13px] rounded-md border border-sw-border bg-white text-sw-text disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F4F4F5]"
               >
                 ‹ Prev
               </button>
-              <span className="text-sw-sub text-[11px] font-mono px-1.5">
+              <span className="text-sw-sub text-[13px] tabular-nums px-1.5">
                 Page {safePage} / {totalPages}
               </span>
               <button
                 type="button"
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={safePage === totalPages}
-                className="px-2 py-1 text-[11px] rounded border border-sw-border bg-sw-card2 text-sw-text disabled:opacity-40 disabled:cursor-not-allowed hover:bg-sw-card"
+                className="h-8 px-2.5 text-[13px] rounded-md border border-sw-border bg-white text-sw-text disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F4F4F5]"
               >
                 Next ›
               </button>
@@ -1025,7 +1021,7 @@ export function DataTable({ columns, rows, onEdit, onDelete, isOwner = true, emp
                 type="button"
                 onClick={() => setPage(totalPages)}
                 disabled={safePage === totalPages}
-                className="px-2 py-1 text-[11px] rounded border border-sw-border bg-sw-card2 text-sw-text disabled:opacity-40 disabled:cursor-not-allowed hover:bg-sw-card"
+                className="h-8 px-2.5 text-[13px] rounded-md border border-sw-border bg-white text-sw-text disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F4F4F5]"
                 title="Last page"
               >
                 ››
@@ -1041,15 +1037,15 @@ export function DataTable({ columns, rows, onEdit, onDelete, isOwner = true, emp
 // ── Alert Banner ────────────────────────────────────────────
 export function Alert({ type = 'info', children }) {
   const styles = {
-    success: 'bg-sw-greenD border-sw-green/20 text-sw-green',
-    error: 'bg-sw-redD border-sw-red/20 text-sw-red',
-    warning: 'bg-sw-amberD border-sw-amber/20 text-sw-amber',
-    info: 'bg-sw-blueD border-sw-blue/20 text-sw-blue',
+    success: 'bg-[#F0FDF4] border-[#BBF7D0] text-[#166534]',
+    error: 'bg-[#FEF2F2] border-[#FECACA] text-[#991B1B]',
+    warning: 'bg-[#FFFBEB] border-[#FDE68A] text-[#92400E]',
+    info: 'bg-[#EFF6FF] border-[#BFDBFE] text-[#1E40AF]',
   };
-  const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
+  const dots = { success: '#15803D', error: '#B91C1C', warning: '#B45309', info: '#1D4ED8' };
   return (
-    <div className={`flex items-center gap-2 rounded-lg px-3.5 py-2 mb-3 border text-[13px] ${styles[type]}`}>
-      <span className="text-base">{icons[type]}</span>
+    <div role={type === 'error' ? 'alert' : 'status'} className={`flex items-center gap-2.5 rounded-lg px-3.5 py-2.5 mb-3 border text-[13px] ${styles[type]}`}>
+      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: dots[type] }} aria-hidden="true" />
       <span className="flex-1">{children}</span>
     </div>
   );
@@ -1057,18 +1053,23 @@ export function Alert({ type = 'info', children }) {
 
 // ── Loading ─────────────────────────────────────────────────
 export function Loading({ text = 'Loading...' }) {
-  return <div className="py-10 text-center text-sw-dim"><div className="text-3xl mb-3">⏳</div>{text}</div>;
+  return (
+    <div className="py-16 flex flex-col items-center gap-3 text-sw-dim text-[13px]" role="status">
+      <div className="w-7 h-7 rounded-full border-2 border-sw-border border-t-sw-blue animate-spin" aria-hidden="true" />
+      {text}
+    </div>
+  );
 }
 
 // ── Page Header ─────────────────────────────────────────────
 export function PageHeader({ title, subtitle, children }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-3.5">
+    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-3 mb-5">
       <div>
-        <h1 className="text-sw-text text-[20px] sm:text-[22px] font-extrabold leading-tight">{title}</h1>
-        {subtitle && <p className="text-sw-sub text-xs mt-0.5">{subtitle}</p>}
+        <h1 className="text-sw-text text-[22px] font-semibold tracking-tight leading-tight">{title}</h1>
+        {subtitle && <p className="text-sw-dim text-[13px] mt-1">{subtitle}</p>}
       </div>
-      {children && <div className="flex gap-1.5 flex-wrap">{children}</div>}
+      {children && <div className="flex gap-2 flex-wrap items-center">{children}</div>}
     </div>
   );
 }
@@ -1077,8 +1078,8 @@ export function PageHeader({ title, subtitle, children }) {
 export function StoreBadge({ name, color }) {
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="w-1.5 h-1.5 rounded-sm flex-shrink-0" style={{ background: color || '#60A5FA' }} />
-      {name}
+      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color || '#1D4ED8' }} />
+      <span title={name}>{name?.split(' - ').pop()?.trim() || name}</span>
     </span>
   );
 }
@@ -1087,18 +1088,18 @@ export function StoreBadge({ name, color }) {
 // Single-select. Clicking the active pill again unselects (returns to All).
 // Pass `showAll={false}` to hide the All Stores pill.
 export function StorePills({ stores = [], value = '', onChange, showAll = true, className = '' }) {
-  const pillBase = 'px-3 py-1.5 rounded-lg text-[12px] font-semibold whitespace-nowrap flex-shrink-0 transition-colors';
-  const inactive = 'bg-[var(--bg-hover)] text-[var(--text-muted)] border border-[var(--border-subtle)]';
+  const pillBase = 'h-8 px-3 rounded-full text-[13px] whitespace-nowrap flex-shrink-0 transition-colors border';
+  const inactive = 'bg-white text-[#52525B] font-medium border-[#E4E4E7] hover:text-[#18181B]';
   return (
-    <div className={`flex gap-1.5 overflow-x-auto mb-3 pb-1 ${className}`} style={{ WebkitOverflowScrolling: 'touch' }}>
+    <div className={`flex gap-1.5 overflow-x-auto mb-4 pb-1 ${className}`} style={{ WebkitOverflowScrolling: 'touch' }}>
       {showAll && (
         <button
           type="button"
           onClick={() => onChange?.('')}
-          className={`${pillBase} ${!value ? 'text-white shadow-sm' : inactive}`}
-          style={!value ? { background: 'var(--brand-primary)' } : undefined}
+          aria-pressed={!value}
+          className={`${pillBase} ${!value ? 'bg-[#FAE8FF] border-[#E9C4EE] text-[#86198F] font-semibold' : inactive}`}
         >
-          All Stores
+          All stores
         </button>
       )}
       {stores.map(s => {
@@ -1109,8 +1110,8 @@ export function StorePills({ stores = [], value = '', onChange, showAll = true, 
             key={s.id}
             type="button"
             onClick={() => onChange?.(selected ? '' : s.id)}
-            className={`${pillBase} flex items-center gap-1.5 ${selected ? 'text-white shadow-sm' : inactive}`}
-            style={selected ? { background: s.color || 'var(--brand-primary)' } : undefined}
+            aria-pressed={selected}
+            className={`${pillBase} flex items-center gap-1.5 ${selected ? 'bg-[#FAE8FF] border-[#E9C4EE] text-[#86198F] font-semibold' : inactive}`}
           >
             <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: s.color }} />
             {short}

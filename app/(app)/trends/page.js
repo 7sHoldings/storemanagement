@@ -40,7 +40,7 @@ export default function TrendsPage() {
 
   return (<div>
     <div className="mb-4">
-      <p className="text-[var(--text-muted)] text-[11px] font-semibold uppercase tracking-wider">Analytics</p>
+      <p className="text-[var(--text-muted)] text-[12px] font-semibold">Analytics</p>
       <h1 className="text-[var(--text-primary)] text-[22px] font-bold tracking-tight">Purchase vs Sales Trends</h1>
     </div>
     <StorePills stores={stores} value={selectedStore} onChange={setSelectedStore} />
@@ -56,7 +56,7 @@ export default function TrendsPage() {
         { key: 'purchases', label: 'Buy', align: 'right', mono: true, render: v => <span className="text-[var(--color-warning)]">{fmt(v)}</span> },
         { key: 'sales', label: 'Sell', align: 'right', mono: true, render: v => <span className="text-[var(--color-success)]">{fmt(v)}</span> },
         { key: 'diff', label: 'Net', align: 'right', mono: true, render: v => <span className={v>=0?'text-[var(--color-success)] font-bold':'text-[var(--color-danger)] font-bold'}>{v>=0?'+':''}{fmt(v)}</span> },
-        { key: '_s', label: '', align: 'center', render: (_,r) => r.diff < 0 ? <span className="bg-sw-redD text-[var(--color-danger)] text-[9px] font-bold px-1.5 py-0.5 rounded">OVER</span> : <span className="bg-sw-greenD text-[var(--color-success)] text-[9px] font-bold px-1.5 py-0.5 rounded">OK</span> },
+        { key: '_s', label: '', align: 'center', render: (_,r) => r.diff < 0 ? <span className="bg-sw-redD text-[var(--color-danger)] text-[12px] font-bold px-1.5 py-0.5 rounded">OVER</span> : <span className="bg-sw-greenD text-[var(--color-success)] text-[12px] font-bold px-1.5 py-0.5 rounded">OK</span> },
       ]} rows={[...trends].reverse()} isOwner={false} />
     </div>
   </div>);

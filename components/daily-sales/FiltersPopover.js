@@ -17,28 +17,28 @@ export default function FiltersPopover({
   return (
     <>
       <div className="fixed inset-0 z-30" onClick={onClose} />
-      <div className="absolute right-0 top-full z-40 mt-1.5 w-[280px] rounded-lg border border-[#2C2C2A] bg-[#141414] p-3 shadow-xl">
+      <div className="absolute right-0 top-full z-40 mt-1.5 w-[280px] rounded-lg border border-[#E4E4E7] bg-[#FFFFFF] p-3 shadow-xl">
         <div className="flex flex-col gap-2.5">
           <div>
-            <label className="mb-1 block text-[9px] font-semibold uppercase tracking-[1px] text-[#888780]">Store</label>
+            <label className="mb-1 block text-[13px] font-medium text-[#71717A]">Store</label>
             <MultiSelect placeholder="All Stores" unitLabel="store" value={pageStoreIds} onChange={setPageStoreIds} options={stores.map(s => ({ value: s.id, label: s.name }))} className="w-full" />
           </div>
           {employeeOptions.length > 0 && (
             <div>
-              <label className="mb-1 block text-[9px] font-semibold uppercase tracking-[1px] text-[#888780]">Employee</label>
+              <label className="mb-1 block text-[13px] font-medium text-[#71717A]">Employee</label>
               <MultiSelect placeholder="All Employees" unitLabel="employee" value={employeeFilter} onChange={setEmployeeFilter} options={employeeOptions} className="w-full" />
             </div>
           )}
           <div>
-            <label className="mb-1 block text-[9px] font-semibold uppercase tracking-[1px] text-[#888780]">Status</label>
-            <select value={mismatchFilter} onChange={e => setMismatchFilter(e.target.value)} className="!min-h-0 !w-full !py-1.5 !text-[11px]">
+            <label className="mb-1 block text-[13px] font-medium text-[#71717A]">Status</label>
+            <select value={mismatchFilter} onChange={e => setMismatchFilter(e.target.value)} className="!min-h-0 !w-full !py-1.5 !text-[12px]">
               <option value="">All</option>
               <option value="mismatch">Mismatches only ⚠️</option>
               <option value="clean">Clean only ✅</option>
             </select>
           </div>
           {onClear && (
-            <button type="button" onClick={onClear} className="mt-1 self-start text-[10px] font-medium text-[#888780] underline hover:text-[#C4C4C4]">
+            <button type="button" onClick={onClear} className="mt-1 self-start text-[12px] font-medium text-[#71717A] underline hover:text-[#3F3F46]">
               Clear filters
             </button>
           )}

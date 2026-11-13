@@ -50,21 +50,17 @@ export default function NrsStatusBar() {
   if (!isOwner) return null;
 
   return (
-    <div className="flex items-center gap-x-4 gap-y-1.5 flex-wrap px-3 py-1.5 mb-3 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] text-[11px]">
-      <span className="flex items-center gap-1.5">
-        <span className="w-2 h-2 rounded-full bg-[var(--color-success)] animate-pulse" />
-        <span className="text-[var(--color-success)] font-semibold">Live</span>
-      </span>
+    <div className="flex items-center justify-end gap-x-4 gap-y-1 flex-wrap mb-3 text-[12px] text-[var(--text-muted)]">
       {nrsStatus !== null && (
         <span className={`flex items-center gap-1.5 ${nrsStatus ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
-          <span className={`w-2 h-2 rounded-full ${nrsStatus ? 'bg-[var(--color-success)]' : 'bg-[var(--color-danger)]'}`} />
-          <span className="font-semibold">{nrsStatus ? 'NRS Connected' : 'NRS Invalid'}</span>
+          <span className={`w-1.5 h-1.5 rounded-full ${nrsStatus ? 'bg-[var(--color-success)]' : 'bg-[var(--color-danger)]'}`} />
+          <span className="font-medium">{nrsStatus ? 'NRS connected' : 'NRS login invalid'}</span>
         </span>
       )}
       {lastSync && (
         <span className="text-[var(--text-muted)] flex items-center gap-1.5">
           <span>Last sync</span>
-          <span className="text-[var(--text-secondary)] font-mono">{lastSync.date}</span>
+          <span className="text-[var(--text-secondary)]">{lastSync.date}</span>
           <span className="text-[var(--text-muted)]">·</span>
           <span className="text-[var(--text-secondary)]">{relativeTime(lastSync.time)}</span>
           {lastSync.failed > 0 && (

@@ -50,7 +50,8 @@ describe('<Alert />', () => {
   it('renders the message and the type-specific styling', () => {
     const { container } = render(<Alert type="error">oops</Alert>);
     expect(screen.getByText('oops')).toBeInTheDocument();
-    expect(container.firstChild.className).toContain('bg-sw-redD');
+    expect(container.firstChild.className).toContain('bg-[#FEF2F2]');
+    expect(screen.getByRole('alert')).toBeInTheDocument();
   });
 });
 
@@ -72,12 +73,12 @@ describe('<PageHeader />', () => {
 });
 
 describe('<StatCard />', () => {
-  it('renders label/value/sub/icon and honours color override', () => {
+  it('renders label/value/sub and honours color override (icons are no longer drawn)', () => {
     const { container } = render(<StatCard label="Total" value="$1.00" sub="today" icon="💰" color="#39FF14" />);
     expect(screen.getByText('Total')).toBeInTheDocument();
     expect(screen.getByText('$1.00')).toBeInTheDocument();
     expect(screen.getByText('today')).toBeInTheDocument();
-    expect(screen.getByText('💰')).toBeInTheDocument();
+    expect(screen.queryByText('💰')).not.toBeInTheDocument();
     expect(container.innerHTML).toMatch(/#39FF14|rgb\(57, 255, 20\)/i);
   });
 });

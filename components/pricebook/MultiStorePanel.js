@@ -290,7 +290,7 @@ function StoreSelector({ stores, selected, onToggle }) {
         );
       })}
       {!allOn && (
-        <span className="text-[11px] text-[var(--text-muted)]">
+        <span className="text-[12px] text-[var(--text-muted)]">
           {stores.length - selected.length} store{stores.length - selected.length === 1 ? '' : 's'} excluded
         </span>
       )}
@@ -313,9 +313,9 @@ function FamilyCard({
     <div className="rounded-xl border border-sw-border bg-sw-card overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-sw-border px-3 py-2">
         <button onClick={() => setOpen(o => !o)} className="flex min-w-[55%] flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 text-left">
-          <span className="text-[var(--text-muted)] text-[11px]">{open ? '▾' : '▸'}</span>
+          <span className="text-[var(--text-muted)] text-[12px]">{open ? '▾' : '▸'}</span>
           <span className="text-[14px] font-bold text-sw-text">{family.label}</span>
-          <span className="text-[11px] text-[var(--text-muted)]">
+          <span className="text-[12px] text-[var(--text-muted)]">
             {family.items.length} flavor{family.items.length === 1 ? '' : 's'}
             {family.upcPrefix ? ` · UPC ${family.upcPrefix}•••` : ''}
           </span>
@@ -380,7 +380,7 @@ function ReviewModal({ plan, stores, protectedCount, includeCustom, onIncludeCus
           <div className="text-[12px] font-semibold text-sw-text">
             {protectedCount} store price{protectedCount === 1 ? ' is' : 's are'} deliberately different — left alone
           </div>
-          <ul className="mt-1 space-y-0.5 text-[11px] text-[var(--text-muted)]">
+          <ul className="mt-1 space-y-0.5 text-[12px] text-[var(--text-muted)]">
             {protectedSkips.slice(0, 8).map(s => (
               <li key={cellKey(s.store_id, s.upc)}>
                 {storeName(s.store_id)} · {s.name} — staying at {fmtCents(s.from)} (not {fmtCents(s.to)})
@@ -398,13 +398,13 @@ function ReviewModal({ plan, stores, protectedCount, includeCustom, onIncludeCus
       <div className="max-h-[340px] overflow-y-auto rounded-lg border border-sw-border">
         {byStore.map(([storeId, writes]) => (
           <div key={storeId}>
-            <div className="sticky top-0 bg-sw-card px-3 py-1.5 text-[11px] font-bold uppercase text-[var(--text-muted)]">
+            <div className="sticky top-0 bg-sw-card px-3 py-1.5 text-[12px] font-bold uppercase text-[var(--text-muted)]">
               {storeName(storeId)} · {writes.length} change{writes.length === 1 ? '' : 's'}
             </div>
             {writes.map(w => (
               <div key={cellKey(w.store_id, w.upc)} className="flex items-center justify-between gap-3 px-3 py-1.5 text-[12px]">
                 <span className="min-w-0 truncate text-sw-text">{w.name}</span>
-                <span className="flex-shrink-0 font-mono text-[10px] text-[var(--text-muted)]">{w.upc}</span>
+                <span className="flex-shrink-0 font-mono text-[12px] text-[var(--text-muted)]">{w.upc}</span>
                 <span className="flex-shrink-0 text-sw-text">
                   {fmtCents(w.from)} <span className="text-[var(--text-muted)]">→</span>{' '}
                   <b className="text-amber-400">{fmtCents(w.to)}</b>

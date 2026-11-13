@@ -507,7 +507,7 @@ export default function ExpensesPage() {
   return (
     <div>
       <PageHeader title="📋 Expenses" subtitle={pageStoreId ? selectedStoreName : 'All Stores'}>
-        <Button variant="secondary" onClick={() => downloadCSV('expenses.csv', ['Month','Store','Category','Amount','Paid From','Note'], visibleItems.map(e => [e.month, e.stores?.name, catLabel(e.category)?.label || e.category, e.amount, e.paid_from === 'cash_collection' ? 'Cash in Hand' : 'Bank', e.note]))} className="!text-[11px]">📥 CSV</Button>
+        <Button variant="secondary" onClick={() => downloadCSV('expenses.csv', ['Month','Store','Category','Amount','Paid From','Note'], visibleItems.map(e => [e.month, e.stores?.name, catLabel(e.category)?.label || e.category, e.amount, e.paid_from === 'cash_collection' ? 'Cash in Hand' : 'Bank', e.note]))} className="!text-[12px]">📥 CSV</Button>
         <Button variant="secondary" onClick={() => openTemplate()}>📝 Fill Monthly</Button>
         <Button onClick={tryOpenAdd}>+ Add</Button>
       </PageHeader>
@@ -543,10 +543,10 @@ export default function ExpensesPage() {
           placeholder="Search expenses… (type, store, amount, notes)"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="!w-full sm:!flex-1 sm:!min-w-[260px] !py-1.5 !text-[11px]"
+          className="!w-full sm:!flex-1 sm:!min-w-[260px] !py-1.5 !text-[12px]"
         />
         {(typeFilter.length || search) && (
-          <button onClick={() => { setTypeFilter([]); setSearch(''); }} className="text-[var(--text-muted)] text-[10px] underline">clear</button>
+          <button onClick={() => { setTypeFilter([]); setSearch(''); }} className="text-[var(--text-muted)] text-[12px] underline">clear</button>
         )}
       </div>
 
@@ -565,7 +565,7 @@ export default function ExpensesPage() {
               <span className="inline-flex items-center gap-1.5">
                 {renderCatInTable(v)}
                 {r.paid_from === 'cash_collection' && (
-                  <span title="Paid from Cash in Hand — deducted on the Cash Collection page" className="bg-sw-greenD text-[var(--color-success)] border border-sw-green/30 text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">💵 Cash</span>
+                  <span title="Paid from Cash in Hand — deducted on the Cash Collection page" className="bg-sw-greenD text-[var(--color-success)] border border-sw-green/30 text-[12px] font-bold px-1.5 py-0.5 rounded uppercase">💵 Cash</span>
                 )}
               </span>
             ), sortValue: r => catLabel(r.category)?.label || r.category },
@@ -580,7 +580,7 @@ export default function ExpensesPage() {
                   className="relative inline-flex items-center justify-center w-10 h-10 rounded-md bg-sw-blueD text-[var(--color-info)] border border-sw-blue/30 text-base"
                 >
                   📷
-                  {urls.length > 1 && <span className="absolute -top-1 -right-1 bg-sw-blue text-black text-[9px] rounded-full px-1 font-bold">{urls.length}</span>}
+                  {urls.length > 1 && <span className="absolute -top-1 -right-1 bg-sw-blue text-black text-[12px] rounded-full px-1 font-bold">{urls.length}</span>}
                 </button>
               );
             } },
@@ -593,10 +593,10 @@ export default function ExpensesPage() {
         />
         {visibleItems.length > 0 && (
           <div className="px-3 py-2 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] flex justify-between items-center flex-wrap gap-2">
-            <span className="text-[var(--text-secondary)] text-[11px] font-bold uppercase tracking-wide">
+            <span className="text-[var(--text-secondary)] text-[12px] font-bold">
               Showing {visibleItems.length} of {items.length} expenses
             </span>
-            <span className="text-[var(--color-danger)] text-[16px] font-extrabold font-mono">
+            <span className="text-[var(--color-danger)] text-[16px] font-semibold font-mono">
               TOTAL: {fmt(visibleTotal)}
             </span>
           </div>
@@ -615,11 +615,11 @@ export default function ExpensesPage() {
               <option value="">Select store…</option>
               {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
-            {errors.store_id && <p className="text-[var(--color-danger)] text-[11px] mt-1">{errors.store_id}</p>}
+            {errors.store_id && <p className="text-[var(--color-danger)] text-[12px] mt-1">{errors.store_id}</p>}
           </Field>
           <Field label="Date">
             <SmartDatePicker value={form.date} onChange={v => setForm({...form, date: v})} />
-            {errors.date && <p className="text-[var(--color-danger)] text-[11px] mt-1">{errors.date}</p>}
+            {errors.date && <p className="text-[var(--color-danger)] text-[12px] mt-1">{errors.date}</p>}
           </Field>
           <Field label="Category">
             <select value={form.category} onChange={e => setForm({...form, category: e.target.value})} className={errors.category ? '!border-sw-red' : ''}>
@@ -635,7 +635,7 @@ export default function ExpensesPage() {
                 onChange={e => setForm({...form, customCategory: e.target.value})}
               />
             )}
-            {errors.customCategory && <p className="text-[var(--color-danger)] text-[11px] mt-1">{errors.customCategory}</p>}
+            {errors.customCategory && <p className="text-[var(--color-danger)] text-[12px] mt-1">{errors.customCategory}</p>}
           </Field>
           <Field label="Paid From">
             <select value={form.paid_from} onChange={e => setForm({...form, paid_from: e.target.value})}>
@@ -643,7 +643,7 @@ export default function ExpensesPage() {
               <option value="cash_collection">💵 Cash in Hand (collected cash)</option>
             </select>
             {form.paid_from === 'cash_collection' && (
-              <p className="text-[var(--color-warning)] text-[11px] mt-1">
+              <p className="text-[var(--color-warning)] text-[12px] mt-1">
                 💵 This amount will be deducted from Cash in Hand on the Cash Collection page.
               </p>
             )}
@@ -652,7 +652,7 @@ export default function ExpensesPage() {
             <input type="number" min="0" step="0.01" placeholder="0.00" value={form.amount}
               onChange={e => setForm({...form, amount: e.target.value.replace(/^-/, '')})}
               className={errors.amount ? '!border-sw-red' : ''} />
-            {errors.amount && <p className="text-[var(--color-danger)] text-[11px] mt-1">{errors.amount}</p>}
+            {errors.amount && <p className="text-[var(--color-danger)] text-[12px] mt-1">{errors.amount}</p>}
           </Field>
           <Field label="Note"><input type="text" value={form.note} onChange={e => setForm({...form, note: e.target.value})} placeholder="Optional" /></Field>
 
@@ -705,7 +705,7 @@ export default function ExpensesPage() {
                     >
                       <img src={p.preview} alt="New receipt" className="w-full h-full object-cover" />
                     </button>
-                    <span className="absolute top-1 left-1 bg-sw-blueD text-[var(--color-info)] border border-sw-blue/40 text-[9px] font-bold px-1 rounded">NEW</span>
+                    <span className="absolute top-1 left-1 bg-sw-blueD text-[var(--color-info)] border border-sw-blue/40 text-[12px] font-bold px-1 rounded">NEW</span>
                     <button
                       type="button"
                       onClick={() => removePendingReceipt(p.id)}
@@ -733,18 +733,18 @@ export default function ExpensesPage() {
       {tplOpen && (
         <Modal title="Fill Monthly Expenses" onClose={() => setTplOpen(false)} wide>
           <div className="mb-3 flex items-center gap-2 flex-wrap">
-            <label className="text-[var(--text-secondary)] text-[11px] font-bold uppercase">Store</label>
+            <label className="text-[var(--text-secondary)] text-[12px] font-bold uppercase">Store</label>
             <select
               value={tplStoreId}
               onChange={e => setTplStoreId(e.target.value)}
-              className="!w-auto md:!w-[200px] !py-1.5 !text-[11px]"
+              className="!w-auto md:!w-[200px] !py-1.5 !text-[12px]"
             >
               <option value="">All Stores</option>
               {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
-            <label className="text-[var(--text-secondary)] text-[11px] font-bold uppercase">Date</label>
+            <label className="text-[var(--text-secondary)] text-[12px] font-bold uppercase">Date</label>
             <SmartDatePicker value={tplDate} onChange={v => { setTplDate(v); if (v) setTplMonth(v.slice(0, 7)); }} />
-            <span className="text-[var(--text-muted)] text-[11px]">Blank rows are skipped.</span>
+            <span className="text-[var(--text-muted)] text-[12px]">Blank rows are skipped.</span>
           </div>
 
           {tplLoading ? (
@@ -768,7 +768,7 @@ export default function ExpensesPage() {
                         const key = `${st.id}:${cat.id}`;
                         return (
                           <div key={key}>
-                            <label className="block text-[var(--text-secondary)] text-[10px] font-semibold mb-0.5">
+                            <label className="block text-[var(--text-secondary)] text-[12px] font-semibold mb-0.5">
                               {cat.icon} {cat.label}
                             </label>
                             <input
@@ -783,9 +783,9 @@ export default function ExpensesPage() {
                     </div>
 
                     <div className="border-t border-[var(--border-subtle)] pt-2">
-                      <div className="text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wide mb-1.5">Custom Expenses</div>
+                      <div className="text-[var(--text-secondary)] text-[12px] font-bold mb-1.5">Custom Expenses</div>
                       {(tplCustom[st.id] || []).length === 0 && (
-                        <p className="text-[var(--text-muted)] text-[11px] italic mb-1.5">No custom expenses — add below for items like camera repair, pest control, signage, etc.</p>
+                        <p className="text-[var(--text-muted)] text-[12px] italic mb-1.5">No custom expenses — add below for items like camera repair, pest control, signage, etc.</p>
                       )}
                       <div className="space-y-1.5 mb-2">
                         {(tplCustom[st.id] || []).map(row => (
@@ -817,7 +817,7 @@ export default function ExpensesPage() {
                       <button
                         type="button"
                         onClick={() => addCustomRow(st.id)}
-                        className="text-[var(--color-info)] text-[11px] font-semibold border border-sw-blue/30 rounded px-2 py-1 bg-sw-blueD hover:bg-sw-blue/20"
+                        className="text-[var(--color-info)] text-[12px] font-semibold border border-sw-blue/30 rounded px-2 py-1 bg-sw-blueD hover:bg-sw-blue/20"
                       >
                         + Add Custom Expense
                       </button>
@@ -829,7 +829,7 @@ export default function ExpensesPage() {
           )}
 
           <div className="flex justify-between items-center mt-4 sticky bottom-0 bg-[var(--bg-elevated)] pt-2 border-t border-[var(--border-subtle)]">
-            <div className="text-[11px] text-[var(--text-secondary)]">
+            <div className="text-[12px] text-[var(--text-secondary)]">
               Grand total: <span className="text-[var(--color-success)] font-mono font-bold text-[13px]">{fmt(grandTotal)}</span>
             </div>
             <div className="flex gap-2">

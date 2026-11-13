@@ -221,18 +221,18 @@ export default function EmployeeTrackingPage() {
 
   const goDetail = (storeId, name) => router.push(`/employee-tracking/${storeId}/${encodeURIComponent(name)}`);
   // Convention: positive short_over = SHORT (cash missing, red), negative = OVER.
-  const soColor = (v) => Math.abs(v) < 0.01 ? '#64748B' : v > 0 ? '#F87171' : '#34D399';
+  const soColor = (v) => Math.abs(v) < 0.01 ? '#64748B' : v > 0 ? '#B91C1C' : '#15803D';
   const soLabel = (v) => Math.abs(v) < 0.01 ? fmt(0) : v > 0 ? `Short ${fmt(v)}` : `Over ${fmt(-v)}`;
 
   return (
     <div>
       <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
         <div>
-          <p className="text-[var(--text-muted)] text-[11px] font-semibold uppercase tracking-wider">People</p>
+          <p className="text-[var(--text-muted)] text-[12px] font-semibold">People</p>
           <h1 className="text-[var(--text-primary)] text-[22px] font-bold tracking-tight">Employee Tracking</h1>
           <p className="text-[var(--text-secondary)] text-[12px]">{totals.shifts} shifts · {totals.hours}h · {totals.employees} employees</p>
         </div>
-        <Button variant="secondary" onClick={exportCSV} className="!text-[11px]">CSV</Button>
+        <Button variant="secondary" onClick={exportCSV} className="!text-[12px]">CSV</Button>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
@@ -257,7 +257,7 @@ export default function EmployeeTrackingPage() {
                   <div className="w-3 h-3 rounded" style={{ background: g.storeColor || '#64748B' }} />
                   <span className="text-[var(--text-primary)] text-[14px] font-bold">{g.storeName}</span>
                 </div>
-                <div className="text-[var(--text-secondary)] text-[11px] flex gap-3 flex-wrap">
+                <div className="text-[var(--text-secondary)] text-[12px] flex gap-3 flex-wrap">
                   <span>{g.totalShifts} shifts</span>
                   <span>{g.totalHours}h</span>
                   <span>{g.employeeCount} emp</span>
@@ -282,19 +282,19 @@ export default function EmployeeTrackingPage() {
                       <span className="text-[var(--text-primary)] text-[14px] font-bold group-hover:text-[var(--color-info)] transition-colors truncate">{emp.name}</span>
                       {emp.unmatched && (
                         <span
-                          className="text-[var(--color-warning)] text-[9px] font-bold rounded px-1.5 py-0.5 bg-[var(--color-warning-bg)] whitespace-nowrap"
+                          className="text-[var(--color-warning)] text-[12px] font-bold rounded px-1.5 py-0.5 bg-[var(--color-warning-bg)] whitespace-nowrap"
                           title="No matching profile — set this name as 'NRS POS name' on the right teammate's Admin → Edit form to attribute these shifts."
                         >
                           UNMAPPED
                         </span>
                       )}
-                      {emp.name === 'User1' && !emp.unmatched && <span className="text-[var(--text-muted)] text-[9px]">Generic</span>}
+                      {emp.name === 'User1' && !emp.unmatched && <span className="text-[var(--text-muted)] text-[12px]">Generic</span>}
                     </div>
-                    <div className="grid grid-cols-2 gap-y-1.5 text-[11px] mb-3">
+                    <div className="grid grid-cols-2 gap-y-1.5 text-[12px] mb-3">
                       <div className="text-[var(--text-secondary)]">Shifts</div>
                       <div className="text-right text-[var(--text-primary)] font-semibold">{emp.shiftCount}</div>
                       <div className="text-[var(--text-secondary)]">Hours</div>
-                      <div className="text-right font-mono font-bold" style={{ color: emp.totalHours >= 40 ? '#34D399' : '#60A5FA' }}>{emp.totalHours}h</div>
+                      <div className="text-right font-mono font-bold" style={{ color: emp.totalHours >= 40 ? '#15803D' : '#1D4ED8' }}>{emp.totalHours}h</div>
                       <div className="text-[var(--text-secondary)]">Avg / Shift</div>
                       <div className="text-right font-mono text-[var(--text-primary)]">{emp.avgHours}h</div>
                       <div className="text-[var(--text-secondary)]">Sales Handled</div>
@@ -308,7 +308,7 @@ export default function EmployeeTrackingPage() {
                         {emp.totalCredit > 0 ? fmt(emp.totalCredit) : fmt(0)}
                       </div>
                     </div>
-                    <div className="text-[var(--color-info)] text-[11px] font-semibold group-hover:underline">View Details →</div>
+                    <div className="text-[var(--color-info)] text-[12px] font-semibold group-hover:underline">View Details →</div>
                   </button>
                 ))}
               </div>

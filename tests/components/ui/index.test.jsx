@@ -14,12 +14,12 @@ describe('<Card />', () => {
 });
 
 describe('<V2StatCard />', () => {
-  it('renders label / value / sub / icon', () => {
+  it('renders label / value / sub (icon is not drawn)', () => {
     render(<V2StatCard label="Total" value="$100.00" sub="last week" icon="💰" />);
     expect(screen.getByText('Total')).toBeInTheDocument();
     expect(screen.getByText('$100.00')).toBeInTheDocument();
     expect(screen.getByText('last week')).toBeInTheDocument();
-    expect(screen.getByText('💰')).toBeInTheDocument();
+    expect(screen.queryByText('💰')).not.toBeInTheDocument();
   });
   it('color-codes the value by variant', () => {
     const { container } = render(<V2StatCard label="X" value="1" variant="success" />);

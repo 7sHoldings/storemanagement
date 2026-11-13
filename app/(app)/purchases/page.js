@@ -349,14 +349,14 @@ export default function PurchasesPage() {
       </div>
     )}
     <PageHeader title="🛒 Product Buying" subtitle={hasStore ? storeName : 'All Stores'}>
-      <Button variant="secondary" onClick={() => downloadCSV('purchases.csv', ['Date','Store','Vendor','Amount','Notes'], visibleItems.map(p => [p.week_of, p.stores?.name, p.supplier, p.total_cost, p.notes]))} className="!text-[11px]">📥 CSV</Button>
+      <Button variant="secondary" onClick={() => downloadCSV('purchases.csv', ['Date','Store','Vendor','Amount','Notes'], visibleItems.map(p => [p.week_of, p.stores?.name, p.supplier, p.total_cost, p.notes]))} className="!text-[12px]">📥 CSV</Button>
       <Button onClick={tryOpenAdd} className="hidden md:inline-flex">+ Add</Button>
     </PageHeader>
 
     {/* Mobile-only floating action button — sits above the bottom nav */}
     <button
       onClick={tryOpenAdd}
-      className="md:hidden fixed right-4 z-30 rounded-full bg-sw-blue text-black text-2xl font-extrabold shadow-lg w-14 h-14 flex items-center justify-center"
+      className="md:hidden fixed right-4 z-30 rounded-full bg-sw-blue text-black text-2xl font-semibold shadow-lg w-14 h-14 flex items-center justify-center"
       style={{ bottom: 'calc(72px + env(safe-area-inset-bottom))' }}
       aria-label="Add purchase"
     >
@@ -388,10 +388,10 @@ export default function PurchasesPage() {
         placeholder="Search purchases… (vendor, store, amount, notes)"
         value={search}
         onChange={e => setSearch(e.target.value)}
-        className="!w-full sm:!flex-1 sm:!min-w-[260px] !py-1.5 !text-[11px]"
+        className="!w-full sm:!flex-1 sm:!min-w-[260px] !py-1.5 !text-[12px]"
       />
       {(vendorFilter.length || search) && (
-        <button onClick={() => { setVendorFilter([]); setSearch(''); }} className="text-[var(--text-muted)] text-[10px] underline">clear</button>
+        <button onClick={() => { setVendorFilter([]); setSearch(''); }} className="text-[var(--text-muted)] text-[12px] underline">clear</button>
       )}
     </div>
     <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
@@ -413,10 +413,10 @@ export default function PurchasesPage() {
                     title={invs.length > 1 ? `View invoice (${invs.length})` : 'View invoice'}
                     className="md:hidden inline-flex items-center justify-center w-7 h-7 rounded-md bg-sw-blueD text-[var(--color-info)] border border-sw-blue/30 text-sm relative"
                   >
-                    📷{invs.length > 1 && <span className="absolute -top-1 -right-1 bg-sw-blue text-black text-[9px] rounded-full px-1 font-bold">{invs.length}</span>}
+                    📷{invs.length > 1 && <span className="absolute -top-1 -right-1 bg-sw-blue text-black text-[12px] rounded-full px-1 font-bold">{invs.length}</span>}
                   </button>
                 )}
-                <span className="text-[var(--color-warning)] text-[14px] font-extrabold">{fmt(v)}</span>
+                <span className="text-[var(--color-warning)] text-[14px] font-semibold">{fmt(v)}</span>
               </span>
             );
           } },
@@ -430,11 +430,11 @@ export default function PurchasesPage() {
                 className="relative inline-flex items-center justify-center w-11 h-11 rounded-lg bg-sw-blueD text-[var(--color-info)] border border-sw-blue/30 text-xl"
               >
                 📷
-                {invs.length > 1 && <span className="absolute -top-1 -right-1 bg-sw-blue text-black text-[10px] rounded-full px-1.5 font-bold">{invs.length}</span>}
+                {invs.length > 1 && <span className="absolute -top-1 -right-1 bg-sw-blue text-black text-[12px] rounded-full px-1.5 font-bold">{invs.length}</span>}
               </button>
             );
           } },
-          { key: 'notes', label: 'Notes', hideOnMobile: true, render: v => <span className="text-[var(--text-secondary)] text-[11px]">{v || '—'}</span> },
+          { key: 'notes', label: 'Notes', hideOnMobile: true, render: v => <span className="text-[var(--text-secondary)] text-[12px]">{v || '—'}</span> },
           ...(isOwner ? [{
             key: '_actions', label: '', align: 'right', render: (_, r) => (
               <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
@@ -461,10 +461,10 @@ export default function PurchasesPage() {
       />
       {visibleItems.length > 0 && (
         <div className="px-3 py-2 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] flex justify-between items-center">
-          <span className="text-[var(--text-secondary)] text-[11px] font-bold uppercase tracking-wide">
+          <span className="text-[var(--text-secondary)] text-[12px] font-bold">
             Total{vendorFilter ? ` (${vendorFilter})` : ''}
           </span>
-          <span className="text-[var(--color-warning)] text-[16px] font-extrabold font-mono">{fmt(visibleTotal)}</span>
+          <span className="text-[var(--color-warning)] text-[16px] font-semibold font-mono">{fmt(visibleTotal)}</span>
         </div>
       )}
     </div>
@@ -473,13 +473,13 @@ export default function PurchasesPage() {
         <select
           value={formStoreId}
           onChange={e => { setFormStoreId(e.target.value); if (e.target.value) setFormError(''); }}
-          style={formError ? { borderColor: '#F87171' } : undefined}
+          style={formError ? { borderColor: '#B91C1C' } : undefined}
         >
           <option value="">Select store…</option>
           {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
         {formError && (
-          <div className="text-[var(--color-danger)] text-[11px] font-semibold mt-1">{formError}</div>
+          <div className="text-[var(--color-danger)] text-[12px] font-semibold mt-1">{formError}</div>
         )}
       </Field>
 
@@ -510,7 +510,7 @@ export default function PurchasesPage() {
           placeholder="0.00"
           value={form.amount}
           onChange={e => setForm({...form, amount: e.target.value.replace(/^-/, '')})}
-          className="!text-[22px] !font-mono !font-extrabold !py-3 !text-[var(--color-success)]"
+          className="!text-[22px] !font-mono !font-semibold !py-3 !text-[var(--color-success)]"
         />
       </Field>
 
@@ -564,7 +564,7 @@ export default function PurchasesPage() {
                 >
                   <img src={p.preview} alt="Pending" className="w-full h-full object-cover" />
                 </button>
-                <span className="absolute top-1 left-1 bg-sw-blueD text-[var(--color-info)] border border-sw-blue/40 text-[9px] font-bold px-1 rounded">NEW</span>
+                <span className="absolute top-1 left-1 bg-sw-blueD text-[var(--color-info)] border border-sw-blue/40 text-[12px] font-bold px-1 rounded">NEW</span>
                 <button
                   type="button"
                   onClick={() => removePendingInvoice(p.id)}

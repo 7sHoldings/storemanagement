@@ -589,15 +589,15 @@ export default function ReportsPage() {
       {/* Header */}
       <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
         <div>
-          <p className="text-[var(--text-muted)] text-[11px] font-semibold uppercase tracking-wider">Reports / P&L</p>
+          <p className="text-[var(--text-muted)] text-[12px] font-semibold">Reports / P&L</p>
           <h1 className="text-[var(--text-primary)] text-[22px] font-bold tracking-tight">Business Performance Report</h1>
           <p className="text-[var(--text-secondary)] text-[12px]">{range.start} to {range.end} · {storeRows.length} {storeRows.length === 1 ? 'store' : 'stores'}</p>
         </div>
         <div className="flex gap-1.5 flex-wrap items-center print:hidden">
-          <button onClick={handlePDF} className="px-3 py-1.5 rounded-lg text-[11px] font-semibold text-white" style={{ background: 'var(--brand-primary)' }}>Export PDF</button>
-          <button onClick={handleExportExcel} className="px-3 py-1.5 rounded-lg bg-[var(--bg-hover)] border border-[var(--border-default)] text-[var(--text-secondary)] text-[11px] font-semibold">Excel</button>
-          <button onClick={handleExportCSV} className="px-3 py-1.5 rounded-lg bg-[var(--bg-hover)] border border-[var(--border-default)] text-[var(--text-secondary)] text-[11px] font-semibold">CSV</button>
-          <button onClick={() => window.print()} className="px-3 py-1.5 rounded-lg bg-[var(--bg-hover)] border border-[var(--border-default)] text-[var(--text-secondary)] text-[11px] font-semibold">Print</button>
+          <button onClick={handlePDF} className="px-3 py-1.5 rounded-lg text-[12px] font-semibold text-white" style={{ background: 'var(--brand-primary)' }}>Export PDF</button>
+          <button onClick={handleExportExcel} className="px-3 py-1.5 rounded-lg bg-[var(--bg-hover)] border border-[var(--border-default)] text-[var(--text-secondary)] text-[12px] font-semibold">Excel</button>
+          <button onClick={handleExportCSV} className="px-3 py-1.5 rounded-lg bg-[var(--bg-hover)] border border-[var(--border-default)] text-[var(--text-secondary)] text-[12px] font-semibold">CSV</button>
+          <button onClick={() => window.print()} className="px-3 py-1.5 rounded-lg bg-[var(--bg-hover)] border border-[var(--border-default)] text-[var(--text-secondary)] text-[12px] font-semibold">Print</button>
         </div>
       </div>
 
@@ -609,7 +609,7 @@ export default function ReportsPage() {
 
       {loadError && <V2Alert type="danger" className="mb-3">{loadError}</V2Alert>}
       {summary && (
-        <div className="text-[var(--text-muted)] text-[10px] mb-2 print:hidden">
+        <div className="text-[var(--text-muted)] text-[12px] mb-2 print:hidden">
           Data: {rawSales.length} sales ({fmt(summary.totalRevenue)}) · {rawPurch.length} purchases ({fmt(summary.totalPurchases)}) · {rawExp.length} expenses ({fmt(summary.totalExpenses)}){summary.totalGameMachine > 0 ? ` · 🎮 ${fmt(summary.totalGameMachine)} game machines` : ''}
         </div>
       )}
@@ -625,7 +625,7 @@ export default function ReportsPage() {
             <div className="absolute top-0 right-0 w-40 h-40 opacity-10" style={{ background: 'radial-gradient(circle, var(--brand-primary), transparent 70%)', filter: 'blur(40px)' }} />
             <div className="grid grid-cols-1 sm:grid-cols-[2fr_1fr] gap-6 items-end">
               <div>
-                <p className="text-[var(--text-muted)] text-[11px] font-semibold uppercase tracking-wider mb-1">Net Profit · {range.start} to {range.end}</p>
+                <p className="text-[var(--text-muted)] text-[12px] font-semibold mb-1">Net Profit · {range.start} to {range.end}</p>
                 <p className={`text-[36px] font-bold tracking-tight tabular-nums leading-none ${summary.netProfit >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
                   {summary.netProfit >= 0 ? '' : '−'}{fmt(Math.abs(summary.netProfit))}
                 </p>
@@ -636,7 +636,7 @@ export default function ReportsPage() {
                 )}
               </div>
               <div className="sm:border-l sm:pl-6 border-[var(--border-subtle)]">
-                <p className="text-[var(--text-muted)] text-[11px] font-semibold uppercase tracking-wider mb-1">Margin</p>
+                <p className="text-[var(--text-muted)] text-[12px] font-semibold mb-1">Margin</p>
                 <p style={{ color: summary.margin >= 20 ? 'var(--color-success)' : 'var(--color-warning)' }} className="text-[36px] font-bold tracking-tight tabular-nums leading-none">{summary.margin.toFixed(1)}%</p>
               </div>
             </div>
@@ -699,7 +699,7 @@ export default function ReportsPage() {
 
           {summary.totalRevenue > 0 && (
             <div className="bg-[var(--bg-elevated)] rounded-lg border border-[var(--border-subtle)] p-3 mb-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-[12px]">
-              <span className="text-[var(--text-muted)] font-semibold uppercase text-[10px] tracking-wider">Payment Mix</span>
+              <span className="text-[var(--text-muted)] font-semibold uppercase text-[12px] tracking-wider">Payment Mix</span>
               <span>💵 Cash <span className="text-[var(--color-success)] font-bold">{fmt(summary.totalCash)}</span> <span className="text-[var(--text-muted)]">({summary.cashPct.toFixed(1)}%)</span></span>
               <span>💳 Card <span className="text-[var(--text-primary)] font-bold">{fmt(summary.totalCard)}</span> <span className="text-[var(--text-muted)]">({summary.cardPct.toFixed(1)}%)</span></span>
               <span>📱 CashApp / Check <span className="text-[var(--color-warning)] font-bold">{fmt(summary.totalCheck || 0)}</span> <span className="text-[var(--text-muted)]">({(summary.checkPct || 0).toFixed(1)}%)</span></span>
@@ -802,7 +802,7 @@ export default function ReportsPage() {
             const labels = ['GROWTH', 'INSIGHT', 'PROJECTION'];
             return (
               <Card key={i} padding="md" style={{ background: bg, borderColor: color + '33' }}>
-                <p className="text-[10px] uppercase tracking-wider font-bold mb-1" style={{ color }}>{labels[i] || 'INSIGHT'}</p>
+                <p className="text-[12px] font-bold mb-1" style={{ color }}>{labels[i] || 'INSIGHT'}</p>
                 <p className="text-[var(--text-primary)] text-[13px] font-semibold">{icon} {ins.text}</p>
               </Card>
             );
@@ -868,11 +868,11 @@ function WaterfallBox({ title, data, muted }) {
   const pct = (n) => rev > 0 ? (n / rev * 100).toFixed(1) : '0';
   const opacity = muted ? '33' : '55';
   const lines = [
-    { label: 'Revenue', amount: rev, pct: '100', color: '#34D399', bold: true },
-    { label: '− Product Buying', amount: -purchases, pct: pct(purchases), color: '#FBBF24' },
-    { label: '= Gross Profit', amount: grossProfit, pct: pct(grossProfit), color: grossProfit >= 0 ? '#34D399' : '#F87171', bold: true },
-    { label: '− Operating Expenses', amount: -expenses, pct: pct(expenses), color: '#F87171' },
-    { label: '= Net Profit', amount: netProfit, pct: pct(netProfit), color: netProfit >= 0 ? '#34D399' : '#F87171', bold: true },
+    { label: 'Revenue', amount: rev, pct: '100', color: '#15803D', bold: true },
+    { label: '− Product Buying', amount: -purchases, pct: pct(purchases), color: '#B45309' },
+    { label: '= Gross Profit', amount: grossProfit, pct: pct(grossProfit), color: grossProfit >= 0 ? '#15803D' : '#B91C1C', bold: true },
+    { label: '− Operating Expenses', amount: -expenses, pct: pct(expenses), color: '#B91C1C' },
+    { label: '= Net Profit', amount: netProfit, pct: pct(netProfit), color: netProfit >= 0 ? '#15803D' : '#B91C1C', bold: true },
   ];
   return (
     <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] p-4">
@@ -880,14 +880,14 @@ function WaterfallBox({ title, data, muted }) {
       <div className="space-y-2">
         {lines.map((l, i) => (
           <div key={i} className="flex items-center gap-3">
-            <div className="w-36 text-[11px]" style={{ fontWeight: l.bold ? 700 : 400, color: l.bold ? 'var(--text-primary)' : 'var(--text-muted)' }}>{l.label}</div>
+            <div className="w-36 text-[12px]" style={{ fontWeight: l.bold ? 700 : 400, color: l.bold ? 'var(--text-primary)' : 'var(--text-muted)' }}>{l.label}</div>
             <div className="flex-1 bg-[var(--bg-card)] rounded h-5 relative overflow-hidden">
               <div className="h-full rounded" style={{ width: `${Math.min(100, Math.abs(Number(l.pct)))}%`, background: l.color + opacity }} />
             </div>
             <div className="w-24 text-right font-mono text-[12px]" style={{ color: muted ? 'var(--text-secondary)' : l.color, fontWeight: l.bold ? 800 : 600 }}>
               {l.amount >= 0 ? '' : '−'}{fmt(Math.abs(l.amount))}
             </div>
-            <div className="w-10 text-right text-[10px] text-[var(--text-muted)]">{l.pct}%</div>
+            <div className="w-10 text-right text-[12px] text-[var(--text-muted)]">{l.pct}%</div>
           </div>
         ))}
       </div>
@@ -904,7 +904,7 @@ function SalesTrendBox({ title, days, stats, maxDay, muted }) {
       <h3 className="text-[var(--text-primary)] text-xs font-bold mb-2">{title}</h3>
       {stats ? (
         <>
-          <div className="grid grid-cols-2 gap-y-1 gap-x-4 text-[11px] mb-3">
+          <div className="grid grid-cols-2 gap-y-1 gap-x-4 text-[12px] mb-3">
             <span>Best day: <span className="text-[var(--color-success)] font-mono font-bold">{fmt(stats.best.total)}</span> <span className="text-[var(--text-muted)]">({stats.best.date})</span></span>
             <span>Worst day: <span className="text-[var(--color-danger)] font-mono font-bold">{fmt(stats.worst.total)}</span> <span className="text-[var(--text-muted)]">({stats.worst.date})</span></span>
             <span>Daily avg: <span className="text-[var(--text-primary)] font-mono font-bold">{fmt(stats.avg)}</span></span>
@@ -965,7 +965,7 @@ function PeriodList({ title, rows, empty, muted }) {
       <h3 className="text-[var(--text-primary)] text-xs font-bold mb-2">{title}</h3>
       {visible.length === 0 ? <p className="text-[var(--text-muted)] text-xs">{empty}</p> : (
         <>
-          <div className="grid grid-cols-[1fr_auto] gap-x-3 text-[10px] uppercase font-semibold text-[var(--text-muted)] tracking-wider pb-1 mb-1 border-b border-[var(--border-subtle)]">
+          <div className="grid grid-cols-[1fr_auto] gap-x-3 text-[12px] uppercase font-semibold text-[var(--text-muted)] tracking-wider pb-1 mb-1 border-b border-[var(--border-subtle)]">
             <span>Name</span>
             <span className="text-right">Amount</span>
           </div>
@@ -978,7 +978,7 @@ function PeriodList({ title, rows, empty, muted }) {
             ))}
           </div>
           <div className="grid grid-cols-[1fr_auto] gap-x-3 text-[12px] pt-2 mt-2 border-t border-[var(--border-subtle)]">
-            <span className="text-[var(--text-muted)] uppercase font-semibold text-[10px] tracking-wider self-center">Total</span>
+            <span className="text-[var(--text-muted)] uppercase font-semibold text-[12px] tracking-wider self-center">Total</span>
             <span className="font-mono font-bold text-right tabular-nums" style={{ color: amountColor }}>{fmt(total)}</span>
           </div>
         </>

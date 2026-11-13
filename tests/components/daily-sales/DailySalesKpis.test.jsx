@@ -13,13 +13,13 @@ describe('<DailySalesKpis />', () => {
       agentNote="All auto-synced"
       allSynced
     />);
-    expect(screen.getByText('Total Sales')).toBeInTheDocument();
+    expect(screen.getByText('Net sales')).toBeInTheDocument();
     expect(screen.getByText('$3,759.26')).toBeInTheDocument();
     expect(screen.getByText('Entries')).toBeInTheDocument();
     expect(screen.getByText('5')).toBeInTheDocument();
-    expect(screen.getByText('Avg / Day')).toBeInTheDocument();
+    expect(screen.getByText('Average per day')).toBeInTheDocument();
     expect(screen.getByText('$751.85')).toBeInTheDocument();
-    expect(screen.getByText('7S Agent')).toBeInTheDocument();
+    expect(screen.getByText('Synced by 7S Agent')).toBeInTheDocument();
     expect(screen.getByText('5 of 5')).toBeInTheDocument();
     expect(screen.getByText('All auto-synced')).toBeInTheDocument();
   });

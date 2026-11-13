@@ -11,7 +11,7 @@ function CopyButton({ text }) {
     navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
   };
   return (
-    <button onClick={copy} className="text-[var(--color-info)] text-[10px] font-semibold border border-sw-blue/30 rounded px-2 py-0.5 bg-sw-blueD ml-2">
+    <button onClick={copy} className="text-[var(--color-info)] text-[12px] font-semibold border border-sw-blue/30 rounded px-2 py-0.5 bg-sw-blueD ml-2">
       {copied ? '✓ Copied' : 'Copy'}
     </button>
   );
@@ -69,12 +69,12 @@ export default function CronSetupPage() {
 
           <div className="bg-[var(--bg-card)] rounded-lg p-4 border border-[var(--border-subtle)]">
             <div className="text-[var(--text-primary)] text-[13px] font-bold mb-1">2. Authorization Header</div>
-            <p className="text-[var(--text-secondary)] text-[11px] mb-2">Add this custom header in cron-job.org's "Headers" section:</p>
+            <p className="text-[var(--text-secondary)] text-[12px] mb-2">Add this custom header in cron-job.org's "Headers" section:</p>
             <div className="bg-black/30 rounded px-3 py-2 text-[var(--color-warning)] font-mono text-[12px] break-all flex items-center justify-between gap-2">
               <span>Authorization: Bearer YOUR_CRON_SECRET</span>
               <CopyButton text="Authorization: Bearer YOUR_CRON_SECRET" />
             </div>
-            <p className="text-[var(--text-muted)] text-[10px] mt-2">Replace YOUR_CRON_SECRET with the value from your Vercel environment variables.</p>
+            <p className="text-[var(--text-muted)] text-[12px] mt-2">Replace YOUR_CRON_SECRET with the value from your Vercel environment variables.</p>
           </div>
 
           <div className="bg-[var(--bg-card)] rounded-lg p-4 border border-[var(--border-subtle)]">
@@ -83,7 +83,7 @@ export default function CronSetupPage() {
               <span>0 9 * * *</span>
               <CopyButton text="0 9 * * *" />
             </div>
-            <p className="text-[var(--text-muted)] text-[10px] mt-2">9:00 AM UTC = 3:00 AM CST / 4:00 AM CDT — runs daily after midnight Central Time.</p>
+            <p className="text-[var(--text-muted)] text-[12px] mt-2">9:00 AM UTC = 3:00 AM CST / 4:00 AM CDT — runs daily after midnight Central Time.</p>
           </div>
 
           <div className="bg-[var(--bg-card)] rounded-lg p-4 border border-[var(--border-subtle)]">
@@ -122,15 +122,15 @@ export default function CronSetupPage() {
             <div className="text-[var(--text-primary)] text-[12px] font-bold mb-2">Results for {testResult.date_synced}</div>
             <div className="space-y-1">
               {testResult.results.map((r, i) => (
-                <div key={i} className="flex items-center gap-2 text-[11px]">
-                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase ${
+                <div key={i} className="flex items-center gap-2 text-[12px]">
+                  <span className={`text-[12px] font-bold px-2 py-0.5 rounded uppercase ${
                     r.status === 'created' ? 'bg-sw-greenD text-[var(--color-success)]' :
                     r.status === 'updated' ? 'bg-sw-greenD text-[var(--color-success)]' :
                     r.status === 'skipped' ? 'bg-sw-amberD text-[var(--color-warning)]' :
                     'bg-sw-redD text-[var(--color-danger)]'
                   }`}>{r.status}</span>
                   <span className="text-[var(--text-primary)] font-semibold">{r.store_name}</span>
-                  {r.error && <span className="text-[var(--color-danger)] text-[10px]">{r.error}</span>}
+                  {r.error && <span className="text-[var(--color-danger)] text-[12px]">{r.error}</span>}
                 </div>
               ))}
             </div>

@@ -349,7 +349,7 @@ function SearchPanel({ storeId, stores, pending, onStage }) {
             {priceFilter != null ? ` of ${items.length} loaded` : ` of ${total} matching`} item{visible.length === 1 ? '' : 's'}
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-[var(--text-muted)]">Sort</span>
+            <span className="text-[12px] text-[var(--text-muted)]">Sort</span>
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value)}
@@ -423,15 +423,15 @@ function SearchPanel({ storeId, stores, pending, onStage }) {
                   <input type="checkbox" className="w-4 h-4 shrink-0 accent-amber-500" checked={checked} onChange={() => toggleRow(it.upc)} aria-label={`Select ${it.name || it.upc}`} />
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-sw-text truncate">{it.name || it.desc || '—'}</div>
-                    <div className="text-[11px] text-[var(--text-muted)] truncate">{it.upc}{it.dept ? ` · ${it.dept}` : ''}</div>
+                    <div className="text-[12px] text-[var(--text-muted)] truncate">{it.upc}{it.dept ? ` · ${it.dept}` : ''}</div>
                     {stores?.length > 1 && (
-                      <button onClick={() => setCopyItem(it)} className="text-[11px] text-amber-500 hover:underline mt-0.5">
+                      <button onClick={() => setCopyItem(it)} className="text-[12px] text-amber-500 hover:underline mt-0.5">
                         Copy to other stores →
                       </button>
                     )}
                   </div>
                   <div className="shrink-0 text-right">
-                    <div className="text-[11px] text-[var(--text-muted)] mb-0.5">was {fmtCents(it.cents)}</div>
+                    <div className="text-[12px] text-[var(--text-muted)] mb-0.5">was {fmtCents(it.cents)}</div>
                     <div className="flex items-center gap-1 justify-end">
                       <span className="text-[var(--text-muted)]">$</span>
                       <input
@@ -586,7 +586,7 @@ function ReviewPanel({ pendingList, onRemove, onApply, applying, result }) {
             <li key={item.upc} className="flex items-center justify-between gap-2 text-[13px]">
               <div className="min-w-0">
                 <div className="font-medium text-sw-text truncate">{item.name || item.desc || item.upc}</div>
-                <div className="text-[11px] text-[var(--text-muted)]">
+                <div className="text-[12px] text-[var(--text-muted)]">
                   {fmtCents(item.cents)} → <span className="text-amber-500 font-semibold">{fmtCents(newCents)}</span>
                 </div>
               </div>
@@ -861,7 +861,7 @@ function AddItemPanel({ stores }) {
               <Button variant="secondary" onClick={() => setScanOpen(true)} title="Scan with camera">📷 Scan</Button>
             </div>
             {lookup?.msg && (
-              <span className={`text-[11px] ${lookup.status === 'found' ? 'text-green-500' : lookup.status === 'searching' ? 'text-[var(--text-muted)]' : 'text-amber-500'}`}>
+              <span className={`text-[12px] ${lookup.status === 'found' ? 'text-green-500' : lookup.status === 'searching' ? 'text-[var(--text-muted)]' : 'text-amber-500'}`}>
                 {lookup.msg}
               </span>
             )}
@@ -879,15 +879,15 @@ function AddItemPanel({ stores }) {
                 {deptGroups.rest.map(deptOption)}
               </optgroup>
             </select>
-            {deptError && <span className="text-[11px] text-red-500">{deptError}</span>}
-            {deptHint && <span className="text-[11px] text-amber-500">{deptHint}</span>}
+            {deptError && <span className="text-[12px] text-red-500">{deptError}</span>}
+            {deptHint && <span className="text-[12px] text-amber-500">{deptHint}</span>}
             {deptRow?.missing.length > 0 && (
-              <span className="text-[11px] text-amber-500">
+              <span className="text-[12px] text-amber-500">
                 “{deptRow.label}” isn’t set up in {deptRow.missing.join(', ')}. See the Departments tab.
               </span>
             )}
             {deptFailedStores.length > 0 && (
-              <span className="text-[11px] text-[var(--text-muted)]">
+              <span className="text-[12px] text-[var(--text-muted)]">
                 Couldn’t load departments for {deptFailedStores.map(f => f.store).join(', ')}.
               </span>
             )}
@@ -930,7 +930,7 @@ function AddItemPanel({ stores }) {
                     {priceOptions.map(o => (
                       <button key={o.cents} type="button" onClick={() => applyPriceToAll((o.cents / 100).toFixed(2))}
                         title={`Use ${fmtCents(o.cents)} at every store`}
-                        className="rounded-md border border-sw-border bg-sw-card px-2 py-0.5 text-[11px] text-sw-text hover:border-amber-500">
+                        className="rounded-md border border-sw-border bg-sw-card px-2 py-0.5 text-[12px] text-sw-text hover:border-amber-500">
                         <span className="font-mono font-bold">{fmtCents(o.cents)}</span>
                         <span className="text-[var(--text-muted)]"> · {o.stores.join(', ')}</span>
                       </button>
@@ -960,7 +960,7 @@ function AddItemPanel({ stores }) {
                   <span className="w-4 shrink-0 text-center text-green-500" title="Already in this store">✓</span>
                   <span className="flex-1 min-w-0 truncate text-[13px] text-sw-text" title={s.name}>
                     {s.name || s.id}
-                    <span className={`block text-[10px] ${changed ? 'text-amber-500' : 'text-green-500'}`}>
+                    <span className={`block text-[12px] ${changed ? 'text-amber-500' : 'text-green-500'}`}>
                       {changed
                         ? `In system · was ${Number.isFinite(st.cents) ? fmtCents(st.cents) : '—'}, will update`
                         : 'In system'}
@@ -982,7 +982,7 @@ function AddItemPanel({ stores }) {
                   disabled={!checked}
                   style={{ width: '5rem' }} className={`w-20 rounded-md border bg-sw-bg px-2 py-1 text-[13px] text-sw-text ${checked ? 'border-sw-border' : 'border-sw-border/40 opacity-50'}`} />
                 {st?.status === 'unknown' && (
-                  <span className="text-[10px] text-amber-500" title="This store could not be checked. It may already have the item.">couldn’t check</span>
+                  <span className="text-[12px] text-amber-500" title="This store could not be checked. It may already have the item.">couldn’t check</span>
                 )}
               </li>
             );

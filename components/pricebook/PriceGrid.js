@@ -66,7 +66,7 @@ function StoreValue({ row, store, isCustom, unreachable, cellValue, onCellChange
           aria-label={`${store.name} price for ${row.upc}`}
           className={`${compact ? '!w-[72px]' : '!w-20'} ${PRICE_INPUT} text-[12px]`}
         />
-        {isCustom && <span className="text-[10px] text-[var(--color-warning)]" title={title}>⚑</span>}
+        {isCustom && <span className="text-[12px] text-[var(--color-warning)]" title={title}>⚑</span>}
       </span>
     );
   }
@@ -96,7 +96,7 @@ function MobileCards({
               {row.variant || row.name}
             </div>
             {(showUpc || row.nameConflict) && (
-              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[10px] text-[var(--text-muted)]">
+              <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px] text-[var(--text-muted)]">
                 {showUpc && <span className="font-mono">{row.upc}</span>}
                 {row.nameConflict && (
                   <span className="text-[var(--color-warning)]">⚠ name differs by store</span>
@@ -105,7 +105,7 @@ function MobileCards({
             )}
 
             <label className="mt-2 flex items-center justify-between gap-2 border-t border-sw-border/60 pt-2">
-              <span className="text-[11px] text-[var(--text-muted)]">{rowLabel}</span>
+              <span className="text-[12px] text-[var(--text-muted)]">{rowLabel}</span>
               <input
                 value={rowValue(row)}
                 onChange={e => onRowChange(row.upc, e.target.value)}
@@ -173,11 +173,11 @@ function DesktopTable({
                 <td className="px-2 py-1.5">
                   <span className="text-[var(--text-secondary)]">{row.variant || row.name}</span>
                   {row.nameConflict && (
-                    <span className="ml-1.5 text-[10px] text-[var(--color-warning)]" title="Stores spell this item differently">
+                    <span className="ml-1.5 text-[12px] text-[var(--color-warning)]" title="Stores spell this item differently">
                       ⚠ name differs
                     </span>
                   )}
-                  {showUpc && <div className="font-mono text-[10px] text-[var(--text-muted)]">{row.upc}</div>}
+                  {showUpc && <div className="font-mono text-[12px] text-[var(--text-muted)]">{row.upc}</div>}
                 </td>
                 <td className="px-2 py-1.5">
                   <input

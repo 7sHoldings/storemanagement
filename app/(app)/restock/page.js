@@ -144,7 +144,7 @@ function OwnerListView() {
 
 function StatusBadge({ status }) {
   const cfg = STATUS_BADGES[status] || STATUS_BADGES.pending;
-  return <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${cfg.cls}`}>{cfg.label}</span>;
+  return <span className={`text-[12px] font-bold px-2 py-0.5 rounded-full ${cfg.cls}`}>{cfg.label}</span>;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -275,7 +275,7 @@ function EmployeeCartView() {
                   <div className="text-sw-text text-[12.5px] font-semibold truncate">
                     {r.item_count} {r.item_count === 1 ? 'item' : 'items'} · {fmtDate(r.created_at)}
                   </div>
-                  {r.note && <div className="text-sw-sub text-[11px] truncate">{r.note}</div>}
+                  {r.note && <div className="text-sw-sub text-[12px] truncate">{r.note}</div>}
                 </div>
                 <StatusBadge status={r.status} />
               </button>
@@ -381,19 +381,19 @@ function SearchPanel({ onAdd }) {
               <div className="flex items-baseline justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-sw-text text-[13px] font-semibold truncate">{p.name}</div>
-                  {p.variant && <div className="text-sw-sub text-[11px] truncate">{p.variant}</div>}
+                  {p.variant && <div className="text-sw-sub text-[12px] truncate">{p.variant}</div>}
                 </div>
-                {p.upc && <div className="text-sw-dim text-[10px] font-mono shrink-0">{p.upc}</div>}
+                {p.upc && <div className="text-sw-dim text-[12px] font-mono shrink-0">{p.upc}</div>}
               </div>
               {cheapest ? (
-                <div className="mt-1.5 flex items-center justify-between text-[11px]">
+                <div className="mt-1.5 flex items-center justify-between text-[12px]">
                   <span className="text-sw-sub">
                     Cheapest: <span className="text-sw-text font-semibold">{cheapest.vendor_name}</span>
                   </span>
                   <span className="text-sw-blue font-bold">{fmtMoney(cheapest.unit_price)}</span>
                 </div>
               ) : (
-                <div className="mt-1 text-sw-dim text-[11px]">No price history yet — will submit without a suggestion.</div>
+                <div className="mt-1 text-sw-dim text-[12px]">No price history yet — will submit without a suggestion.</div>
               )}
             </button>
           );
@@ -409,7 +409,7 @@ function CartPanel({ cart, note, onNote, onQty, onRemove, onSubmit, submitting, 
     <div className="rounded-xl border border-sw-border bg-sw-card p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sw-text text-[15px] font-bold">Your cart</h3>
-        <span className="text-sw-sub text-[11px]">{cart.length} {cart.length === 1 ? 'item' : 'items'}</span>
+        <span className="text-sw-sub text-[12px]">{cart.length} {cart.length === 1 ? 'item' : 'items'}</span>
       </div>
 
       {!cart.length ? (
@@ -423,13 +423,13 @@ function CartPanel({ cart, note, onNote, onQty, onRemove, onSubmit, submitting, 
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <div className="text-sw-text text-[12.5px] font-semibold truncate">{item.product_name}</div>
-                    {item.variant && <div className="text-sw-sub text-[11px] truncate">{item.variant}</div>}
-                    {item.upc && <div className="text-sw-dim text-[10px] font-mono">{item.upc}</div>}
+                    {item.variant && <div className="text-sw-sub text-[12px] truncate">{item.variant}</div>}
+                    {item.upc && <div className="text-sw-dim text-[12px] font-mono">{item.upc}</div>}
                   </div>
                   <button
                     onClick={() => onRemove(item.key)}
                     title="Remove"
-                    className="text-sw-red text-[11px] px-2 py-0.5 border border-sw-red/30 rounded-md hover:bg-sw-redD shrink-0"
+                    className="text-sw-red text-[12px] px-2 py-0.5 border border-sw-red/30 rounded-md hover:bg-sw-redD shrink-0"
                   >
                     ✕
                   </button>
@@ -466,7 +466,7 @@ function CartPanel({ cart, note, onNote, onQty, onRemove, onSubmit, submitting, 
       )}
 
       <div className="mt-3">
-        <label className="block text-sw-sub text-[10px] font-bold uppercase tracking-wider mb-1">Note (optional)</label>
+        <label className="block text-sw-sub text-[12px] font-bold mb-1">Note (optional)</label>
         <textarea
           value={note}
           onChange={e => onNote(e.target.value)}

@@ -155,7 +155,7 @@ export default function StockCountPage() {
                 style={{ width: '6rem' }}
                 className="rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[15px] text-sw-text" />
             </Field>
-            <p className="text-[11px] text-[var(--text-muted)] -mt-1">Used to suggest how many boxes to reorder.</p>
+            <p className="text-[12px] text-[var(--text-muted)] -mt-1">Used to suggest how many boxes to reorder.</p>
           </div>
         )}
 

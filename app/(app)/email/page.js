@@ -17,7 +17,7 @@ export default function EmailPage() {
     {saved && <Alert type="success">Settings saved!</Alert>}
     <div className="bg-[var(--bg-elevated)] rounded-xl p-5 border border-[var(--border-subtle)] max-w-lg">
       <Field label="Enable Reports">
-        <button onClick={() => setEnabled(!enabled)} className="w-11 h-6 rounded-full relative cursor-pointer border" style={{ background: enabled ? '#34D399' : '#131C28', borderColor: enabled ? '#34D399' : '#1A2536' }}>
+        <button onClick={() => setEnabled(!enabled)} className="w-11 h-6 rounded-full relative cursor-pointer border" style={{ background: enabled ? '#15803D' : '#FAFAFA', borderColor: enabled ? '#15803D' : '#E4E4E7' }}>
           <div className="w-[18px] h-[18px] rounded-full bg-white absolute top-[2px] transition-all" style={{ left: enabled ? 22 : 2 }} />
         </button>
       </Field>
@@ -26,7 +26,7 @@ export default function EmailPage() {
       </select></Field>
       <Field label="Owner Email"><input value={email} onChange={e => setEmail(e.target.value)} /></Field>
       <Button onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 3000); }} className="w-full !mt-2">Save Settings</Button>
-      <p className="text-[var(--text-muted)] text-[11px] mt-3">In production, connects to SendGrid/SMTP to auto-send every {day} at 7 AM with each store's weekly summary.</p>
+      <p className="text-[var(--text-muted)] text-[12px] mt-3">In production, connects to SendGrid/SMTP to auto-send every {day} at 7 AM with each store's weekly summary.</p>
     </div>
   </div>);
 }

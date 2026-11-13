@@ -14,7 +14,7 @@ describe('<Modal />', () => {
     const onClose = vi.fn();
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     render(<Modal title="x" onClose={onClose}>y</Modal>);
-    await user.click(screen.getByRole('button', { name: '✕' }));
+    await user.click(screen.getByRole('button', { name: 'Close' }));
     expect(onClose).toHaveBeenCalled();
   });
 
