@@ -140,7 +140,7 @@ export default function HouseAccountsPage() {
   if (loading) return <Loading />;
 
   const balanceCell = (v) => (
-    <span className="font-bold" style={{ color: v > 0.005 ? 'var(--color-warning)' : v < -0.005 ? 'var(--color-info)' : 'var(--text-muted)' }}>
+    <span className="font-semibold" style={{ color: v > 0.005 ? 'var(--color-warning)' : v < -0.005 ? 'var(--color-info)' : 'var(--text-muted)' }}>
       {v < -0.005 ? `${fmt(-v)} overpaid` : fmt(v)}
     </span>
   );
@@ -164,7 +164,7 @@ export default function HouseAccountsPage() {
       </div>
 
       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] p-3 mb-4 text-[12px] text-[var(--text-secondary)] space-y-1">
-        <div className="text-[var(--text-primary)] font-bold text-[12px]">How it works</div>
+        <div className="text-[var(--text-primary)] font-semibold text-[12px]">How it works</div>
         <div>1. The employee takes goods on credit. The cashier rings it as <b>cash</b> in NRS and enters it under House Account on Daily Sales with the receipt.</div>
         <div>2. The credit is taken back out of POS cash before the drop is checked, so it does <b>not</b> show as a cash short. It is neither cash nor card. It is money the employee owes.</div>
         <div>3. At payroll, pay the employee gross pay minus their open balance, then click <b>Record deduction</b>. Book the wages at the full gross amount.</div>
@@ -172,7 +172,7 @@ export default function HouseAccountsPage() {
 
       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] overflow-hidden mb-4">
         <div className="px-3 py-2 border-b border-[var(--border-subtle)]">
-          <h3 className="text-[var(--text-primary)] text-xs font-bold">Employees</h3>
+          <h3 className="text-[var(--text-primary)] text-xs font-semibold">Employees</h3>
         </div>
         {ledger.length === 0 ? (
           <div className="text-[var(--text-muted)] text-[12px] text-center py-8">No house accounts recorded.</div>
@@ -185,23 +185,23 @@ export default function HouseAccountsPage() {
                 <div key={e.key}>
                   <div className="px-3 py-2.5 flex items-center gap-3 flex-wrap">
                     <button type="button" onClick={() => setExpanded(open ? null : e.key)} className="flex-1 min-w-[160px] text-left">
-                      <div className="text-[var(--text-primary)] text-[13px] font-bold">{open ? '▾' : '▸'} {e.name}</div>
+                      <div className="text-[var(--text-primary)] text-[13px] font-semibold">{open ? '▾' : '▸'} {e.name}</div>
                       <div className="text-[var(--text-muted)] text-[12px] mt-0.5 flex items-center gap-1.5">
                         {st && <StoreBadge name={st.name} color={st.color} />}
                         {!e.employee_id && <span>not linked to a profile</span>}
                       </div>
                     </button>
                     <div className="grid grid-cols-3 gap-4 text-right text-[12px] font-mono">
-                      <div><div className="text-[var(--text-muted)] text-[12px] uppercase font-sans">Taken</div>{fmt(e.chargedRange)}</div>
-                      <div><div className="text-[var(--text-muted)] text-[12px] uppercase font-sans">Deducted</div>{fmt(e.deductedRange)}</div>
-                      <div><div className="text-[var(--text-muted)] text-[12px] uppercase font-sans">Owes</div>{balanceCell(e.balance)}</div>
+                      <div><div className="text-[var(--text-muted)] text-[12px] font-sans">Taken</div>{fmt(e.chargedRange)}</div>
+                      <div><div className="text-[var(--text-muted)] text-[12px] font-sans">Deducted</div>{fmt(e.deductedRange)}</div>
+                      <div><div className="text-[var(--text-muted)] text-[12px] font-sans">Owes</div>{balanceCell(e.balance)}</div>
                     </div>
                     <Button onClick={() => openDeduct(e)} className="!text-[12px]" disabled={e.balance <= 0.005}>Record deduction</Button>
                   </div>
                   {open && (
                     <div className="px-3 pb-3 grid md:grid-cols-2 gap-3 text-[12px]">
                       <div>
-                        <div className="text-[var(--text-secondary)] text-[12px] font-semibold uppercase mb-1">Credit taken · all time {fmt(e.chargedAll)}</div>
+                        <div className="text-[var(--text-secondary)] text-[13px] font-medium mb-1">Credit taken · all time {fmt(e.chargedAll)}</div>
                         {e.charges.length === 0 && <div className="text-[var(--text-muted)]">None</div>}
                         {e.charges.map((c, i) => (
                           <div key={i} className="flex justify-between gap-2 py-0.5">
@@ -216,7 +216,7 @@ export default function HouseAccountsPage() {
                         ))}
                       </div>
                       <div>
-                        <div className="text-[var(--text-secondary)] text-[12px] font-semibold uppercase mb-1">Paid back · all time {fmt(e.deductedAll)}</div>
+                        <div className="text-[var(--text-secondary)] text-[13px] font-medium mb-1">Paid back · all time {fmt(e.deductedAll)}</div>
                         {e.deductions.length === 0 && <div className="text-[var(--text-muted)]">None</div>}
                         {e.deductions.map(d => (
                           <div key={d.id} className="flex justify-between gap-2 py-0.5">
@@ -236,7 +236,7 @@ export default function HouseAccountsPage() {
 
       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] overflow-hidden mb-4">
         <div className="px-3 py-2 border-b border-[var(--border-subtle)]">
-          <h3 className="text-[var(--text-primary)] text-xs font-bold">Deductions · {range.start} → {range.end}</h3>
+          <h3 className="text-[var(--text-primary)] text-xs font-semibold">Deductions · {range.start} → {range.end}</h3>
         </div>
         <DataTable
           emptyMessage="No deductions recorded in this period."
@@ -256,7 +256,7 @@ export default function HouseAccountsPage() {
       {modal && (
         <Modal title={`Record deduction — ${modal.name}`} onClose={() => setModal(null)}>
           <div className="text-[var(--text-secondary)] text-[12px] mb-3">
-            Open balance: <span className="font-mono font-bold text-[var(--color-warning)]">{fmt(modal.balance)}</span>
+            Open balance: <span className="font-mono font-semibold text-[var(--color-warning)]">{fmt(modal.balance)}</span>
           </div>
           <Field label="Date (payroll date)">
             <input type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />

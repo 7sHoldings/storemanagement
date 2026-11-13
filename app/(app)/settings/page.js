@@ -161,7 +161,7 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <PageHeader title="⚙️ Settings" subtitle={`${stores.length} stores`}>
+      <PageHeader title="Settings" subtitle={`${stores.length} stores`}>
         <Button onClick={openAdd}>+ Add Store</Button>
       </PageHeader>
 
@@ -181,7 +181,7 @@ export default function SettingsPage() {
               <div className="flex items-center gap-3">
                 <div className="w-4 h-4 rounded" style={{ background: s.color }} />
                 <div>
-                  <div className="text-[var(--text-primary)] text-[14px] font-bold">{s.name}</div>
+                  <div className="text-[var(--text-primary)] text-[14px] font-semibold">{s.name}</div>
                   {s.email && <div className="text-[var(--text-muted)] text-[12px]">{s.email}</div>}
                 </div>
               </div>
@@ -189,29 +189,29 @@ export default function SettingsPage() {
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-[12px]">
               <div>
-                <div className="text-[var(--text-secondary)] font-bold uppercase text-[12px] mb-0.5">Register 2</div>
+                <div className="text-[var(--text-secondary)] font-semibold  text-[12px] mb-0.5">Register 2</div>
                 <div className={s.has_register2 ? 'text-[var(--color-success)] font-semibold' : 'text-[var(--text-muted)]'}>
                   {s.has_register2 ? 'Enabled' : 'Disabled'}
                 </div>
               </div>
               <div>
-                <div className="text-[var(--text-secondary)] font-bold uppercase text-[12px] mb-0.5">Tax Rate</div>
+                <div className="text-[var(--text-secondary)] font-semibold  text-[12px] mb-0.5">Tax Rate</div>
                 <div className="text-[var(--text-primary)] font-mono">{s.tax_rate ?? '8.25'}%</div>
               </div>
               <div>
-                <div className="text-[var(--text-secondary)] font-bold uppercase text-[12px] mb-0.5">Status</div>
+                <div className="text-[var(--text-secondary)] font-semibold  text-[12px] mb-0.5">Status</div>
                 <div className={s.is_active === false ? 'text-[var(--color-danger)] font-semibold' : 'text-[var(--color-success)] font-semibold'}>
                   {s.is_active === false ? 'Inactive' : 'Active'}
                 </div>
               </div>
               <div>
-                <div className="text-[var(--text-secondary)] font-bold uppercase text-[12px] mb-0.5">Phone</div>
+                <div className="text-[var(--text-secondary)] font-semibold  text-[12px] mb-0.5">Phone</div>
                 <div className="text-[var(--text-muted)] truncate">{s.phone || '—'}</div>
               </div>
               <div>
-                <div className="text-[var(--text-secondary)] font-bold uppercase text-[12px] mb-0.5">Telegram</div>
+                <div className="text-[var(--text-secondary)] font-semibold  text-[12px] mb-0.5">Telegram</div>
                 <div className={s.telegram_chat_id ? 'text-[var(--color-success)] font-semibold' : 'text-[var(--text-muted)]'}>
-                  {s.telegram_chat_id ? '📲 Connected' : '—'}
+                  {s.telegram_chat_id ? 'Connected' : '—'}
                 </div>
               </div>
             </div>
@@ -222,7 +222,7 @@ export default function SettingsPage() {
 
       {/* Telegram Notifications */}
       <div className="mt-8 mb-4">
-        <h2 className="text-[var(--text-primary)] text-[16px] font-bold mb-1">📲 Telegram Notifications</h2>
+        <h2 className="text-[var(--text-primary)] text-[16px] font-semibold mb-1">Telegram Notifications</h2>
         <p className="text-[var(--text-muted)] text-[12px] mb-3">Get short/over alerts sent to your Telegram after each NRS sync.</p>
         <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] p-4 space-y-3">
           <div className="text-[var(--text-secondary)] text-[12px] space-y-2">
@@ -251,18 +251,18 @@ export default function SettingsPage() {
                   const res = await fetch('/api/telegram/test', { method: 'POST' });
                   const data = await res.json();
                   if (data.success) {
-                    setTelegramMsg('✅ Test message sent! Check your Telegram.');
+                    setTelegramMsg('Test message sent! Check your Telegram.');
                   } else {
-                    setTelegramMsg(`❌ ${data.error || data.reason || 'Failed to send'}`);
+                    setTelegramMsg(`${data.error || data.reason || 'Failed to send'}`);
                   }
                 } catch (e) {
-                  setTelegramMsg(`❌ ${e.message}`);
+                  setTelegramMsg(`${e.message}`);
                 }
                 setTelegramTesting(false);
               }}
               disabled={telegramTesting}
             >
-              {telegramTesting ? 'Sending…' : '🔔 Send Test Message'}
+              {telegramTesting ? 'Sending…' : 'Send Test Message'}
             </Button>
             {telegramMsg && (
               <span className={`text-[12px] font-semibold ${telegramMsg.startsWith('✅') ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
@@ -317,7 +317,7 @@ export default function SettingsPage() {
           {/* Store Hours (CT) — per day of week, with a "same every day" shortcut */}
           <div className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-lg p-3 mb-3">
             <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
-              <div className="text-[var(--text-primary)] text-[12px] font-bold">Store Hours (CT)</div>
+              <div className="text-[var(--text-primary)] text-[12px] font-semibold">Store Hours (CT)</div>
               <label className="flex items-center gap-1.5 text-[12px] text-[var(--text-secondary)] select-none cursor-pointer">
                 <input
                   type="checkbox"
@@ -361,7 +361,7 @@ export default function SettingsPage() {
                   const closed = dh === null;
                   return (
                     <div key={d} className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-                      <span className="w-9 text-[var(--text-secondary)] uppercase text-[12px] font-bold">{DAY_LABEL[d]}</span>
+                      <span className="w-9 text-[var(--text-secondary)]  text-[12px] font-semibold">{DAY_LABEL[d]}</span>
                       <label className="flex items-center gap-1 text-[12px] text-[var(--text-secondary)] select-none cursor-pointer">
                         <input
                           type="checkbox"

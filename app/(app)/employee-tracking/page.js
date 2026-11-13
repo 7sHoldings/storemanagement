@@ -228,8 +228,7 @@ export default function EmployeeTrackingPage() {
     <div>
       <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
         <div>
-          <p className="text-[var(--text-muted)] text-[12px] font-semibold">People</p>
-          <h1 className="text-[var(--text-primary)] text-[22px] font-bold tracking-tight">Employee Tracking</h1>
+          <h1 className="text-[var(--text-primary)] text-[22px] font-semibold tracking-tight">Employee Tracking</h1>
           <p className="text-[var(--text-secondary)] text-[12px]">{totals.shifts} shifts · {totals.hours}h · {totals.employees} employees</p>
         </div>
         <Button variant="secondary" onClick={exportCSV} className="!text-[12px]">CSV</Button>
@@ -255,17 +254,17 @@ export default function EmployeeTrackingPage() {
               <div className="px-4 py-3 bg-sw-card2 border-b border-[var(--border-subtle)] flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2.5">
                   <div className="w-3 h-3 rounded" style={{ background: g.storeColor || '#64748B' }} />
-                  <span className="text-[var(--text-primary)] text-[14px] font-bold">{g.storeName}</span>
+                  <span className="text-[var(--text-primary)] text-[14px] font-semibold">{g.storeName}</span>
                 </div>
                 <div className="text-[var(--text-secondary)] text-[12px] flex gap-3 flex-wrap">
                   <span>{g.totalShifts} shifts</span>
                   <span>{g.totalHours}h</span>
                   <span>{g.employeeCount} emp</span>
-                  <span style={{ color: soColor(g.totalSO) }} className="font-mono font-bold">
+                  <span style={{ color: soColor(g.totalSO) }} className="font-mono font-semibold">
                     S/O: {soLabel(g.totalSO)}
                   </span>
                   {g.totalCredit > 0 && (
-                    <span className="font-mono font-bold text-[var(--color-warning)]">
+                    <span className="font-mono font-semibold text-[var(--color-warning)]">
                       Credit: {fmt(g.totalCredit)}
                     </span>
                   )}
@@ -279,10 +278,10 @@ export default function EmployeeTrackingPage() {
                     className="bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-lg p-4 text-left hover:border-sw-blue/40 transition-colors group"
                   >
                     <div className="flex items-center justify-between mb-2 gap-2">
-                      <span className="text-[var(--text-primary)] text-[14px] font-bold group-hover:text-[var(--color-info)] transition-colors truncate">{emp.name}</span>
+                      <span className="text-[var(--text-primary)] text-[14px] font-semibold group-hover:text-[var(--color-info)] transition-colors truncate">{emp.name}</span>
                       {emp.unmatched && (
                         <span
-                          className="text-[var(--color-warning)] text-[12px] font-bold rounded px-1.5 py-0.5 bg-[var(--color-warning-bg)] whitespace-nowrap"
+                          className="text-[var(--color-warning)] text-[12px] font-semibold rounded px-1.5 py-0.5 bg-[var(--color-warning-bg)] whitespace-nowrap"
                           title="No matching profile — set this name as 'NRS POS name' on the right teammate's Admin → Edit form to attribute these shifts."
                         >
                           UNMAPPED
@@ -294,17 +293,17 @@ export default function EmployeeTrackingPage() {
                       <div className="text-[var(--text-secondary)]">Shifts</div>
                       <div className="text-right text-[var(--text-primary)] font-semibold">{emp.shiftCount}</div>
                       <div className="text-[var(--text-secondary)]">Hours</div>
-                      <div className="text-right font-mono font-bold" style={{ color: emp.totalHours >= 40 ? '#15803D' : '#1D4ED8' }}>{emp.totalHours}h</div>
+                      <div className="text-right font-mono font-semibold" style={{ color: emp.totalHours >= 40 ? '#15803D' : '#1D4ED8' }}>{emp.totalHours}h</div>
                       <div className="text-[var(--text-secondary)]">Avg / Shift</div>
                       <div className="text-right font-mono text-[var(--text-primary)]">{emp.avgHours}h</div>
                       <div className="text-[var(--text-secondary)]">Sales Handled</div>
                       <div className="text-right font-mono text-[var(--text-primary)]">{fmt(emp.totalSales)}</div>
                       <div className="text-[var(--text-secondary)] font-semibold">Short/Over</div>
-                      <div className="text-right font-mono font-bold" style={{ color: soColor(emp.totalSO) }}>
+                      <div className="text-right font-mono font-semibold" style={{ color: soColor(emp.totalSO) }}>
                         {soLabel(emp.totalSO)}
                       </div>
                       <div className="text-[var(--text-secondary)] font-semibold">Credit</div>
-                      <div className="text-right font-mono font-bold" style={{ color: emp.totalCredit > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>
+                      <div className="text-right font-mono font-semibold" style={{ color: emp.totalCredit > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>
                         {emp.totalCredit > 0 ? fmt(emp.totalCredit) : fmt(0)}
                       </div>
                     </div>

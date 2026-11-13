@@ -1,4 +1,5 @@
 'use client';
+import { CalendarDays } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { fmt, fK, weekLabel, weekRangeLabel, getDateRange } from '@/lib/utils';
 
@@ -67,7 +68,7 @@ export function SmartDatePicker({ value, onChange }) {
         title="Open calendar"
         style={{ background: '#FAFAFA', border: '1px solid #E4E4E7', borderRadius: 8, minHeight: 44, width: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 18, flexShrink: 0 }}
       >
-        📅
+        <CalendarDays size={18} strokeWidth={1.75} aria-hidden="true" />
       </button>
       <input
         ref={nativeRef}
@@ -338,7 +339,7 @@ export function MultiSelect({ options, value = [], onChange, placeholder = 'All'
             cursor: 'pointer',
           }}
         >
-          {opt?.icon ? `${opt.icon} ` : ''}{opt?.label || v}
+          {opt?.label || v}
           <span style={{ color: 'rgba(96,165,250,0.7)' }}>✕</span>
         </span>
       );
@@ -462,7 +463,7 @@ export function MultiSelect({ options, value = [], onChange, placeholder = 'All'
                   {active && <span style={{ color: 'white', fontSize: 14, fontWeight: 700, lineHeight: 1 }}>✓</span>}
                 </div>
                 <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {o.icon ? `${o.icon} ` : ''}{o.label}
+                  {o.label}
                 </span>
               </div>
             );
@@ -524,7 +525,7 @@ export function TrendChart({ data, height = 170 }) {
             boxShadow: '0 6px 20px rgba(0,0,0,0.5)',
           }}
         >
-          <div className="font-bold mb-1" style={{ color: 'var(--text-primary)' }}>{hoverData.label || weekRangeLabel(hoverData.week)}</div>
+          <div className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>{hoverData.label || weekRangeLabel(hoverData.week)}</div>
           <div className="flex justify-between gap-4"><span style={{ color: 'var(--text-muted)' }}>Sales</span><span className="font-mono" style={{ color: 'var(--color-success)' }}>{fmt(hoverData.sales || 0)}</span></div>
           <div className="flex justify-between gap-4"><span style={{ color: 'var(--text-muted)' }}>Purchases</span><span className="font-mono" style={{ color: 'var(--color-warning)' }}>{fmt(hoverData.purchases || 0)}</span></div>
         </div>
@@ -546,11 +547,11 @@ export function TrendChart({ data, height = 170 }) {
             >
               <div className="flex items-end gap-2" style={{ height: barsH }}>
                 <div className="flex flex-col items-center justify-end h-full">
-                  {purchases > 0 && <span className="text-[12px] font-mono font-bold text-sw-amber whitespace-nowrap leading-tight mb-0.5">{fmt(purchases)}</span>}
+                  {purchases > 0 && <span className="text-[12px] font-mono font-semibold text-sw-amber whitespace-nowrap leading-tight mb-0.5">{fmt(purchases)}</span>}
                   <div style={{ width: bw, height: Math.max(pH, 2), borderRadius: '3px 3px 1px 1px', background: '#FBBF2488' }} />
                 </div>
                 <div className="flex flex-col items-center justify-end h-full">
-                  {sales > 0 && <span className="text-[12px] font-mono font-bold text-sw-green whitespace-nowrap leading-tight mb-0.5">{fmt(sales)}</span>}
+                  {sales > 0 && <span className="text-[12px] font-mono font-semibold text-sw-green whitespace-nowrap leading-tight mb-0.5">{fmt(sales)}</span>}
                   <div style={{ width: bw, height: Math.max(sH, 2), borderRadius: '3px 3px 1px 1px', background: '#34D39999' }} />
                 </div>
               </div>
@@ -623,7 +624,7 @@ export function ImageViewer({ src, caption, onClose, downloadName }) {
         <div className="text-white text-[13px] font-semibold truncate mr-3">{caption || 'Invoice'}</div>
         <button
           onClick={(e) => { e.stopPropagation(); onClose?.(); }}
-          className="w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white text-2xl font-bold flex items-center justify-center flex-shrink-0"
+          className="w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white text-2xl font-semibold flex items-center justify-center flex-shrink-0"
           aria-label="Close"
           title="Close"
         >
@@ -678,7 +679,7 @@ export function ImageViewer({ src, caption, onClose, downloadName }) {
         </button>
         <button
           onClick={onClose}
-          className="px-5 py-2 rounded-lg bg-white text-black text-[13px] font-bold min-h-[44px]"
+          className="px-5 py-2 rounded-lg bg-white text-black text-[13px] font-semibold min-h-[44px]"
         >
           Close
         </button>
@@ -692,7 +693,7 @@ export function ImageViewer({ src, caption, onClose, downloadName }) {
 // Lets them pick a store inline and then proceeds via onSelectStore.
 export function StoreRequiredModal({ stores, onSelectStore, onCancel, title = 'Select a Store First', message }) {
   return (
-    <Modal title={`⚠️ ${title}`} onClose={onCancel}>
+    <Modal title={`${title}`} onClose={onCancel}>
       <p className="text-sw-sub text-[13px] mb-4">
         {message || 'To add new entries, please select a specific store from the dropdown in the sidebar.'}
       </p>
@@ -773,7 +774,6 @@ export function Button({ children, variant = 'primary', className = '', ...props
 export function EmptyState({ icon = null, title = 'Nothing here yet', message, action }) {
   return (
     <div className="py-12 px-4 text-center">
-      {icon && <div className="text-3xl mb-2 opacity-70">{icon}</div>}
       <div className="text-sw-text text-[15px] font-semibold mb-1">{title}</div>
       {message && <p className="text-sw-dim text-[13px] mb-3 max-w-sm mx-auto">{message}</p>}
       {action}

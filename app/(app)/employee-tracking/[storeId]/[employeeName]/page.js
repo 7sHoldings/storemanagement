@@ -225,15 +225,15 @@ export default function EmployeeDetailPage() {
             { key: 'opened_at', label: 'Opened', render: v => <span className="font-mono text-[12px]">{fmtTime(v)}</span> },
             { key: 'closed_at', label: 'Closed', render: v => <span className="font-mono text-[12px]">{fmtTime(v)}</span> },
             { key: '_hours', label: 'Hours', align: 'right', mono: true, sortValue: r => Number(r._hours || 0),
-              render: (_, r) => r._hours ? <span className={`font-bold ${r._hours >= 8 ? 'text-[var(--color-success)]' : r._hours >= 4 ? 'text-[var(--color-info)]' : 'text-[var(--color-warning)]'}`}>{Number(r._hours).toFixed(1)}h</span> : <span className="text-[var(--text-muted)]">—</span> },
+              render: (_, r) => r._hours ? <span className={`font-semibold ${r._hours >= 8 ? 'text-[var(--color-success)]' : r._hours >= 4 ? 'text-[var(--color-info)]' : 'text-[var(--color-warning)]'}`}>{Number(r._hours).toFixed(1)}h</span> : <span className="text-[var(--text-muted)]">—</span> },
             { key: '_sales', label: 'Sales', align: 'right', mono: true, sortValue: r => r._sales,
               render: (_, r) => r._sales > 0 ? <span className="text-[var(--text-primary)]">{fmt(r._sales)}</span> : <span className="text-[var(--text-muted)]">—</span> },
             { key: '_so', label: 'S/O', align: 'right', mono: true, sortable: true, sortValue: r => r._so,
               render: (_, r) => {
                 if (!r._isPrimary) return <span className="text-[var(--text-muted)]">—</span>;
                 const v = r._so;
-                if (Math.abs(v) < 0.01) return <span className="text-[var(--text-muted)]">⚪ $0</span>;
-                return <span style={{ color: soColor(v) }} className="font-bold">{v > 0 ? '🔴 ' : '🟢 '}{soLabel(v)}</span>;
+                if (Math.abs(v) < 0.01) return <span className="text-[var(--text-muted)]">$0</span>;
+                return <span style={{ color: soColor(v) }} className="font-semibold">{v > 0 ? '' : ''}{soLabel(v)}</span>;
               } },
           ]}
           rows={enriched}
@@ -241,8 +241,8 @@ export default function EmployeeDetailPage() {
         />
         {enriched.length > 0 && (
           <div className="px-3 py-2 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] flex justify-between items-center flex-wrap gap-2 text-[12px]">
-            <span className="text-[var(--text-secondary)] font-bold uppercase">{enriched.length} shifts · {stats.maxConsec} max consecutive days</span>
-            <span className="font-mono font-bold" style={{ color: soColor(Number(stats.totalSO)) }}>
+            <span className="text-[var(--text-secondary)] font-semibold ">{enriched.length} shifts · {stats.maxConsec} max consecutive days</span>
+            <span className="font-mono font-semibold" style={{ color: soColor(Number(stats.totalSO)) }}>
               Net S/O: {soLabel(Number(stats.totalSO))}
             </span>
           </div>
@@ -252,26 +252,26 @@ export default function EmployeeDetailPage() {
       {/* Payroll Impact */}
       {enriched.length > 0 && (
         <Card padding="md">
-          <div className="text-[var(--text-primary)] text-[13px] font-bold mb-2">💰 Payroll Impact</div>
+          <div className="text-[var(--text-primary)] text-[13px] font-semibold mb-2">Payroll Impact</div>
           <div className="grid grid-cols-2 gap-y-1.5 text-[12px] max-w-sm">
             <div className="text-[var(--text-secondary)]">Date Range</div>
             <div className="text-right text-[var(--text-primary)]">{range.start} — {range.end}</div>
             <div className="text-[var(--text-secondary)]">Total Hours Worked</div>
-            <div className="text-right text-[var(--text-primary)] font-mono font-bold">{stats.totalHours}h</div>
+            <div className="text-right text-[var(--text-primary)] font-mono font-semibold">{stats.totalHours}h</div>
             <div className="text-[var(--text-secondary)]">Sales Handled</div>
             <div className="text-right text-[var(--text-primary)] font-mono">{fmt(Number(stats.totalSales))}</div>
             <div className="text-[var(--text-secondary)] font-semibold">Cumulative Short/Over</div>
-            <div className="text-right font-mono font-bold" style={{ color: soColor(Number(stats.totalSO)) }}>
+            <div className="text-right font-mono font-semibold" style={{ color: soColor(Number(stats.totalSO)) }}>
               {soLabel(Number(stats.totalSO))}
             </div>
             <div className="text-[var(--text-secondary)] font-semibold">House Account Credit</div>
-            <div className="text-right font-mono font-bold" style={{ color: totalCredit > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>
+            <div className="text-right font-mono font-semibold" style={{ color: totalCredit > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>
               {fmt(totalCredit)}
             </div>
           </div>
           {creditEntries.length > 0 && (
             <div className="mt-3 pt-3 border-t border-[var(--border-subtle)]">
-              <div className="text-[var(--text-secondary)] text-[12px] font-semibold uppercase mb-1.5">Credit Breakdown</div>
+              <div className="text-[var(--text-secondary)] text-[12px] font-semibold  mb-1.5">Credit Breakdown</div>
               <div className="space-y-1 text-[12px] max-w-sm">
                 {creditEntries.map((c, i) => (
                   <div key={i} className="flex justify-between">

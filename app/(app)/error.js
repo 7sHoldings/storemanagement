@@ -9,8 +9,8 @@ export default function AppError({ error, reset }) {
   return (
     <div className="min-h-[60vh] flex items-center justify-center p-6">
       <div className="max-w-sm w-full bg-sw-card border border-sw-border rounded-2xl p-6 text-center">
-        <div className="text-4xl mb-3">⚠️</div>
-        <div className="text-sw-text text-base font-bold mb-2">Something went wrong</div>
+        
+        <div className="text-sw-text text-base font-semibold mb-2">Something went wrong</div>
         <p className="text-sw-sub text-xs mb-4 break-words">
           {error?.message || 'An unexpected error occurred while loading this page.'}
         </p>

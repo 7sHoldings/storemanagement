@@ -81,7 +81,7 @@ export default function NRSSyncHistoryPage() {
 
   return (
     <div>
-      <PageHeader title="🤖 7S Agent Logs" subtitle={`${filtered.length} sync records`}>
+      <PageHeader title="7S Agent Logs" subtitle={`${filtered.length} sync records`}>
         <Button variant="secondary" onClick={load} className="!text-[12px]">Refresh</Button>
         <Button onClick={manualRun} disabled={running}>
           {running ? 'Running…' : 'Run Sync Now'}
@@ -105,14 +105,14 @@ export default function NRSSyncHistoryPage() {
       <DateBar preset={preset} onPreset={selectPreset} startDate={range.start} endDate={range.end} onStartChange={setStart} onEndChange={setEnd} />
 
       <div className="bg-[var(--bg-elevated)] rounded-lg p-2.5 border border-[var(--border-subtle)] mb-3 flex gap-2 flex-wrap items-center">
-        <label className="text-[var(--text-secondary)] text-[12px] font-bold uppercase">Status</label>
+        <label className="text-[var(--text-secondary)] text-[12px] font-semibold ">Status</label>
         <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="!w-auto !min-w-[140px] !py-1.5 !text-[12px]">
           <option value="">All</option>
           <option value="success">Success</option>
           <option value="failed">Failed</option>
           <option value="skipped">Skipped</option>
         </select>
-        <label className="text-[var(--text-secondary)] text-[12px] font-bold uppercase">Store</label>
+        <label className="text-[var(--text-secondary)] text-[12px] font-semibold ">Store</label>
         <select value={storeFilter} onChange={e => setStoreFilter(e.target.value)} className="!w-auto !min-w-[160px] !py-1.5 !text-[12px]">
           <option value="">All Stores</option>
           {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -126,14 +126,14 @@ export default function NRSSyncHistoryPage() {
           {sortedDates.map(date => (
             <div key={date} className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
               <div className="px-3 py-2 bg-[var(--bg-card)] border-b border-[var(--border-subtle)] flex justify-between">
-                <span className="text-[var(--text-primary)] text-[13px] font-bold">{dayLabel(date)}</span>
+                <span className="text-[var(--text-primary)] text-[13px] font-semibold">{dayLabel(date)}</span>
                 <span className="text-[var(--text-muted)] text-[12px]">{byDate[date].length} entries</span>
               </div>
               {byDate[date].map(l => (
                 <div key={l.id} className="px-3 py-2 border-b border-[var(--border-subtle)] last:border-b-0">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className={`text-[12px] font-bold px-2 py-0.5 rounded uppercase ${STATUS_STYLE[l.status] || 'bg-[var(--bg-card)] text-[var(--text-muted)]'}`}>
+                      <span className={`text-[12px] font-semibold px-2 py-0.5 rounded  ${STATUS_STYLE[l.status] || 'bg-[var(--bg-card)] text-[var(--text-muted)]'}`}>
                         {l.status}
                       </span>
                       <span className="text-[var(--text-primary)] text-[12px] font-semibold truncate">{storeName(l.store_id)}</span>
@@ -176,7 +176,7 @@ export default function NRSSyncHistoryPage() {
                         </div>
                       )}
                       {l.nrs_response && (
-                        <pre className="p-2 bg-black/30 rounded text-[12px] text-[var(--text-muted)] overflow-auto max-h-[300px]">
+                        <pre className="p-2 bg-[#F4F4F5] rounded text-[12px] text-[var(--text-muted)] overflow-auto max-h-[300px]">
                           {JSON.stringify(l.nrs_response, null, 2)}
                         </pre>
                       )}

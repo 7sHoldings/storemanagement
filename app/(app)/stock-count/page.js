@@ -122,7 +122,7 @@ export default function StockCountPage() {
               placeholder="Scan or type…"
               className="flex-1 min-w-0 rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[15px] text-sw-text"
             />
-            <Button variant="secondary" onClick={() => setScan('item')}>📷 Scan</Button>
+            <Button variant="secondary" onClick={() => setScan('item')}>Scan</Button>
           </div>
         </Field>
 
@@ -172,7 +172,7 @@ export default function StockCountPage() {
       {/* Counted this session */}
       {counted.length > 0 && (
         <div className="rounded-xl border border-sw-border bg-sw-card p-4">
-          <h3 className="text-sw-text text-[14px] font-bold mb-2">Counted this session ({counted.length})</h3>
+          <h3 className="text-sw-text text-[14px] font-semibold mb-2">Counted this session ({counted.length})</h3>
           <ul className="divide-y divide-sw-border/60">
             {counted.map((c, i) => (
               <li key={`${c.upc}-${i}`} className="flex items-center gap-2 py-2 text-[13px]">

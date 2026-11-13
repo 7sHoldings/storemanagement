@@ -17,10 +17,10 @@ export default function VendorsPage() {
   if (loading) return <Loading />;
 
   return (<div>
-    <PageHeader title="🤝 Vendors"><Button onClick={() => setModal(true)}>+ Add</Button></PageHeader>
+    <PageHeader title="Vendors"><Button onClick={() => setModal(true)}>+ Add</Button></PageHeader>
     <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3">
       {vendors.map(v => (<div key={v.id} className="bg-[var(--bg-elevated)] rounded-xl p-4 border border-[var(--border-subtle)]">
-        <div className="text-[var(--text-primary)] text-[15px] font-bold mb-1">{v.name}</div>
+        <div className="text-[var(--text-primary)] text-[15px] font-semibold mb-1">{v.name}</div>
         <div className="text-[var(--text-secondary)] text-xs mb-2.5">{v.category}</div>
         <div className="flex flex-col gap-1 text-xs">
           <div className="flex justify-between"><span className="text-[var(--text-muted)]">Contact</span><span className="text-[var(--text-primary)]">{v.contact}</span></div>

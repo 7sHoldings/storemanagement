@@ -1,4 +1,5 @@
 'use client';
+import { Camera, FolderOpen } from 'lucide-react';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { DataTable, DateBar, useDateRange, PageHeader, Modal, Field, Button, Loading, StoreBadge, ConfirmModal, StoreRequiredModal, ImageViewer, MultiSelect, SmartDatePicker, SortDropdown, StorePills } from '@/components/UI';
@@ -345,11 +346,11 @@ export default function PurchasesPage() {
   return (<div>
     {toast && (
       <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-sw-greenD text-[var(--color-success)] border border-sw-green/40 rounded-lg px-4 py-2 text-[12px] font-semibold shadow-lg">
-        ✓ {toast}
+        {toast}
       </div>
     )}
-    <PageHeader title="🛒 Product Buying" subtitle={hasStore ? storeName : 'All Stores'}>
-      <Button variant="secondary" onClick={() => downloadCSV('purchases.csv', ['Date','Store','Vendor','Amount','Notes'], visibleItems.map(p => [p.week_of, p.stores?.name, p.supplier, p.total_cost, p.notes]))} className="!text-[12px]">📥 CSV</Button>
+    <PageHeader title="Product Buying" subtitle={hasStore ? storeName : 'All Stores'}>
+      <Button variant="secondary" onClick={() => downloadCSV('purchases.csv', ['Date','Store','Vendor','Amount','Notes'], visibleItems.map(p => [p.week_of, p.stores?.name, p.supplier, p.total_cost, p.notes]))} className="!text-[12px]">CSV</Button>
       <Button onClick={tryOpenAdd} className="hidden md:inline-flex">+ Add</Button>
     </PageHeader>
 
@@ -402,7 +403,7 @@ export default function PurchasesPage() {
         columns={[
           { key: 'week_of', label: 'Date', render: v => dateLabel(v) },
           ...(!pageStoreId ? [{ key: 'store_id', label: 'Store', hideOnMobile: true, render: (_,r) => <StoreBadge name={r.stores?.name} color={r.stores?.color} /> }] : []),
-          { key: 'supplier', label: 'Vendor', render: v => <span className="text-[var(--text-primary)] font-bold">{v || '—'}</span> },
+          { key: 'supplier', label: 'Vendor', render: v => <span className="text-[var(--text-primary)] font-semibold">{v || '—'}</span> },
           { key: 'total_cost', label: 'Amount', align: 'right', mono: true, render: (v, r) => {
             const invs = invoiceByPurchase[r.id] || [];
             return (
@@ -413,7 +414,7 @@ export default function PurchasesPage() {
                     title={invs.length > 1 ? `View invoice (${invs.length})` : 'View invoice'}
                     className="md:hidden inline-flex items-center justify-center w-7 h-7 rounded-md bg-sw-blueD text-[var(--color-info)] border border-sw-blue/30 text-sm relative"
                   >
-                    📷{invs.length > 1 && <span className="absolute -top-1 -right-1 bg-sw-blue text-black text-[12px] rounded-full px-1 font-bold">{invs.length}</span>}
+                    <Camera size={15} strokeWidth={1.75} aria-hidden="true" />{invs.length > 1 && <span className="absolute -top-1 -right-1 bg-sw-blue text-black text-[12px] rounded-full px-1 font-semibold">{invs.length}</span>}
                   </button>
                 )}
                 <span className="text-[var(--color-warning)] text-[14px] font-semibold">{fmt(v)}</span>
@@ -429,8 +430,8 @@ export default function PurchasesPage() {
                 title={invs.length > 1 ? `View invoice (${invs.length})` : 'View invoice'}
                 className="relative inline-flex items-center justify-center w-11 h-11 rounded-lg bg-sw-blueD text-[var(--color-info)] border border-sw-blue/30 text-xl"
               >
-                📷
-                {invs.length > 1 && <span className="absolute -top-1 -right-1 bg-sw-blue text-black text-[12px] rounded-full px-1.5 font-bold">{invs.length}</span>}
+                <Camera size={20} strokeWidth={1.75} aria-hidden="true" />
+                {invs.length > 1 && <span className="absolute -top-1 -right-1 bg-sw-blue text-black text-[12px] rounded-full px-1.5 font-semibold">{invs.length}</span>}
               </button>
             );
           } },
@@ -461,7 +462,7 @@ export default function PurchasesPage() {
       />
       {visibleItems.length > 0 && (
         <div className="px-3 py-2 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] flex justify-between items-center">
-          <span className="text-[var(--text-secondary)] text-[12px] font-bold">
+          <span className="text-[var(--text-secondary)] text-[12px] font-semibold">
             Total{vendorFilter ? ` (${vendorFilter})` : ''}
           </span>
           <span className="text-[var(--color-warning)] text-[16px] font-semibold font-mono">{fmt(visibleTotal)}</span>
@@ -521,14 +522,14 @@ export default function PurchasesPage() {
             onClick={() => invoiceCameraRef.current?.click()}
             className="flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg border-2 border-dashed border-sw-blue/40 bg-sw-blueD text-[var(--color-info)] text-[13px] font-semibold min-h-[44px]"
           >
-            <span className="text-lg">📷</span><span>Take Photo</span>
+            <Camera size={18} strokeWidth={1.75} aria-hidden="true" /><span>Take Photo</span>
           </button>
           <button
             type="button"
             onClick={() => invoiceLibraryRef.current?.click()}
             className="flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg border-2 border-dashed border-sw-blue/40 bg-sw-blueD text-[var(--color-info)] text-[13px] font-semibold min-h-[44px]"
           >
-            <span className="text-lg">📁</span><span>From Library</span>
+            <FolderOpen size={18} strokeWidth={1.75} aria-hidden="true" /><span>From Library</span>
           </button>
           <input ref={invoiceCameraRef} type="file" accept="image/*" capture="environment" onChange={handleInvoicePick} className="hidden" />
           <input ref={invoiceLibraryRef} type="file" accept="image/*" multiple onChange={handleInvoicePick} className="hidden" />
@@ -564,7 +565,7 @@ export default function PurchasesPage() {
                 >
                   <img src={p.preview} alt="Pending" className="w-full h-full object-cover" />
                 </button>
-                <span className="absolute top-1 left-1 bg-sw-blueD text-[var(--color-info)] border border-sw-blue/40 text-[12px] font-bold px-1 rounded">NEW</span>
+                <span className="absolute top-1 left-1 bg-sw-blueD text-[var(--color-info)] border border-sw-blue/40 text-[12px] font-semibold px-1 rounded">NEW</span>
                 <button
                   type="button"
                   onClick={() => removePendingInvoice(p.id)}

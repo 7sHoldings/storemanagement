@@ -13,7 +13,7 @@ export default function EmailPage() {
   if (!isOwner) return <div className="text-[var(--text-muted)] text-center py-20">Owner access required</div>;
 
   return (<div>
-    <PageHeader title="📧 Weekly Email Reports" subtitle="Auto-send every Monday morning" />
+    <PageHeader title="Weekly Email Reports" subtitle="Auto-send every Monday morning" />
     {saved && <Alert type="success">Settings saved!</Alert>}
     <div className="bg-[var(--bg-elevated)] rounded-xl p-5 border border-[var(--border-subtle)] max-w-lg">
       <Field label="Enable Reports">

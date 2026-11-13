@@ -207,7 +207,7 @@ export default function ProfitTakeoutPage() {
 
       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] overflow-hidden mb-4">
         <div className="px-3 py-2 border-b border-[var(--border-subtle)] flex justify-between items-center">
-          <h3 className="text-[var(--text-primary)] text-xs font-bold">Take Outs · {range.start} → {range.end}</h3>
+          <h3 className="text-[var(--text-primary)] text-xs font-semibold">Take Outs · {range.start} → {range.end}</h3>
           <span className="text-[var(--text-muted)] text-[12px]">
             Cash {fmt(stats.totalCash)} · Card {fmt(stats.totalCard)} · Total {fmt(stats.totalRange)}
           </span>
@@ -219,7 +219,7 @@ export default function ProfitTakeoutPage() {
           columns={[
             { key: 'date', label: 'Date', render: v => dayLabel(v) },
             { key: 'source', label: 'Source', render: v => (
-              <span className={`text-[12px] font-bold px-2 py-0.5 rounded uppercase ${
+              <span className={`text-[12px] font-semibold px-2 py-0.5 rounded  ${
                 v === 'game_machines'
                   ? 'bg-sw-pinkD text-sw-pink'
                   : 'bg-sw-greenD text-[var(--color-success)]'
@@ -234,7 +234,7 @@ export default function ProfitTakeoutPage() {
               render: v => v ? <span className="text-[var(--color-info)]">{fmt(v)}</span> : <span className="text-[var(--text-muted)]">—</span>,
               sortValue: r => Number(r.card_amount || 0) },
             { key: 'amount', label: 'Total', align: 'right', mono: true,
-              render: v => <span className="font-bold text-[var(--text-primary)]">{fmt(v)}</span>,
+              render: v => <span className="font-semibold text-[var(--text-primary)]">{fmt(v)}</span>,
               sortValue: r => Number(r.amount || 0) },
             { key: 'destination', label: 'Destination', render: v => v || <span className="text-[var(--text-muted)]">—</span> },
             { key: 'notes', label: 'Notes', render: v => v || <span className="text-[var(--text-muted)]">—</span> },
@@ -278,7 +278,7 @@ export default function ProfitTakeoutPage() {
             </div>
           )}
           <div className="text-[var(--text-muted)] text-[12px] -mt-1 mb-2">
-            Total: <span className="text-[var(--text-primary)] font-mono font-bold">
+            Total: <span className="text-[var(--text-primary)] font-mono font-semibold">
               {fmt((parseFloat(form.cash_amount) || 0) + (form.source === 'game_machines' ? 0 : (parseFloat(form.card_amount) || 0)))}
             </span>
           </div>

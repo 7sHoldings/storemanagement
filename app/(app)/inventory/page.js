@@ -369,7 +369,7 @@ function CountView({ supabase, profile, isOwner, storeId, stores, departments, b
       {!count && (
         <div className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl p-6 text-center mb-4">
           <div className="text-4xl mb-3">📋</div>
-          <div className="text-[var(--text-primary)] font-bold mb-1">Ready to count inventory?</div>
+          <div className="text-[var(--text-primary)] font-semibold mb-1">Ready to count inventory?</div>
           <div className="text-[var(--text-secondary)] text-sm mb-4">Walk through the store, pick a department, and add what you see.</div>
           <Button onClick={startCount} disabled={busy}>{busy ? 'Starting…' : 'Start Count'}</Button>
         </div>
@@ -457,7 +457,7 @@ function CountView({ supabase, profile, isOwner, storeId, stores, departments, b
 
       {pastCounts.length > 0 && (
         <div className="mt-8">
-          <div className="text-[var(--text-secondary)] text-[12px] font-bold mb-2">Previous Counts</div>
+          <div className="text-[var(--text-secondary)] text-[12px] font-semibold mb-2">Previous Counts</div>
           <div className="space-y-2">
             {pastCounts.map(pc => (
               <button
@@ -467,7 +467,7 @@ function CountView({ supabase, profile, isOwner, storeId, stores, departments, b
               >
                 <span className="text-[var(--text-primary)] text-sm">{fmtDate(pc.count_date)}</span>
                 <span className="text-xs text-[var(--text-secondary)]">
-                  {pc.status === 'submitted' ? '✅ Submitted' : pc.status === 'draft' ? '📝 Draft' : pc.status}
+                  {pc.status === 'submitted' ? 'Submitted' : pc.status === 'draft' ? 'Draft' : pc.status}
                 </span>
               </button>
             ))}
@@ -504,7 +504,7 @@ function DeptPanel({ dept, items, brands = [], flavors = [], onAdd, onUpdate, on
   return (
     <div className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl p-4">
       <div className="flex justify-between items-center mb-3">
-        <div className="text-[var(--text-primary)] font-bold text-sm">
+        <div className="text-[var(--text-primary)] font-semibold text-sm">
           {DEPT_ICONS[dept.name] || '📦'} {dept.name}
         </div>
         {!readonly && !showForm && !editingId && (
@@ -700,7 +700,7 @@ function PastCountView({ supabase, count, departments, onBack }) {
 
   return (
     <div>
-      <PageHeader title={fmtDate(count.count_date)} subtitle={count.status === 'submitted' ? '✅ Submitted' : count.status}>
+      <PageHeader title={fmtDate(count.count_date)} subtitle={count.status === 'submitted' ? 'Submitted' : count.status}>
         <Button variant="secondary" onClick={onBack}>← Back</Button>
       </PageHeader>
       {departments.map(d => {
@@ -708,7 +708,7 @@ function PastCountView({ supabase, count, departments, onBack }) {
         if (di.length === 0) return null;
         return (
           <div key={d.id} className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl p-4 mb-3">
-            <div className="text-[var(--text-primary)] font-bold text-sm mb-2">{DEPT_ICONS[d.name] || '📦'} {d.name}</div>
+            <div className="text-[var(--text-primary)] font-semibold text-sm mb-2">{DEPT_ICONS[d.name] || '📦'} {d.name}</div>
             {di.map((it, idx) => (
               <div key={it.id} className="text-sm text-[var(--text-primary)] py-1">
                 <span className="text-[var(--text-secondary)]">{idx + 1}.</span> {it.brand}
@@ -793,7 +793,7 @@ function OwnerView({ supabase, stores, departments }) {
   return (
     <div>
       <PageHeader title="Inventory" subtitle="Store count status & order sheets">
-        <Button onClick={() => setShowCombined(true)}>📋 Combined Order Sheet</Button>
+        <Button onClick={() => setShowCombined(true)}>Combined Order Sheet</Button>
       </PageHeader>
 
       {err && <Alert type="error">{err}</Alert>}
@@ -808,7 +808,7 @@ function OwnerView({ supabase, stores, departments }) {
             <div key={s.id} className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
                 <span className="w-3 h-3 rounded-full" style={{ background: s.color || '#A21CAF' }} />
-                <span className="text-[var(--text-primary)] font-bold">{s.name}</span>
+                <span className="text-[var(--text-primary)] font-semibold">{s.name}</span>
               </div>
               <div className="text-[var(--text-secondary)] text-xs mb-1">{statusIcon} {statusText}</div>
               {entry && <div className="text-[var(--text-secondary)] text-xs mb-3">{entry.itemCount} items counted</div>}
@@ -914,7 +914,7 @@ function OwnerCountView({ supabase, count, store, departments, onBack }) {
 
       {grouped.map(({ dept, rows }) => (
         <div key={dept.id} className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl p-4 mb-4">
-          <div className="text-[var(--text-primary)] font-bold text-sm mb-3">
+          <div className="text-[var(--text-primary)] font-semibold text-sm mb-3">
             {DEPT_ICONS[dept.name] || '📦'} {dept.name.toUpperCase()} ({rows.length} {mode === 'order' ? 'to order' : 'items'})
           </div>
           <div className="overflow-x-auto">
@@ -933,7 +933,7 @@ function OwnerCountView({ supabase, count, store, departments, onBack }) {
                     <td className="py-2 pr-2 text-[var(--text-primary)] font-semibold">{it.brand}</td>
                     <td className="py-2 pr-2 text-[var(--text-secondary)]">{it.flavor}</td>
                     <td className="py-2 pr-2 text-right text-[var(--text-primary)]">{it.in_stock}</td>
-                    <td className="py-2 pr-2 text-right text-[var(--color-warning)] font-bold">{it.need_to_order || '—'}</td>
+                    <td className="py-2 pr-2 text-right text-[var(--color-warning)] font-semibold">{it.need_to_order || '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -944,8 +944,8 @@ function OwnerCountView({ supabase, count, store, departments, onBack }) {
 
       {grouped.length > 0 && (
         <div className="flex flex-wrap gap-2 mt-4">
-          <Button onClick={exportXLSX}>⬇ Download Excel</Button>
-          <Button variant="secondary" onClick={exportCSV}>⬇ CSV</Button>
+          <Button onClick={exportXLSX}>Download Excel</Button>
+          <Button variant="secondary" onClick={exportCSV}>CSV</Button>
           {mode === 'order' && count.status !== 'ordered' && (
             <Button variant="success" onClick={markOrdered} disabled={busy}>Mark as Ordered</Button>
           )}
@@ -1068,7 +1068,7 @@ function CombinedOrderView({ supabase, stores, departments, onBack }) {
         <>
           {grouped.map(({ dept, rows: rs }) => (
             <div key={dept.id} className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl p-4 mb-4">
-              <div className="text-[var(--text-primary)] font-bold text-sm mb-3">{DEPT_ICONS[dept.name] || '📦'} {dept.name.toUpperCase()}</div>
+              <div className="text-[var(--text-primary)] font-semibold text-sm mb-3">{DEPT_ICONS[dept.name] || '📦'} {dept.name.toUpperCase()}</div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -1087,7 +1087,7 @@ function CombinedOrderView({ supabase, stores, departments, onBack }) {
                         {stores.map(s => (
                           <td key={s.id} className="py-2 pr-2 text-right text-[var(--text-primary)]">{r.byStore[s.name] || '—'}</td>
                         ))}
-                        <td className="py-2 pr-2 text-right text-[var(--color-info)] font-bold">{r.total}</td>
+                        <td className="py-2 pr-2 text-right text-[var(--color-info)] font-semibold">{r.total}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1096,8 +1096,8 @@ function CombinedOrderView({ supabase, stores, departments, onBack }) {
             </div>
           ))}
           <div className="flex gap-2 flex-wrap">
-            <Button onClick={exportXLSX}>⬇ Download Combined Excel</Button>
-            <Button variant="secondary" onClick={exportCSV}>⬇ CSV</Button>
+            <Button onClick={exportXLSX}>Download Combined Excel</Button>
+            <Button variant="secondary" onClick={exportCSV}>CSV</Button>
           </div>
         </>
       )}

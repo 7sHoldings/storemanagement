@@ -155,7 +155,7 @@ export default function NRSBackfillPage() {
 
   return (
     <div>
-      <PageHeader title="🤖 7S Agent — Historical Backfill" subtitle="Import historical daily sales from NRS POS" />
+      <PageHeader title="7S Agent — Historical Backfill" subtitle="Import historical daily sales from NRS POS" />
 
       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] p-5 mb-4">
         <p className="text-[var(--text-secondary)] text-[12px] mb-4">
@@ -163,7 +163,7 @@ export default function NRSBackfillPage() {
         </p>
 
         <div className="mb-4">
-          <div className="text-[var(--text-secondary)] text-[12px] font-bold uppercase mb-2">Stores</div>
+          <div className="text-[var(--text-secondary)] text-[12px] font-semibold  mb-2">Stores</div>
           <div className="flex gap-2 flex-wrap">
             {stores.map(s => (
               <label key={s.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer min-h-[44px] ${selectedStores.includes(s.id) ? 'bg-sw-blueD border-sw-blue/30 text-[var(--color-info)]' : 'bg-[var(--bg-card)] border-[var(--border-subtle)] text-[var(--text-primary)]'}`}>
@@ -181,7 +181,7 @@ export default function NRSBackfillPage() {
 
         {totalCalls > 0 && !running && (
           <div className="bg-[var(--bg-card)] rounded-lg p-3 border border-[var(--border-subtle)] mb-4 text-[12px] text-[var(--text-secondary)]">
-            {selectedStores.length} store{selectedStores.length === 1 ? '' : 's'} x {totalDays} day{totalDays === 1 ? '' : 's'} = <span className="text-[var(--text-primary)] font-bold">{totalCalls} tasks</span>
+            {selectedStores.length} store{selectedStores.length === 1 ? '' : 's'} x {totalDays} day{totalDays === 1 ? '' : 's'} = <span className="text-[var(--text-primary)] font-semibold">{totalCalls} tasks</span>
           </div>
         )}
 
@@ -259,7 +259,7 @@ export default function NRSBackfillPage() {
                     <td className="text-[12px]">{r.store}</td>
                     <td className="text-[12px] font-mono">{r.date}</td>
                     <td>
-                      <span className={`text-[12px] font-bold px-2 py-0.5 rounded uppercase ${
+                      <span className={`text-[12px] font-semibold px-2 py-0.5 rounded  ${
                         r.status === 'created' ? 'bg-sw-greenD text-[var(--color-success)]' :
                         r.status === 'updated' ? 'bg-sw-greenD text-[var(--color-success)]' :
                         r.status === 'skipped' ? 'bg-sw-amberD text-[var(--color-warning)]' :

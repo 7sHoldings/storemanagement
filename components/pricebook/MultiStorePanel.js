@@ -285,7 +285,7 @@ function StoreSelector({ stores, selected, onToggle }) {
               on ? 'border-amber-500 bg-amber-500/15 text-sw-text' : 'border-sw-border text-[var(--text-muted)]'
             }`}
           >
-            {on ? '✓ ' : ''}{storeShortName(s.name)}
+            {on ? '' : ''}{storeShortName(s.name)}
           </button>
         );
       })}
@@ -314,7 +314,7 @@ function FamilyCard({
       <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-sw-border px-3 py-2">
         <button onClick={() => setOpen(o => !o)} className="flex min-w-[55%] flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 text-left">
           <span className="text-[var(--text-muted)] text-[12px]">{open ? '▾' : '▸'}</span>
-          <span className="text-[14px] font-bold text-sw-text">{family.label}</span>
+          <span className="text-[14px] font-semibold text-sw-text">{family.label}</span>
           <span className="text-[12px] text-[var(--text-muted)]">
             {family.items.length} flavor{family.items.length === 1 ? '' : 's'}
             {family.upcPrefix ? ` · UPC ${family.upcPrefix}•••` : ''}
@@ -398,7 +398,7 @@ function ReviewModal({ plan, stores, protectedCount, includeCustom, onIncludeCus
       <div className="max-h-[340px] overflow-y-auto rounded-lg border border-sw-border">
         {byStore.map(([storeId, writes]) => (
           <div key={storeId}>
-            <div className="sticky top-0 bg-sw-card px-3 py-1.5 text-[12px] font-bold uppercase text-[var(--text-muted)]">
+            <div className="sticky top-0 bg-sw-card px-3 py-1.5 text-[12px] font-semibold  text-[var(--text-muted)]">
               {storeName(storeId)} · {writes.length} change{writes.length === 1 ? '' : 's'}
             </div>
             {writes.map(w => (

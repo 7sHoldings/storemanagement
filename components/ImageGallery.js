@@ -89,7 +89,7 @@ export default function ImageGallery({ images, isOpen, onClose, startIndex = 0, 
         </div>
         <button
           onClick={(e) => { e.stopPropagation(); onClose?.(); }}
-          className="w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white text-2xl font-bold flex items-center justify-center flex-shrink-0"
+          className="w-11 h-11 rounded-full bg-white/15 hover:bg-white/25 text-white text-2xl font-semibold flex items-center justify-center flex-shrink-0"
           aria-label="Close"
           title="Close"
         >
@@ -111,7 +111,7 @@ export default function ImageGallery({ images, isOpen, onClose, startIndex = 0, 
             onClick={prev}
             disabled={index === 0}
             aria-label="Previous image"
-            className="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 hover:bg-white/30 text-white text-3xl font-bold items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed z-10"
+            className="hidden sm:flex absolute left-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 hover:bg-white/30 text-white text-3xl font-semibold items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed z-10"
           >
             ‹
           </button>
@@ -127,7 +127,7 @@ export default function ImageGallery({ images, isOpen, onClose, startIndex = 0, 
             onClick={next}
             disabled={index === total - 1}
             aria-label="Next image"
-            className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 hover:bg-white/30 text-white text-3xl font-bold items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed z-10"
+            className="hidden sm:flex absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 hover:bg-white/30 text-white text-3xl font-semibold items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed z-10"
           >
             ›
           </button>
@@ -170,7 +170,7 @@ export default function ImageGallery({ images, isOpen, onClose, startIndex = 0, 
         </button>
         <button
           onClick={onClose}
-          className="px-5 py-2 rounded-lg bg-white text-black text-[13px] font-bold min-h-[44px]"
+          className="px-5 py-2 rounded-lg bg-white text-black text-[13px] font-semibold min-h-[44px]"
         >
           Close
         </button>

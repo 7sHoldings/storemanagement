@@ -25,14 +25,14 @@ function Section({ title, badge, headline, headlineLabel, tone = 'plain', childr
     <section className="rounded-xl border border-sw-border bg-sw-card overflow-hidden">
       <header className="flex items-center justify-between gap-2 px-4 pt-3.5 pb-2">
         <div className="flex items-center gap-2 min-w-0">
-          <h2 className="text-[12px] font-bold text-sw-sub">{title}</h2>
+          <h2 className="text-[12px] font-semibold text-sw-sub">{title}</h2>
           {badge && <span className="text-[12px] text-sw-dim truncate">{badge}</span>}
         </div>
         {action}
       </header>
       {headline !== undefined && (
         <div className="px-4 pb-2">
-          <div className={`font-mono tabular-nums text-[26px] font-bold leading-none ${headlineColour}`}>
+          <div className={`font-mono tabular-nums text-[26px] font-semibold leading-none ${headlineColour}`}>
             {headline < 0 ? '−' : ''}{fmt(Math.abs(headline))}
           </div>
           {headlineLabel && <div className="text-[12px] text-sw-dim mt-1">{headlineLabel}</div>}
@@ -62,7 +62,7 @@ function Row({ label, hint, value, sign = '', tone = 'plain', emphasis = false }
         <div className={`text-[12.5px] ${emphasis ? 'font-semibold text-sw-text' : 'text-sw-sub'}`}>{label}</div>
         {hint && <div className="text-[10.5px] text-sw-dim mt-0.5 leading-snug">{hint}</div>}
       </div>
-      <div className={`shrink-0 font-mono tabular-nums text-[13px] ${emphasis ? 'font-bold' : ''} ${colour}`}>
+      <div className={`shrink-0 font-mono tabular-nums text-[13px] ${emphasis ? 'font-semibold' : ''} ${colour}`}>
         {shown}{fmt(Math.abs(value))}
       </div>
     </div>
@@ -558,7 +558,7 @@ export default function MoneyPage() {
               </Button>
             )}
           >
-            <div className="text-[12px] font-bold text-sw-dim mt-1 mb-0.5">
+            <div className="text-[12px] font-semibold text-sw-dim mt-1 mb-0.5">
               Came in
             </div>
             <Row label="Put in the safes by staff" value={cash.safe.putIn} />
@@ -567,7 +567,7 @@ export default function MoneyPage() {
             )}
             <Row label="Total came in" value={cash.period.cameIn} emphasis />
 
-            <div className="text-[12px] font-bold text-sw-dim mt-3 mb-0.5">
+            <div className="text-[12px] font-semibold text-sw-dim mt-3 mb-0.5">
               Went out
             </div>
             <Row label="You took out" value={cash.hand.takenOut} />
@@ -612,13 +612,13 @@ export default function MoneyPage() {
                         isActive ? 'bg-sw-green/10' : 'hover:bg-sw-card2'
                       }`}
                     >
-                      <span className={`text-[12.5px] w-14 shrink-0 ${isActive ? 'text-sw-green font-bold' : 'text-sw-text'}`}>
+                      <span className={`text-[12.5px] w-14 shrink-0 ${isActive ? 'text-sw-green font-semibold' : 'text-sw-text'}`}>
                         {m.label}
                       </span>
                       <span className="text-[10.5px] text-sw-dim truncate">
                         in {fmt(m.cameIn)} · out {fmt(m.wentOut)}
                       </span>
-                      <span className={`font-mono tabular-nums text-[13px] font-bold ${
+                      <span className={`font-mono tabular-nums text-[13px] font-semibold ${
                         m.net > 0 ? 'text-sw-green' : m.net < 0 ? 'text-sw-red' : 'text-sw-dim'
                       }`}>
                         {m.net < 0 ? '−' : ''}{fmt(Math.abs(m.net))}
@@ -681,7 +681,7 @@ export default function MoneyPage() {
               <Row label={`Left from ${periodLabel}`} value={cash.period.left} sign={cash.period.left < 0 ? '−' : '+'} tone={cash.period.left < 0 ? 'minus' : 'plus'} />
               <Row label="Total cash" value={cash.totalHeld} emphasis />
 
-              <div className="text-[12px] font-bold text-sw-dim mt-3 mb-0.5">
+              <div className="text-[12px] font-semibold text-sw-dim mt-3 mb-0.5">
                 Where it is
               </div>
               <Row label="In the stores' safes" value={cash.safe.closing} />
@@ -742,7 +742,7 @@ export default function MoneyPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-[12.5px]">
                   <thead>
-                    <tr className="text-sw-dim text-[12px] uppercase">
+                    <tr className="text-sw-dim text-[12px] ">
                       <th className="text-left font-semibold py-1">Store</th>
                       <th className="text-right font-semibold py-1">Sales</th>
                       <th className="text-right font-semibold py-1">Buying</th>
@@ -757,7 +757,7 @@ export default function MoneyPage() {
                         <td className="py-2 text-right font-mono tabular-nums">{fmt(p.totalSales)}</td>
                         <td className="py-2 text-right font-mono tabular-nums text-sw-sub">{fmt(p.productBuying)}</td>
                         <td className="py-2 text-right font-mono tabular-nums text-sw-sub">{fmt(p.expenses)}</td>
-                        <td className={`py-2 text-right font-mono tabular-nums font-bold ${p.profit >= 0 ? 'text-sw-green' : 'text-sw-red'}`}>
+                        <td className={`py-2 text-right font-mono tabular-nums font-semibold ${p.profit >= 0 ? 'text-sw-green' : 'text-sw-red'}`}>
                           {p.profit < 0 ? '−' : ''}{fmt(Math.abs(p.profit))}
                         </td>
                       </tr>

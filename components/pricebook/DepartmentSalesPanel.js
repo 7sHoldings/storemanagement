@@ -67,7 +67,7 @@ export default function DepartmentSalesPanel({ stores }) {
   return (
     <div>
       <div className="rounded-xl border border-sw-border bg-sw-card p-4 mb-4">
-        <h3 className="text-sw-text text-[15px] font-bold">Sales by department, per store</h3>
+        <h3 className="text-sw-text text-[15px] font-semibold">Sales by department, per store</h3>
         <p className="text-sw-sub text-[12px] mt-1 max-w-2xl">
           Adds up every register sale line in NRS for each store. “Top sellers” are the departments that together
           make up the chosen share of that store’s sales, listed A–Z. Nothing is changed in NRS.
@@ -102,7 +102,7 @@ export default function DepartmentSalesPanel({ stores }) {
           return (
             <div key={s.id} className="rounded-xl border border-sw-border bg-sw-card p-4">
               <div className="flex justify-between items-baseline gap-2 flex-wrap">
-                <h4 className="text-sw-text text-[14px] font-bold">{storeShortName(s.name)}</h4>
+                <h4 className="text-sw-text text-[14px] font-semibold">{storeShortName(s.name)}</h4>
                 <span className="text-[12px] text-[var(--text-muted)]">{json.from} → {json.to} · {money(total)} · {json.line_count} lines</span>
               </div>
               {(json.truncated?.length > 0 || json.failedRanges?.length > 0) && (

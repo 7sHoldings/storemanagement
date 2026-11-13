@@ -276,7 +276,7 @@ export default function SharesPage() {
               ? 'bg-sw-blueD border-sw-blue/40 text-sw-blue'
               : 'bg-sw-card2 border-sw-border text-sw-sub hover:text-sw-text'
           }`}
-        >👤 By Shareholder</button>
+        >By Shareholder</button>
         <button
           type="button"
           onClick={() => setView('store')}
@@ -285,7 +285,7 @@ export default function SharesPage() {
               ? 'bg-sw-blueD border-sw-blue/40 text-sw-blue'
               : 'bg-sw-card2 border-sw-border text-sw-sub hover:text-sw-text'
           }`}
-        >🏪 By Store</button>
+        >By Store</button>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
@@ -305,11 +305,11 @@ export default function SharesPage() {
             <div key={b.name} className={`bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] overflow-hidden ${!b.isActive ? 'opacity-60' : ''}`}>
               <div className="px-4 py-3 border-b border-[var(--border-subtle)] flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-full bg-sw-blueD border border-sw-blue/30 text-[var(--color-info)] text-[14px] font-bold flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-full bg-sw-blueD border border-sw-blue/30 text-[var(--color-info)] text-[14px] font-semibold flex items-center justify-center">
                     {b.name?.[0]?.toUpperCase() || '?'}
                   </div>
                   <div>
-                    <div className="text-[var(--text-primary)] text-[15px] font-bold">{b.name}</div>
+                    <div className="text-[var(--text-primary)] text-[15px] font-semibold">{b.name}</div>
                     <div className="text-[var(--text-muted)] text-[12px]">
                       {b.rows.length} store{b.rows.length === 1 ? '' : 's'}
                     </div>
@@ -317,16 +317,16 @@ export default function SharesPage() {
                 </div>
                 <div className="grid grid-cols-3 gap-3 text-[12px] text-right min-w-[280px]">
                   <div>
-                    <div className="text-[var(--text-muted)] uppercase text-[12px] font-bold">Earned</div>
-                    <div className="font-mono font-bold text-[var(--text-primary)]">{fmt(b.owed)}</div>
+                    <div className="text-[var(--text-muted)]  text-[12px] font-semibold">Earned</div>
+                    <div className="font-mono font-semibold text-[var(--text-primary)]">{fmt(b.owed)}</div>
                   </div>
                   <div>
-                    <div className="text-[var(--text-muted)] uppercase text-[12px] font-bold">Paid</div>
-                    <div className="font-mono font-bold text-[var(--color-info)]">{fmt(b.paid)}</div>
+                    <div className="text-[var(--text-muted)]  text-[12px] font-semibold">Paid</div>
+                    <div className="font-mono font-semibold text-[var(--color-info)]">{fmt(b.paid)}</div>
                   </div>
                   <div>
-                    <div className="text-[var(--text-muted)] uppercase text-[12px] font-bold">Remaining</div>
-                    <div className={`font-mono font-bold ${b.remaining > 0.01 ? 'text-[var(--color-warning)]' : b.remaining < -0.01 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>{fmt(b.remaining)}</div>
+                    <div className="text-[var(--text-muted)]  text-[12px] font-semibold">Remaining</div>
+                    <div className={`font-mono font-semibold ${b.remaining > 0.01 ? 'text-[var(--color-warning)]' : b.remaining < -0.01 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>{fmt(b.remaining)}</div>
                   </div>
                 </div>
               </div>
@@ -341,7 +341,7 @@ export default function SharesPage() {
                     <div className="grid grid-cols-3 gap-3 text-[12px] text-right min-w-[260px]">
                       <span className="font-mono text-[var(--text-primary)]">{fmt(r.owed)}</span>
                       <span className="font-mono text-[var(--color-info)]">{fmt(r.paid)}</span>
-                      <span className={`font-mono font-bold ${r.remaining > 0.01 ? 'text-[var(--color-warning)]' : r.remaining < -0.01 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>{fmt(r.remaining)}</span>
+                      <span className={`font-mono font-semibold ${r.remaining > 0.01 ? 'text-[var(--color-warning)]' : r.remaining < -0.01 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>{fmt(r.remaining)}</span>
                     </div>
                     <div className="flex gap-1.5 ml-2">
                       <button
@@ -349,7 +349,7 @@ export default function SharesPage() {
                         disabled={!r.is_active}
                         className="px-3 rounded-md bg-sw-greenD border border-sw-green/30 text-[var(--color-success)] text-[12px] font-semibold disabled:opacity-40"
                         style={{ minHeight: 32 }}
-                      >💵 Pay</button>
+                      >Pay</button>
                       <button
                         onClick={() => openEditSh(stores.find(s => s.id === r.storeId), shareholders.find(s => s.id === r.shareholderId))}
                         className="px-3 rounded-md bg-sw-blueD border border-sw-blue/30 text-[var(--color-info)] text-[12px] font-semibold"
@@ -370,11 +370,11 @@ export default function SharesPage() {
               <div className="flex items-center gap-2.5">
                 <StoreBadge name={g.store.name} color={g.store.color} />
                 <span className="text-[var(--text-secondary)] text-[12px]">
-                  Net Profit: <span className="text-[var(--text-primary)] font-mono font-bold">{fmt(g.profit)}</span>
+                  Net Profit: <span className="text-[var(--text-primary)] font-mono font-semibold">{fmt(g.profit)}</span>
                 </span>
               </div>
               <div className="flex items-center gap-3">
-                <span className={`text-[12px] font-mono font-bold ${
+                <span className={`text-[12px] font-mono font-semibold ${
                   Math.abs(g.allocatedPct - 100) < 0.01 ? 'text-[var(--color-success)]' :
                   g.allocatedPct > 100 ? 'text-[var(--color-danger)]' : 'text-[var(--color-warning)]'
                 }`} title={
@@ -398,25 +398,25 @@ export default function SharesPage() {
                   <div key={h.id} className={`px-4 py-3 flex items-center justify-between flex-wrap gap-2 ${!h.is_active ? 'opacity-60' : ''}`}>
                     <div className="flex-1 min-w-[180px]">
                       <div className="flex items-center gap-2">
-                        <span className="text-[var(--text-primary)] text-[14px] font-bold">{h.name}</span>
+                        <span className="text-[var(--text-primary)] text-[14px] font-semibold">{h.name}</span>
                         <span className="text-[var(--color-info)] font-mono text-[12px] font-semibold">{Number(h.share_pct).toFixed(2)}%</span>
-                        {!h.is_active && <span className="text-[12px] text-[var(--text-muted)] uppercase font-bold">Inactive</span>}
+                        {!h.is_active && <span className="text-[12px] text-[var(--text-muted)]  font-semibold">Inactive</span>}
                       </div>
                       {h.notes && <div className="text-[var(--text-muted)] text-[12px] mt-0.5">{h.notes}</div>}
                       {h.lastPayout && <div className="text-[var(--text-muted)] text-[12px] mt-0.5">Last payout: {dayLabel(h.lastPayout)}</div>}
                     </div>
                     <div className="grid grid-cols-3 gap-3 text-[12px] text-right min-w-[280px]">
                       <div>
-                        <div className="text-[var(--text-muted)] uppercase text-[12px] font-bold">Earned</div>
-                        <div className="font-mono font-bold text-[var(--text-primary)]">{fmt(h.owed)}</div>
+                        <div className="text-[var(--text-muted)]  text-[12px] font-semibold">Earned</div>
+                        <div className="font-mono font-semibold text-[var(--text-primary)]">{fmt(h.owed)}</div>
                       </div>
                       <div>
-                        <div className="text-[var(--text-muted)] uppercase text-[12px] font-bold">Paid</div>
-                        <div className="font-mono font-bold text-[var(--color-info)]">{fmt(h.paid)}</div>
+                        <div className="text-[var(--text-muted)]  text-[12px] font-semibold">Paid</div>
+                        <div className="font-mono font-semibold text-[var(--color-info)]">{fmt(h.paid)}</div>
                       </div>
                       <div>
-                        <div className="text-[var(--text-muted)] uppercase text-[12px] font-bold">Remaining</div>
-                        <div className={`font-mono font-bold ${h.remaining > 0.01 ? 'text-[var(--color-warning)]' : h.remaining < -0.01 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>
+                        <div className="text-[var(--text-muted)]  text-[12px] font-semibold">Remaining</div>
+                        <div className={`font-mono font-semibold ${h.remaining > 0.01 ? 'text-[var(--color-warning)]' : h.remaining < -0.01 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>
                           {fmt(h.remaining)}
                         </div>
                       </div>
@@ -428,7 +428,7 @@ export default function SharesPage() {
                         className="px-3 rounded-md bg-sw-greenD border border-sw-green/30 text-[var(--color-success)] text-[12px] font-semibold disabled:opacity-40"
                         style={{ minHeight: 32 }}
                       >
-                        💵 Pay
+                        Pay
                       </button>
                       <button
                         onClick={() => openEditSh(g.store, h)}
@@ -457,7 +457,7 @@ export default function SharesPage() {
       {/* Recent payouts */}
       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] overflow-hidden mt-4">
         <div className="px-3 py-2 border-b border-[var(--border-subtle)]">
-          <h3 className="text-[var(--text-primary)] text-xs font-bold">Recent Payouts</h3>
+          <h3 className="text-[var(--text-primary)] text-xs font-semibold">Recent Payouts</h3>
         </div>
         {payouts.length === 0 ? (
           <div className="px-4 py-6 text-center text-[var(--text-muted)] text-[12px]">No payouts yet.</div>
@@ -472,7 +472,7 @@ export default function SharesPage() {
                   <span className="text-[var(--text-primary)] font-semibold">{sh?.name || '—'}</span>
                   <span className="text-[var(--text-muted)]">{st?.name || '—'}</span>
                   <span className="text-[var(--text-muted)]">{p.payment_method || '—'}</span>
-                  <span className="font-mono font-bold text-[var(--color-info)] ml-auto">{fmt(p.amount)}</span>
+                  <span className="font-mono font-semibold text-[var(--color-info)] ml-auto">{fmt(p.amount)}</span>
                 </div>
               );
             })}

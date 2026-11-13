@@ -11,8 +11,8 @@ function CopyButton({ text }) {
     navigator.clipboard.writeText(text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
   };
   return (
-    <button onClick={copy} className="text-[var(--color-info)] text-[12px] font-semibold border border-sw-blue/30 rounded px-2 py-0.5 bg-sw-blueD ml-2">
-      {copied ? '✓ Copied' : 'Copy'}
+    <button onClick={copy} className="text-[#18181B] text-[12px] font-medium border border-[#E4E4E7] rounded-md px-2 py-0.5 bg-white hover:bg-[#F4F4F5] ml-2">
+      {copied ? 'Copied' : 'Copy'}
     </button>
   );
 }
@@ -43,7 +43,7 @@ export default function CronSetupPage() {
 
   return (
     <div>
-      <PageHeader title="🤖 7S Agent Setup" subtitle="Configure automated NRS sync" />
+      <PageHeader title="7S Agent Setup" subtitle="Configure automated NRS sync" />
 
       {testError && <Alert type="error">{testError}</Alert>}
       {testResult && (
@@ -53,24 +53,24 @@ export default function CronSetupPage() {
       )}
 
       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] p-5 mb-4">
-        <h3 className="text-[var(--text-primary)] text-[15px] font-bold mb-3">Setting up 7S Agent (Automated Daily Sync)</h3>
+        <h3 className="text-[var(--text-primary)] text-[15px] font-semibold mb-3">Setting up 7S Agent (Automated Daily Sync)</h3>
         <p className="text-[var(--text-secondary)] text-[12px] mb-4">
           Use cron-job.org (free) to call the sync endpoint every night. This automatically imports yesterday's sales from NRS POS for all 5 stores.
         </p>
 
         <div className="space-y-4">
           <div className="bg-[var(--bg-card)] rounded-lg p-4 border border-[var(--border-subtle)]">
-            <div className="text-[var(--text-primary)] text-[13px] font-bold mb-1">1. Endpoint URL</div>
-            <div className="bg-black/30 rounded px-3 py-2 text-[var(--color-success)] font-mono text-[12px] break-all flex items-center justify-between gap-2">
+            <div className="text-[var(--text-primary)] text-[13px] font-semibold mb-1">1. Endpoint URL</div>
+            <div className="bg-[#F4F4F5] border border-[#E4E4E7] rounded-md px-3 py-2 text-[#18181B] font-[ui-monospace,SFMono-Regular,Menlo,monospace] text-[12px] break-all flex items-center justify-between gap-2">
               <span>{CRON_URL}</span>
               <CopyButton text={CRON_URL} />
             </div>
           </div>
 
           <div className="bg-[var(--bg-card)] rounded-lg p-4 border border-[var(--border-subtle)]">
-            <div className="text-[var(--text-primary)] text-[13px] font-bold mb-1">2. Authorization Header</div>
+            <div className="text-[var(--text-primary)] text-[13px] font-semibold mb-1">2. Authorization Header</div>
             <p className="text-[var(--text-secondary)] text-[12px] mb-2">Add this custom header in cron-job.org's "Headers" section:</p>
-            <div className="bg-black/30 rounded px-3 py-2 text-[var(--color-warning)] font-mono text-[12px] break-all flex items-center justify-between gap-2">
+            <div className="bg-[#F4F4F5] border border-[#E4E4E7] rounded-md px-3 py-2 text-[#18181B] font-[ui-monospace,SFMono-Regular,Menlo,monospace] text-[12px] break-all flex items-center justify-between gap-2">
               <span>Authorization: Bearer YOUR_CRON_SECRET</span>
               <CopyButton text="Authorization: Bearer YOUR_CRON_SECRET" />
             </div>
@@ -78,8 +78,8 @@ export default function CronSetupPage() {
           </div>
 
           <div className="bg-[var(--bg-card)] rounded-lg p-4 border border-[var(--border-subtle)]">
-            <div className="text-[var(--text-primary)] text-[13px] font-bold mb-1">3. Schedule</div>
-            <div className="bg-black/30 rounded px-3 py-2 text-[var(--color-info)] font-mono text-[12px] flex items-center justify-between gap-2">
+            <div className="text-[var(--text-primary)] text-[13px] font-semibold mb-1">3. Schedule</div>
+            <div className="bg-[#F4F4F5] border border-[#E4E4E7] rounded-md px-3 py-2 text-[#18181B] font-[ui-monospace,SFMono-Regular,Menlo,monospace] text-[12px] flex items-center justify-between gap-2">
               <span>0 9 * * *</span>
               <CopyButton text="0 9 * * *" />
             </div>
@@ -87,12 +87,12 @@ export default function CronSetupPage() {
           </div>
 
           <div className="bg-[var(--bg-card)] rounded-lg p-4 border border-[var(--border-subtle)]">
-            <div className="text-[var(--text-primary)] text-[13px] font-bold mb-1">4. Request Method</div>
-            <p className="text-[var(--text-secondary)] text-[12px]">Use <span className="text-[var(--color-success)] font-bold">GET</span> (cron-job.org default). Both GET and POST are supported.</p>
+            <div className="text-[var(--text-primary)] text-[13px] font-semibold mb-1">4. Request Method</div>
+            <p className="text-[var(--text-secondary)] text-[12px]">Use <span className="text-[var(--color-success)] font-semibold">GET</span> (cron-job.org default). Both GET and POST are supported.</p>
           </div>
 
           <div className="bg-[var(--bg-card)] rounded-lg p-4 border border-[var(--border-subtle)]">
-            <div className="text-[var(--text-primary)] text-[13px] font-bold mb-2">5. Steps at cron-job.org</div>
+            <div className="text-[var(--text-primary)] text-[13px] font-semibold mb-2">5. Steps at cron-job.org</div>
             <ol className="text-[var(--text-secondary)] text-[12px] space-y-1.5 list-decimal ml-4">
               <li>Go to <span className="text-[var(--color-info)]">cron-job.org</span> and create a free account</li>
               <li>Click <span className="text-[var(--text-primary)] font-semibold">CREATE CRONJOB</span></li>
@@ -110,7 +110,7 @@ export default function CronSetupPage() {
       </div>
 
       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] p-5">
-        <h3 className="text-[var(--text-primary)] text-[15px] font-bold mb-3">Test the Endpoint</h3>
+        <h3 className="text-[var(--text-primary)] text-[15px] font-semibold mb-3">Test the Endpoint</h3>
         <p className="text-[var(--text-secondary)] text-[12px] mb-3">
           Click below to run the sync now (as your logged-in user). This syncs yesterday's data for all stores.
         </p>
@@ -119,11 +119,11 @@ export default function CronSetupPage() {
         </Button>
         {testResult && (
           <div className="mt-3 bg-[var(--bg-card)] rounded-lg p-3 border border-[var(--border-subtle)]">
-            <div className="text-[var(--text-primary)] text-[12px] font-bold mb-2">Results for {testResult.date_synced}</div>
+            <div className="text-[var(--text-primary)] text-[12px] font-semibold mb-2">Results for {testResult.date_synced}</div>
             <div className="space-y-1">
               {testResult.results.map((r, i) => (
                 <div key={i} className="flex items-center gap-2 text-[12px]">
-                  <span className={`text-[12px] font-bold px-2 py-0.5 rounded uppercase ${
+                  <span className={`text-[12px] font-semibold px-2 py-0.5 rounded  ${
                     r.status === 'created' ? 'bg-sw-greenD text-[var(--color-success)]' :
                     r.status === 'updated' ? 'bg-sw-greenD text-[var(--color-success)]' :
                     r.status === 'skipped' ? 'bg-sw-amberD text-[var(--color-warning)]' :

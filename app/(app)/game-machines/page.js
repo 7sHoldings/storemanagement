@@ -1,4 +1,5 @@
 'use client';
+import { Camera, FolderOpen } from 'lucide-react';
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { DataTable, PageHeader, Modal, Field, Button, Loading, Alert, ConfirmModal, DateBar, useDateRange } from '@/components/UI';
@@ -237,7 +238,7 @@ export default function GameMachinesPage() {
 
       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] overflow-hidden mb-4">
         <div className="px-3 py-2 border-b border-[var(--border-subtle)] flex justify-between items-center">
-          <h3 className="text-[var(--text-primary)] text-xs font-bold">Collections · {range.start} → {range.end}</h3>
+          <h3 className="text-[var(--text-primary)] text-xs font-semibold">Collections · {range.start} → {range.end}</h3>
           <span className="text-[var(--text-muted)] text-[12px]">
             Total {fmt(stats.totalRange)}
           </span>
@@ -250,10 +251,10 @@ export default function GameMachinesPage() {
             { key: 'date', label: 'Period', render: (v, r) => r.date_to && r.date_to !== v ? `${dayLabel(v)} → ${dayLabel(r.date_to)}` : dayLabel(v) },
             { key: 'store_id', label: 'Store', render: v => storeName(v) },
             { key: 'amount', label: 'Amount', align: 'right', mono: true,
-              render: v => <span className="font-bold text-[var(--color-success)]">{fmt(v)}</span>,
+              render: v => <span className="font-semibold text-[var(--color-success)]">{fmt(v)}</span>,
               sortValue: r => Number(r.amount || 0) },
             { key: 'notes', label: 'Notes', render: v => v || <span className="text-[var(--text-muted)]">—</span> },
-            { key: '_receipt', label: '📷', align: 'center', sortable: false, render: (_, r) => {
+            { key: '_receipt', label: 'Receipts', align: 'center', sortable: false, render: (_, r) => {
               const urls = Array.isArray(r.receipt_urls) ? r.receipt_urls : [];
               if (!urls.length) return <span className="text-[var(--text-muted)]">—</span>;
               return (
@@ -262,7 +263,7 @@ export default function GameMachinesPage() {
                   title={`View ${urls.length} receipt${urls.length > 1 ? 's' : ''}`}
                   className="inline-flex items-center gap-0.5 text-[var(--color-info)]"
                 >
-                  <span className="text-base">📷</span><span className="text-[12px] font-bold">{urls.length}</span>
+                  <Camera size={16} strokeWidth={1.75} aria-hidden="true" /><span className="text-[12px] font-semibold">{urls.length}</span>
                 </button>
               );
             } },
@@ -307,11 +308,11 @@ export default function GameMachinesPage() {
               <div className="flex flex-col sm:flex-row gap-2 mb-2">
                 <button type="button" onClick={() => receiptCameraRef.current?.click()}
                   className="flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg border-2 border-dashed border-sw-blue/40 bg-sw-blueD text-[var(--color-info)] text-[13px] font-semibold min-h-[44px]">
-                  <span className="text-lg">📷</span><span>Take Photo</span>
+                  <Camera size={18} strokeWidth={1.75} aria-hidden="true" /><span>Take Photo</span>
                 </button>
                 <button type="button" onClick={() => receiptLibraryRef.current?.click()}
                   className="flex-1 flex items-center justify-center gap-2 py-3 px-3 rounded-lg border-2 border-dashed border-sw-blue/40 bg-sw-blueD text-[var(--color-info)] text-[13px] font-semibold min-h-[44px]">
-                  <span className="text-lg">📁</span><span>From Library</span>
+                  <FolderOpen size={18} strokeWidth={1.75} aria-hidden="true" /><span>From Library</span>
                 </button>
                 <input ref={receiptCameraRef} type="file" accept="image/*" capture="environment" onChange={handleReceiptPick} className="hidden" />
                 <input ref={receiptLibraryRef} type="file" accept="image/*" multiple onChange={handleReceiptPick} className="hidden" />
@@ -334,7 +335,7 @@ export default function GameMachinesPage() {
                         className="block w-full aspect-square rounded-lg overflow-hidden border border-sw-blue/40 bg-black/20">
                         <img src={p.preview} alt="New receipt" className="w-full h-full object-cover" />
                       </button>
-                      <span className="absolute top-1 left-1 bg-sw-blueD text-[var(--color-info)] border border-sw-blue/40 text-[12px] font-bold px-1 rounded">NEW</span>
+                      <span className="absolute top-1 left-1 bg-sw-blueD text-[var(--color-info)] border border-sw-blue/40 text-[12px] font-semibold px-1 rounded">NEW</span>
                       <button type="button" onClick={() => removePendingReceipt(p.id)} title="Remove"
                         className="absolute top-1 right-1 w-7 h-7 rounded-md bg-sw-redD border border-sw-red/50 text-[var(--color-danger)] text-sm flex items-center justify-center">✕</button>
                     </div>

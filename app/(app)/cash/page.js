@@ -451,8 +451,8 @@ export default function CashPage() {
             tooltip: 'Same number as Daily Sales. Positive = SHORT (cash missing), negative = OVER. Pending = no collection recorded yet but the projected short/over is shown based on safe drop.',
             render: (v, r) => {
               const n = Number(v || 0);
-              if (Math.abs(n) < 0.01) return <span className="text-[var(--text-muted)] font-bold">{fmt(0)}</span>;
-              const cls = n > 0 ? 'text-[var(--color-danger)] font-bold' : 'text-[var(--color-success)] font-bold';
+              if (Math.abs(n) < 0.01) return <span className="text-[var(--text-muted)] font-semibold">{fmt(0)}</span>;
+              const cls = n > 0 ? 'text-[var(--color-danger)] font-semibold' : 'text-[var(--color-success)] font-semibold';
               const prefix = n > 0 ? '−' : '+';
               return <span className={cls}>{prefix}{fmt(Math.abs(n))}{r.status === 'pending' ? <span className="text-[var(--text-muted)] text-[12px] ml-1">(pending)</span> : null}</span>;
             },
@@ -500,7 +500,7 @@ export default function CashPage() {
                   className="inline-flex items-center gap-1 px-3 rounded-md bg-sw-blueD border border-sw-blue/30 text-[var(--color-info)] text-[12px] font-semibold"
                   style={{ minHeight: 32 }}
                 >
-                  ✏️ Edit
+                  Edit
                 </button>
               )}
             </div>
@@ -512,12 +512,12 @@ export default function CashPage() {
       {visibleRows.length > 0 && (
         <div className="px-3 py-2 border-t border-[var(--border-subtle)] bg-[var(--bg-card)]">
           <div className="flex justify-between items-center flex-wrap gap-2">
-            <span className="text-[var(--text-secondary)] text-[12px] font-bold">
+            <span className="text-[var(--text-secondary)] text-[12px] font-semibold">
               Showing {visibleRows.length} of {recon.length} records
             </span>
             <div className="flex gap-4 items-center">
-              <span className="text-[var(--text-secondary)] text-[12px]">Expected: <span className="text-[var(--text-primary)] font-mono font-bold">{fmt(totalExpected)}</span></span>
-              <span className="text-[var(--text-secondary)] text-[12px]">Collected: <span className="text-[var(--color-info)] font-mono font-bold">{fmt(totalCollected)}</span></span>
+              <span className="text-[var(--text-secondary)] text-[12px]">Expected: <span className="text-[var(--text-primary)] font-mono font-semibold">{fmt(totalExpected)}</span></span>
+              <span className="text-[var(--text-secondary)] text-[12px]">Collected: <span className="text-[var(--color-info)] font-mono font-semibold">{fmt(totalCollected)}</span></span>
             </div>
           </div>
         </div>
@@ -555,7 +555,7 @@ export default function CashPage() {
               </div>
             )}
             <div className="border-t border-[var(--border-subtle)] pt-1 mt-1 flex justify-between">
-              <span className="text-[var(--text-primary)] font-bold">Total Expected</span>
+              <span className="text-[var(--text-primary)] font-semibold">Total Expected</span>
               <span className="text-[var(--text-primary)] font-mono font-semibold text-[14px]">{fmt(expectedBreakdown.total)}</span>
             </div>
           </div>
@@ -585,12 +585,12 @@ export default function CashPage() {
 
       {/* Live short/over indicator */}
       {modalDiff !== null && (
-        <div className={`rounded-lg p-2.5 mb-3 border text-[12px] font-bold font-mono text-center ${
+        <div className={`rounded-lg p-2.5 mb-3 border text-[12px] font-semibold font-mono text-center ${
           Math.abs(modalDiff) < 0.01 ? 'bg-sw-blueD text-[var(--color-info)] border-sw-blue/30'
           : modalDiff > 0 ? 'bg-sw-greenD text-[var(--color-success)] border-sw-green/30'
           : 'bg-sw-redD text-[var(--color-danger)] border-sw-red/30'
         }`}>
-          {Math.abs(modalDiff) < 0.01 ? '✓ MATCHED' : modalDiff > 0 ? `OVER +${fmt(modalDiff)}` : `SHORT ${fmt(modalDiff)}`}
+          {Math.abs(modalDiff) < 0.01 ? 'MATCHED' : modalDiff > 0 ? `OVER +${fmt(modalDiff)}` : `SHORT ${fmt(modalDiff)}`}
         </div>
       )}
 
@@ -598,7 +598,7 @@ export default function CashPage() {
       <div className="flex gap-2 justify-between items-center">
         {modal === 'edit' && editRow?.cash_id ? (
           <Button variant="secondary" onClick={handleClear} className="!text-[var(--color-danger)] !border-sw-red/30 !bg-sw-redD">
-            🗑 Clear collection
+            Clear collection
           </Button>
         ) : <span />}
         <div className="flex gap-2">
