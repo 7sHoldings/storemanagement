@@ -72,12 +72,25 @@ export default function DashboardPage() {
         const scope = (q) => (storeId ? q.eq('store_id', storeId) : q);
         const { data: storeData } = await supabase.from('stores').select('*').order('created_at');
 
-        const { data: sales } = await scope(supabase.from('daily_sales')
+        const { data: salesAll } = await scope(supabase.from('daily_sales')
           .select('date, store_id, cash_sales, card_sales, r2_net, r1_safe_drop, r2_safe_drop, total_sales, gross_sales, net_sales, non_tax_sales, short_over, tax_collected')
           .gte('date', range.start).lte('date', range.end));
-        const lastData = (sales || []).reduce((m, r) => (r.date > m ? r.date : m), '');
-        const shownEnd = lastData && lastData < range.end && range.end >= today() ? lastData : range.end;
+        const lastData = (salesAll || []).reduce((m, r) => (r.date > m ? r.date : m), '');
+        // Today's figures only arrive with tomorrow morning's NRS sync, so a
+        // range that runs into today stops at yesterday (or at the last day
+        // that has synced, if that is earlier). A range of just today is
+        // left alone.
+        const td = today();
+        const yd = new Date(td + 'T12:00:00'); yd.setDate(yd.getDate() - 1);
+        const yesterday = `${yd.getFullYear()}-${String(yd.getMonth() + 1).padStart(2, '0')}-${String(yd.getDate()).padStart(2, '0')}`;
+        let shownEnd = range.end;
+        if (range.end >= td && range.start < td) {
+          shownEnd = lastData && lastData < yesterday ? lastData : yesterday;
+          if (shownEnd < range.start) shownEnd = range.start;
+        }
         const cmp = previousRange(range.start, shownEnd);
+        // Every figure covers the same days as the comparison.
+        const sales = (salesAll || []).filter((r) => r.date <= shownEnd);
 
         const [
           { data: prevSales }, { data: purch }, { data: exps },
@@ -216,25 +229,25 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Page header */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-[22px] font-semibold tracking-tight text-[#18181B]">Dashboard</h1>
-          <p className="text-[13px] text-[#71717A] mt-1">
-            {storeId ? shortName(stores.find((s) => s.id === storeId)?.name) : 'All stores'} · {rangeLabel(range.start, shownEnd)}
-            {shownEnd !== range.end && <span> (synced through {fDate(shownEnd)})</span>} · compared with {rangeLabel(prev.start, prev.end)}
-          </p>
+      {/* Page header — title row, then a controls row that never moves */}
+      <div className="flex flex-col gap-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-[22px] font-semibold tracking-tight text-[#18181B]">Dashboard</h1>
+            <p className="text-[13px] text-[#71717A] mt-1">
+              {storeId ? shortName(stores.find((s) => s.id === storeId)?.name) : 'All stores'} · {rangeLabel(range.start, shownEnd)}
+              {shownEnd !== range.end && <span> (synced through {fDate(shownEnd)})</span>} · compared with {rangeLabel(prev.start, prev.end)}
+            </p>
+          </div>
+          <Link href="/sales?new=1" className="hidden md:inline-flex shrink-0 h-9 px-3.5 rounded-lg bg-[#A21CAF] hover:bg-[#86198F] text-white text-[13px] font-semibold items-center">Enter sales</Link>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <DatePresets active={preset} onChange={selectPreset} />
-          {(
-            <span className="hidden sm:flex items-center gap-1.5">
-              <input type="date" aria-label="Start date" value={range.start} onChange={(e) => setStart(e.target.value)} className="!w-[150px] !h-9 !min-h-0 !py-0 !text-[13px]" />
-              <span className="text-[13px] text-[#71717A]">to</span>
-              <input type="date" aria-label="End date" value={range.end} onChange={(e) => setEnd(e.target.value)} className="!w-[150px] !h-9 !min-h-0 !py-0 !text-[13px]" />
-            </span>
-          )}
-          <Link href="/sales?new=1" className="hidden md:inline-flex h-9 px-3.5 rounded-lg bg-[#A21CAF] hover:bg-[#86198F] text-white text-[13px] font-semibold items-center">Enter sales</Link>
+          <span className="hidden sm:flex items-center gap-1.5 sm:ml-auto">
+            <input type="date" aria-label="Start date" value={range.start} onChange={(e) => setStart(e.target.value)} className="!w-[150px] !h-9 !min-h-0 !py-0 !text-[13px]" />
+            <span className="text-[13px] text-[#71717A]">to</span>
+            <input type="date" aria-label="End date" value={range.end} onChange={(e) => setEnd(e.target.value)} className="!w-[150px] !h-9 !min-h-0 !py-0 !text-[13px]" />
+          </span>
         </div>
       </div>
 

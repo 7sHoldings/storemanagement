@@ -26,6 +26,22 @@ export default function DailySalesChart({ current = [], previous = [], currentLa
   const every = Math.max(1, Math.ceil(n / 7));
   const ticks = [max, (max * 2) / 3, max / 3, 0];
 
+  if (current.length <= 1) {
+    const now = current[0]?.value || 0;
+    const before = previous[0]?.value || 0;
+    return (
+      <div className="flex flex-col gap-3">
+        <h2 className="text-[15px] font-semibold text-[#18181B]">Daily net sales</h2>
+        <div className="flex-1 min-h-[180px] flex flex-col items-center justify-center gap-1 text-center">
+          <span className="text-[13px] text-[#71717A]">{current[0] ? shortDay(current[0].date) : 'No day selected'}</span>
+          <span className="text-[30px] font-semibold tabular-nums text-[#18181B]">{fmt(now)}</span>
+          {previous[0] && <span className="text-[13px] text-[#71717A]">{previousLabel}: {fmt(before)}</span>}
+          <span className="text-[12px] text-[#A1A1AA] mt-2">Pick a longer range to see the daily trend.</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
