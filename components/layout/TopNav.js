@@ -5,6 +5,8 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard, DollarSign, Coins, Receipt, ShoppingCart, BarChart3,
   MoreHorizontal, Plus, ChevronDown, LogOut, Settings, Boxes, X,
+  Wallet, HandCoins, PieChart, Gamepad2, TrendingUp, ArrowLeftRight, History,
+  Download, CreditCard, UserCheck, ScanBarcode, Users, Mail, Bot, RefreshCw, Zap,
 } from 'lucide-react';
 import { useAuth } from '@/components/AuthProvider';
 import BrandLogo from '@/components/BrandLogo';
@@ -24,30 +26,33 @@ const OWNER_TABS = [
 
 export const OWNER_MORE = [
   { title: 'Money', items: [
-    { path: '/money', label: 'Money overview' },
-    { path: '/profit-takeout', label: 'Profit Take Out' },
-    { path: '/shares', label: 'Shares' },
-    { path: '/game-machines', label: 'Game Machines' },
-    { path: '/house-accounts', label: 'House Accounts' },
+    { path: '/money', label: 'Money overview', desc: 'Where cash came from and went', Icon: Wallet },
+    { path: '/profit-takeout', label: 'Profit take-out', desc: 'Cash and card pulled out', Icon: HandCoins },
+    { path: '/shares', label: 'Shares', desc: 'Shareholder split and payouts', Icon: PieChart },
+    { path: '/game-machines', label: 'Game machines', desc: 'Machine cash collections', Icon: Gamepad2 },
   ] },
   { title: 'Insights', items: [
-    { path: '/trends', label: 'Trends' },
-    { path: '/compare', label: 'Compare Stores' },
-    { path: '/activity', label: 'Activity Log' },
-    { path: '/exports', label: 'Export Data' },
+    { path: '/trends', label: 'Trends', desc: 'Buying vs sales by week', Icon: TrendingUp },
+    { path: '/compare', label: 'Compare stores', desc: 'Side-by-side performance', Icon: ArrowLeftRight },
+    { path: '/activity', label: 'Activity log', desc: 'Who changed what, and when', Icon: History },
+    { path: '/exports', label: 'Export data', desc: 'Download CSV files', Icon: Download },
   ] },
-  { title: 'Store & people', items: [
-    { path: '/pricebook', label: 'Pricebook' },
-    { path: '/employee-tracking', label: 'Employee Tracking' },
-    { path: '/team', label: 'Admin' },
-    { path: '/email', label: 'Email Reports' },
+  { title: 'Team & store', items: [
+    { path: '/house-accounts', label: 'House accounts', desc: 'What employees owe', Icon: CreditCard },
+    { path: '/employee-tracking', label: 'Employees', desc: 'Shifts, hours, short/over', Icon: UserCheck },
+    { path: '/pricebook', label: 'Pricebook', desc: 'Prices on the registers', Icon: ScanBarcode },
   ] },
-  { title: 'System', items: [
-    { path: '/settings', label: 'Settings' },
-    { path: '/nrs-sync-history', label: '7S Agent Logs' },
-    { path: '/cron-setup', label: '7S Agent Setup' },
-    { path: '/nrs-backfill', label: 'NRS Backfill' },
-  ] },
+];
+
+// Admin and technical pages — rarely needed day to day, so they live in the
+// account menu instead of the main navigation.
+export const OWNER_ADMIN = [
+  { path: '/team', label: 'Users', Icon: Users },
+  { path: '/settings', label: 'Store settings', Icon: Settings },
+  { path: '/email', label: 'Email reports', Icon: Mail },
+  { path: '/nrs-sync-history', label: '7S Agent logs', Icon: Bot },
+  { path: '/cron-setup', label: '7S Agent setup', Icon: RefreshCw },
+  { path: '/nrs-backfill', label: 'NRS backfill', Icon: Zap },
 ];
 
 const EMPLOYEE_TABS = [
@@ -108,9 +113,14 @@ function UserMenu({ name, email, role, initial, onSignOut, isOwner }) {
             {role && <div className="text-[12px] text-[#71717A] capitalize mt-0.5">{role}</div>}
           </div>
           {isOwner && (
-            <Link href="/settings" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-[14px] text-[#3F3F46] hover:bg-[#F4F4F5]">
-              <Settings size={16} strokeWidth={1.75} /> Settings
-            </Link>
+            <div className="py-1 border-b border-[#F0F0F2] mb-1">
+              <div className="px-4 pt-1 pb-1.5 text-[12px] font-semibold text-[#71717A]">Admin &amp; settings</div>
+              {OWNER_ADMIN.map((a) => (
+                <Link key={a.path} href={a.path} onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-4 py-2 text-[14px] text-[#3F3F46] hover:bg-[#F4F4F5]">
+                  <a.Icon size={16} strokeWidth={1.75} className="text-[#71717A]" /> {a.label}
+                </Link>
+              ))}
+            </div>
           )}
           <button type="button" onClick={() => { setOpen(false); onSignOut(); }} className="w-full flex items-center gap-2.5 px-4 py-2 text-[14px] text-[#B91C1C] hover:bg-[#FEF2F2]">
             <LogOut size={16} strokeWidth={1.75} /> Sign out
@@ -138,6 +148,7 @@ export default function TopNav({ selectedStore, onStoreChange }) {
 
   const tabs = isOwner ? OWNER_TABS : EMPLOYEE_TABS;
   const moreActive = isOwner && OWNER_MORE.some((g) => g.items.some((i) => isActive(pathname, i.path)));
+  const adminActive = isOwner && OWNER_ADMIN.some((a) => isActive(pathname, a.path));
   const name = profile?.name || user?.email || '';
   const initial = (name || '?').trim().charAt(0).toUpperCase();
   const myStore = stores.find((s) => s.id === profile?.store_id)?.name;
@@ -172,20 +183,29 @@ export default function TopNav({ selectedStore, onStoreChange }) {
                   More <ChevronDown size={14} strokeWidth={2} />
                 </button>
                 {more.open && (
-                  <div className="absolute left-0 top-full mt-1 w-[640px] rounded-xl border border-[#E4E4E7] bg-white shadow-lg p-4 z-50 grid grid-cols-4 gap-4">
+                  <div className="absolute left-0 top-full mt-1 w-[720px] max-w-[calc(100vw-2rem)] rounded-xl border border-[#E4E4E7] bg-white shadow-lg p-3 z-50 grid grid-cols-3 gap-2">
                     {OWNER_MORE.map((g) => (
-                      <div key={g.title} className="flex flex-col gap-0.5">
-                        <div className="text-[12px] font-semibold text-[#71717A] px-2 pb-1">{g.title}</div>
-                        {g.items.map((i) => (
-                          <Link
-                            key={i.path}
-                            href={i.path}
-                            onClick={() => more.setOpen(false)}
-                            className={`px-2 py-1.5 rounded-md text-[14px] ${isActive(pathname, i.path) ? 'bg-[#FAE8FF] text-[#86198F] font-semibold' : 'text-[#3F3F46] hover:bg-[#F4F4F5]'}`}
-                          >
-                            {i.label}
-                          </Link>
-                        ))}
+                      <div key={g.title} className="flex flex-col">
+                        <div className="text-[12px] font-semibold text-[#71717A] px-2.5 pt-1 pb-2">{g.title}</div>
+                        {g.items.map((i) => {
+                          const on = isActive(pathname, i.path);
+                          return (
+                            <Link
+                              key={i.path}
+                              href={i.path}
+                              onClick={() => more.setOpen(false)}
+                              className={`flex items-start gap-2.5 px-2.5 py-2 rounded-lg ${on ? 'bg-[#FAE8FF]' : 'hover:bg-[#F4F4F5]'}`}
+                            >
+                              <span className={`mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${on ? 'bg-white text-[#A21CAF]' : 'bg-[#F4F4F5] text-[#52525B]'}`}>
+                                <i.Icon size={16} strokeWidth={1.75} />
+                              </span>
+                              <span className="flex flex-col min-w-0">
+                                <span className={`text-[14px] ${on ? 'font-semibold text-[#86198F]' : 'font-medium text-[#18181B]'}`}>{i.label}</span>
+                                <span className="text-[12px] text-[#71717A] leading-snug">{i.desc}</span>
+                              </span>
+                            </Link>
+                          );
+                        })}
                       </div>
                     ))}
                   </div>
@@ -258,12 +278,15 @@ export default function TopNav({ selectedStore, onStoreChange }) {
                   </Link>
                 ))}
               </div>
-              {OWNER_MORE.map((g) => (
+              {[...OWNER_MORE, { title: 'Admin & settings', items: OWNER_ADMIN }].map((g) => (
                 <div key={g.title}>
                   <div className="text-[12px] font-semibold text-[#71717A] mb-1">{g.title}</div>
                   <div className="flex flex-col">
                     {g.items.map((i) => (
-                      <Link key={i.path} href={i.path} className={`py-2.5 text-[15px] border-b border-[#F4F4F5] ${isActive(pathname, i.path) ? 'text-[#A21CAF] font-semibold' : 'text-[#18181B]'}`}>{i.label}</Link>
+                      <Link key={i.path} href={i.path} className={`flex items-center gap-3 py-2.5 text-[15px] border-b border-[#F4F4F5] ${isActive(pathname, i.path) ? 'text-[#A21CAF] font-semibold' : 'text-[#18181B]'}`}>
+                        <i.Icon size={18} strokeWidth={1.75} className="text-[#71717A] shrink-0" />
+                        {i.label}
+                      </Link>
                     ))}
                   </div>
                 </div>

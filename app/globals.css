@@ -60,13 +60,20 @@
 
 
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-html, body {
+/* The page itself (the viewport) is the only scroll container. The body must
+   not become one: with overflow on both html and body, the body swallowed
+   trackpad/wheel scrolling instead of passing it to the page. `clip` hides
+   sideways overflow without creating a scroll container. */
+html {
   min-height: 100%;
-  overflow-x: hidden;
-  max-width: 100%;
-  overscroll-behavior: none;          /* no pull-to-refresh / rubber-band */
-  -webkit-overflow-scrolling: touch;  /* iOS momentum scrolling */
+  overflow-x: clip;
+  overscroll-behavior-y: none;        /* no pull-to-refresh / rubber-band */
   scroll-behavior: smooth;
+}
+body {
+  min-height: 100%;
+  max-width: 100%;
+  overflow-x: clip;
 }
 body {
   font-family: 'Inter', system-ui, sans-serif;
