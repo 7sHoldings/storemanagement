@@ -110,10 +110,10 @@ export default function AutoReorderPage() {
               <div key={keyOf(it)} className="flex items-center gap-3 p-3">
                 <div className="flex-1 min-w-0">
                   <div className="font-medium text-sw-text truncate">{it.name}</div>
-                  <div className="text-[11px] text-[var(--text-muted)] truncate">
+                  <div className="text-[12px] text-[var(--text-muted)] truncate">
                     {it.store} · {it.upc}{it.dept ? ` · ${it.dept}` : ''}
                   </div>
-                  <div className="text-[11px] mt-0.5">
+                  <div className="text-[12px] mt-0.5">
                     <span className={it.onhand <= 0 ? 'text-red-500 font-semibold' : 'text-amber-500'}>
                       {it.onhand} on hand
                     </span>
@@ -123,7 +123,7 @@ export default function AutoReorderPage() {
                 </div>
 
                 <div className="shrink-0 text-right">
-                  <label className="block text-[10px] text-[var(--text-muted)] mb-0.5">pcs/box</label>
+                  <label className="block text-[12px] text-[var(--text-muted)] mb-0.5">pcs/box</label>
                   <input
                     type="number" min="1"
                     defaultValue={it.casePack}
@@ -134,7 +134,7 @@ export default function AutoReorderPage() {
                 </div>
 
                 <div className="shrink-0 text-right">
-                  <label className="block text-[10px] text-[var(--text-muted)] mb-0.5">boxes</label>
+                  <label className="block text-[12px] text-[var(--text-muted)] mb-0.5">boxes</label>
                   <input
                     type="number" min="0"
                     value={boxesFor(it)}
@@ -142,7 +142,7 @@ export default function AutoReorderPage() {
                     style={{ width: '4rem' }}
                     className="rounded-md border border-amber-500 bg-sw-bg px-2 py-1 text-[13px] text-sw-text text-center font-semibold"
                   />
-                  <div className="text-[10px] text-[var(--text-muted)] mt-0.5">= {boxesFor(it) * it.casePack} units</div>
+                  <div className="text-[12px] text-[var(--text-muted)] mt-0.5">= {boxesFor(it) * it.casePack} units</div>
                 </div>
               </div>
             ))}

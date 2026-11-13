@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
 // Mock the heavy children so this test focuses on AppShell's gating logic.
-vi.mock('@/components/Sidebar', () => ({ default: () => <nav data-testid="sidebar" /> }));
+vi.mock('@/components/layout/TopNav', () => ({ default: () => <nav data-testid="topnav" /> }));
 vi.mock('@/components/NrsStatusBar', () => ({ default: () => <div data-testid="nrs-bar" /> }));
 
 // Stub useRouter so the employee redirect effect doesn't blow up.
@@ -21,7 +21,7 @@ describe('<AppShell />', () => {
   it('renders a full-screen loader while loading', () => {
     auth = { loading: true, profile: null, user: null };
     render(<AppShell>child</AppShell>);
-    expect(screen.getByText(/Loading 7S Stores/i)).toBeInTheDocument();
+    expect(screen.getByText(/Loading 7s Vape Love/i)).toBeInTheDocument();
     expect(screen.queryByText('child')).not.toBeInTheDocument();
   });
 
@@ -32,7 +32,7 @@ describe('<AppShell />', () => {
     expect(screen.getByRole('link', { name: /click here if not redirected/i })).toBeInTheDocument();
   });
 
-  it('renders sidebar + status bar + children for an authenticated user', () => {
+  it('renders top nav + status bar + children for an authenticated user', () => {
     auth = {
       loading: false,
       user: { id: 'u1' },
@@ -42,7 +42,7 @@ describe('<AppShell />', () => {
       effectiveStoreId: null,
     };
     render(<AppShell><div data-testid="page">page</div></AppShell>);
-    expect(screen.getByTestId('sidebar')).toBeInTheDocument();
+    expect(screen.getByTestId('topnav')).toBeInTheDocument();
     expect(screen.getByTestId('nrs-bar')).toBeInTheDocument();
     expect(screen.getByTestId('page')).toBeInTheDocument();
   });

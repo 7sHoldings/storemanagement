@@ -27,7 +27,7 @@ describe('<EntryCard />', () => {
   it('renders a warning status pill with the orange left border', () => {
     const { container } = render(<EntryCard entry={entry()} store={store} status="warning" statusTitle="R2 mismatch" />);
     expect(screen.getByText('Warning')).toBeInTheDocument();
-    expect(container.firstChild.getAttribute('style')).toMatch(/EF9F27|rgb\(239, 159, 39\)/i);
+    expect(container.firstChild.getAttribute('style')).toMatch(/B45309|rgb\(180, 83, 9\)/i);
   });
 
   it('shows SHORT (red) for positive short_over and OVER (green) for negative', () => {

@@ -48,7 +48,7 @@ describe('<NRSSyncModal />', () => {
     const onClose = vi.fn();
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     render(<NRSSyncModal stores={stores} onClose={onClose} onSuccess={() => {}} />);
-    await user.click(screen.getByRole('button', { name: '✕' }));
+    await user.click(screen.getByRole('button', { name: 'Close' }));
     expect(onClose).toHaveBeenCalled();
   });
 });

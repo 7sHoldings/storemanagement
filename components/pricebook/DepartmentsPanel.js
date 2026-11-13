@@ -181,11 +181,11 @@ export default function DepartmentsPanel() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="primary" onClick={() => setConfirmOpen(true)} disabled={!creates.length || applying} className="!text-[11px]">
+            <Button variant="primary" onClick={() => setConfirmOpen(true)} disabled={!creates.length || applying} className="!text-[12px]">
               {applying ? 'Adding…' : `Add ${creates.length} missing department${creates.length === 1 ? '' : 's'}`}
             </Button>
-            <Button variant="secondary" onClick={exportCSV} className="!text-[11px]">CSV</Button>
-            <Button variant="secondary" onClick={load} className="!text-[11px]">Refresh</Button>
+            <Button variant="secondary" onClick={exportCSV} className="!text-[12px]">CSV</Button>
+            <Button variant="secondary" onClick={load} className="!text-[12px]">Refresh</Button>
           </div>
         </div>
         {applyResult && (
@@ -226,9 +226,9 @@ export default function DepartmentsPanel() {
                 <span className="flex-1 min-w-[240px] text-sw-text">
                   {variantLine(a)} <span className="text-[var(--text-muted)]">vs</span> {variantLine(b)}
                 </span>
-                <Button variant="primary" className="!text-[11px] !py-1"
+                <Button variant="primary" className="!text-[12px] !py-1"
                   onClick={() => updatePrefs({ merges: [...(prefs.merges || []), [a, b]] })}>Same</Button>
-                <Button variant="secondary" className="!text-[11px] !py-1"
+                <Button variant="secondary" className="!text-[12px] !py-1"
                   onClick={() => updatePrefs({ dismissed: [...(prefs.dismissed || []), `${a}|${b}`] })}>Different</Button>
               </li>
             ))}
@@ -244,7 +244,7 @@ export default function DepartmentsPanel() {
           Only show departments that need a change
         </label>
         {((prefs.merges || []).length > 0 || (prefs.dismissed || []).length > 0) && (
-          <button type="button" className="text-[11px] underline text-[var(--text-muted)]"
+          <button type="button" className="text-[12px] underline text-[var(--text-muted)]"
             onClick={() => updatePrefs({ merges: [], dismissed: [] })}>Reset “same/different” answers</button>
         )}
       </div>
@@ -277,11 +277,11 @@ export default function DepartmentsPanel() {
                   ) : (
                     <span className="text-sw-text font-semibold">{p.name}</span>
                   )}
-                  <div className="text-[10px] text-[var(--text-muted)] mt-0.5">
+                  <div className="text-[12px] text-[var(--text-muted)] mt-0.5">
                     {p.total} items · tax {p.taxRates.map(pctTax).join(' / ')}
                     {p.taxDiffers && <span className="text-amber-500 font-semibold"> · tax differs between stores</span>}
                   </div>
-                  <label className="flex items-center gap-1 text-[10px] text-[var(--text-muted)] mt-0.5">
+                  <label className="flex items-center gap-1 text-[12px] text-[var(--text-muted)] mt-0.5">
                     <input type="checkbox" className="w-3 h-3" checked={p.skipped}
                       onChange={e => {
                         const set = new Set(prefs.skipped || []);
@@ -294,14 +294,14 @@ export default function DepartmentsPanel() {
                 {stores.map(s => {
                   const c = p.perStore[s.id];
                   if (c.status === 'ok') {
-                    return <td key={s.id} className="px-2 py-2 text-center text-green-500" title={`${c.have[0].name}`}>✓ <span className="text-[10px] text-[var(--text-muted)]">{c.have[0].item_count}</span></td>;
+                    return <td key={s.id} className="px-2 py-2 text-center text-green-500" title={`${c.have[0].name}`}>✓ <span className="text-[12px] text-[var(--text-muted)]">{c.have[0].item_count}</span></td>;
                   }
                   if (c.status === 'create') {
                     return <td key={s.id} className="px-2 py-2 text-center text-red-500 font-semibold" title={`Add “${p.name}” (copy from ${storeShortName(stores.find(x => x.id === p.source.store_id)?.name)})`}>+ add</td>;
                   }
                   if (c.status === 'merge') {
                     return (
-                      <td key={s.id} className="px-2 py-2 text-center text-amber-500 text-[11px]">
+                      <td key={s.id} className="px-2 py-2 text-center text-amber-500 text-[12px]">
                         {c.have.map(h => (
                           <div key={h.name} title={`Move ${h.item_count} items from “${h.name}” to “${p.name}”`}>
                             {h.name === p.name ? '✓ ' : '↪ '}{h.name} <span className="text-[var(--text-muted)]">({h.item_count})</span>
@@ -318,7 +318,7 @@ export default function DepartmentsPanel() {
         </table>
       </div>
 
-      <p className="text-[11px] text-[var(--text-muted)] mt-3">
+      <p className="text-[12px] text-[var(--text-muted)] mt-3">
         <span className="text-red-500 font-semibold">+ add</span> = the store doesn’t have this department; the “Add missing departments” button adds it ·{' '}
         <span className="text-amber-500 font-semibold">↪</span> = the store has it under another name; its items move to the name to keep.
         Numbers are items in that department.

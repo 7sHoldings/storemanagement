@@ -267,11 +267,11 @@ export default function SharesPage() {
       <DateBar preset={preset} onPreset={selectPreset} startDate={range.start} endDate={range.end} onStartChange={setStart} onEndChange={setEnd} />
 
       <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <span className="text-[var(--text-muted)] text-[11px] font-semibold uppercase tracking-wider">View:</span>
+        <span className="text-[var(--text-muted)] text-[12px] font-semibold">View:</span>
         <button
           type="button"
           onClick={() => setView('shareholder')}
-          className={`px-3 py-1 rounded-md text-[11px] font-semibold border transition-colors ${
+          className={`px-3 py-1 rounded-md text-[12px] font-semibold border transition-colors ${
             view === 'shareholder'
               ? 'bg-sw-blueD border-sw-blue/40 text-sw-blue'
               : 'bg-sw-card2 border-sw-border text-sw-sub hover:text-sw-text'
@@ -280,7 +280,7 @@ export default function SharesPage() {
         <button
           type="button"
           onClick={() => setView('store')}
-          className={`px-3 py-1 rounded-md text-[11px] font-semibold border transition-colors ${
+          className={`px-3 py-1 rounded-md text-[12px] font-semibold border transition-colors ${
             view === 'store'
               ? 'bg-sw-blueD border-sw-blue/40 text-sw-blue'
               : 'bg-sw-card2 border-sw-border text-sw-sub hover:text-sw-text'
@@ -310,22 +310,22 @@ export default function SharesPage() {
                   </div>
                   <div>
                     <div className="text-[var(--text-primary)] text-[15px] font-bold">{b.name}</div>
-                    <div className="text-[var(--text-muted)] text-[10px]">
+                    <div className="text-[var(--text-muted)] text-[12px]">
                       {b.rows.length} store{b.rows.length === 1 ? '' : 's'}
                     </div>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-3 text-[11px] text-right min-w-[280px]">
+                <div className="grid grid-cols-3 gap-3 text-[12px] text-right min-w-[280px]">
                   <div>
-                    <div className="text-[var(--text-muted)] uppercase text-[9px] font-bold">Earned</div>
+                    <div className="text-[var(--text-muted)] uppercase text-[12px] font-bold">Earned</div>
                     <div className="font-mono font-bold text-[var(--text-primary)]">{fmt(b.owed)}</div>
                   </div>
                   <div>
-                    <div className="text-[var(--text-muted)] uppercase text-[9px] font-bold">Paid</div>
+                    <div className="text-[var(--text-muted)] uppercase text-[12px] font-bold">Paid</div>
                     <div className="font-mono font-bold text-[var(--color-info)]">{fmt(b.paid)}</div>
                   </div>
                   <div>
-                    <div className="text-[var(--text-muted)] uppercase text-[9px] font-bold">Remaining</div>
+                    <div className="text-[var(--text-muted)] uppercase text-[12px] font-bold">Remaining</div>
                     <div className={`font-mono font-bold ${b.remaining > 0.01 ? 'text-[var(--color-warning)]' : b.remaining < -0.01 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>{fmt(b.remaining)}</div>
                   </div>
                 </div>
@@ -335,10 +335,10 @@ export default function SharesPage() {
                   <div key={r.shareholderId} className="px-4 py-2.5 flex items-center justify-between flex-wrap gap-2 hover:bg-sw-card2 transition-colors">
                     <div className="flex items-center gap-2 flex-1 min-w-[200px]">
                       <StoreBadge name={r.storeName} color={r.storeColor} />
-                      <span className="text-[var(--color-info)] font-mono text-[10px] font-semibold">{r.share_pct.toFixed(2)}%</span>
-                      <span className="text-[var(--text-muted)] text-[10px]">of {fmt(r.storeProfit)} profit</span>
+                      <span className="text-[var(--color-info)] font-mono text-[12px] font-semibold">{r.share_pct.toFixed(2)}%</span>
+                      <span className="text-[var(--text-muted)] text-[12px]">of {fmt(r.storeProfit)} profit</span>
                     </div>
-                    <div className="grid grid-cols-3 gap-3 text-[11px] text-right min-w-[260px]">
+                    <div className="grid grid-cols-3 gap-3 text-[12px] text-right min-w-[260px]">
                       <span className="font-mono text-[var(--text-primary)]">{fmt(r.owed)}</span>
                       <span className="font-mono text-[var(--color-info)]">{fmt(r.paid)}</span>
                       <span className={`font-mono font-bold ${r.remaining > 0.01 ? 'text-[var(--color-warning)]' : r.remaining < -0.01 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>{fmt(r.remaining)}</span>
@@ -369,12 +369,12 @@ export default function SharesPage() {
             <div className="px-4 py-3 border-b border-[var(--border-subtle)] flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2.5">
                 <StoreBadge name={g.store.name} color={g.store.color} />
-                <span className="text-[var(--text-secondary)] text-[11px]">
+                <span className="text-[var(--text-secondary)] text-[12px]">
                   Net Profit: <span className="text-[var(--text-primary)] font-mono font-bold">{fmt(g.profit)}</span>
                 </span>
               </div>
               <div className="flex items-center gap-3">
-                <span className={`text-[11px] font-mono font-bold ${
+                <span className={`text-[12px] font-mono font-bold ${
                   Math.abs(g.allocatedPct - 100) < 0.01 ? 'text-[var(--color-success)]' :
                   g.allocatedPct > 100 ? 'text-[var(--color-danger)]' : 'text-[var(--color-warning)]'
                 }`} title={
@@ -384,7 +384,7 @@ export default function SharesPage() {
                 }>
                   {g.allocatedPct.toFixed(1)}% allocated
                 </span>
-                <Button onClick={() => openAddSh(g.store)} className="!text-[11px] !py-1">+ Add Shareholder</Button>
+                <Button onClick={() => openAddSh(g.store)} className="!text-[12px] !py-1">+ Add Shareholder</Button>
               </div>
             </div>
 
@@ -399,23 +399,23 @@ export default function SharesPage() {
                     <div className="flex-1 min-w-[180px]">
                       <div className="flex items-center gap-2">
                         <span className="text-[var(--text-primary)] text-[14px] font-bold">{h.name}</span>
-                        <span className="text-[var(--color-info)] font-mono text-[11px] font-semibold">{Number(h.share_pct).toFixed(2)}%</span>
-                        {!h.is_active && <span className="text-[10px] text-[var(--text-muted)] uppercase font-bold">Inactive</span>}
+                        <span className="text-[var(--color-info)] font-mono text-[12px] font-semibold">{Number(h.share_pct).toFixed(2)}%</span>
+                        {!h.is_active && <span className="text-[12px] text-[var(--text-muted)] uppercase font-bold">Inactive</span>}
                       </div>
-                      {h.notes && <div className="text-[var(--text-muted)] text-[11px] mt-0.5">{h.notes}</div>}
-                      {h.lastPayout && <div className="text-[var(--text-muted)] text-[10px] mt-0.5">Last payout: {dayLabel(h.lastPayout)}</div>}
+                      {h.notes && <div className="text-[var(--text-muted)] text-[12px] mt-0.5">{h.notes}</div>}
+                      {h.lastPayout && <div className="text-[var(--text-muted)] text-[12px] mt-0.5">Last payout: {dayLabel(h.lastPayout)}</div>}
                     </div>
-                    <div className="grid grid-cols-3 gap-3 text-[11px] text-right min-w-[280px]">
+                    <div className="grid grid-cols-3 gap-3 text-[12px] text-right min-w-[280px]">
                       <div>
-                        <div className="text-[var(--text-muted)] uppercase text-[9px] font-bold">Earned</div>
+                        <div className="text-[var(--text-muted)] uppercase text-[12px] font-bold">Earned</div>
                         <div className="font-mono font-bold text-[var(--text-primary)]">{fmt(h.owed)}</div>
                       </div>
                       <div>
-                        <div className="text-[var(--text-muted)] uppercase text-[9px] font-bold">Paid</div>
+                        <div className="text-[var(--text-muted)] uppercase text-[12px] font-bold">Paid</div>
                         <div className="font-mono font-bold text-[var(--color-info)]">{fmt(h.paid)}</div>
                       </div>
                       <div>
-                        <div className="text-[var(--text-muted)] uppercase text-[9px] font-bold">Remaining</div>
+                        <div className="text-[var(--text-muted)] uppercase text-[12px] font-bold">Remaining</div>
                         <div className={`font-mono font-bold ${h.remaining > 0.01 ? 'text-[var(--color-warning)]' : h.remaining < -0.01 ? 'text-[var(--color-danger)]' : 'text-[var(--color-success)]'}`}>
                           {fmt(h.remaining)}
                         </div>

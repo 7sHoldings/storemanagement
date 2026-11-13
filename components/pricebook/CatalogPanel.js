@@ -130,7 +130,7 @@ export default function CatalogPanel() {
           </div>
         )}
 
-        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-[var(--text-muted)]">
+        <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-[var(--text-muted)]">
           {(data?.syncStatus || []).map(s => (
             <span key={s.store_id}>
               {s.name}: <b className="text-[var(--text-secondary)]">{s.items.toLocaleString()}</b> · {ago(s.last_synced)}
@@ -164,7 +164,7 @@ export default function CatalogPanel() {
           placeholder="Filter by UPC prefix or name"
           className="!w-full min-w-0 flex-1 rounded-lg border border-sw-border bg-sw-card px-3 py-2 text-[13px] text-sw-text"
         />
-        <Button variant="secondary" onClick={exportCsv} disabled={!groups.length} className="!text-[11px]">
+        <Button variant="secondary" onClick={exportCsv} disabled={!groups.length} className="!text-[12px]">
           Export CSV
         </Button>
       </div>
@@ -266,11 +266,11 @@ function PrefixGroup({ group, stores, onChanged }) {
   return (
     <div className="rounded-xl border border-sw-border bg-sw-card overflow-hidden">
       <button onClick={expand} className="flex w-full items-start gap-2 px-3 py-2.5 text-left">
-        <span className="mt-0.5 text-[11px] text-[var(--text-muted)]">{open ? '▾' : '▸'}</span>
+        <span className="mt-0.5 text-[12px] text-[var(--text-muted)]">{open ? '▾' : '▸'}</span>
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
             <span className="font-mono text-[14px] font-bold text-sw-text">{group.prefix}•••</span>
-            <span className="text-[11px] text-[var(--text-muted)]">
+            <span className="text-[12px] text-[var(--text-muted)]">
               {group.upc_count} UPC{group.upc_count === 1 ? '' : 's'} · {group.store_count} store
               {group.store_count === 1 ? '' : 's'}
             </span>
@@ -307,7 +307,7 @@ function PrefixGroup({ group, stores, onChanged }) {
                       key={s.id}
                       onClick={() => setTargetStores(p => on ? p.filter(x => x !== s.id) : [...p, s.id])}
                       aria-pressed={on}
-                      className={`rounded-full border px-2.5 py-0.5 text-[11px] font-semibold ${
+                      className={`rounded-full border px-2.5 py-0.5 text-[12px] font-semibold ${
                         on ? 'border-amber-500 bg-amber-500/15 text-sw-text' : 'border-sw-border text-[var(--text-muted)]'
                       }`}
                     >
@@ -317,7 +317,7 @@ function PrefixGroup({ group, stores, onChanged }) {
                 })}
               </div>
 
-              <div className="mb-2 text-[11px] text-[var(--text-muted)]">
+              <div className="mb-2 text-[12px] text-[var(--text-muted)]">
                 Grouped by what each item costs today — that is what separates one product from
                 another here, since a brand’s UPC numbers are not laid out by product.
               </div>
@@ -332,20 +332,20 @@ function PrefixGroup({ group, stores, onChanged }) {
                           onClick={() => setOpenBucket(isOpen ? null : b.key)}
                           className="flex min-w-[60%] flex-1 flex-wrap items-center gap-x-2 gap-y-0.5 text-left"
                         >
-                          <span className="text-[11px] text-[var(--text-muted)]">{isOpen ? '▾' : '▸'}</span>
+                          <span className="text-[12px] text-[var(--text-muted)]">{isOpen ? '▾' : '▸'}</span>
                           <span className={`text-[14px] font-bold ${b.cents == null ? 'text-[var(--color-warning)]' : 'text-sw-text'}`}>
                             {b.cents == null ? 'Price differs by store' : fmtCents(b.cents)}
                           </span>
-                          <span className="text-[11px] text-[var(--text-muted)]">
+                          <span className="text-[12px] text-[var(--text-muted)]">
                             {b.count} UPC{b.count === 1 ? '' : 's'}
                           </span>
                           {b.ranges.length > 0 && (
-                            <span className="truncate font-mono text-[10px] text-[var(--text-muted)]">
+                            <span className="truncate font-mono text-[12px] text-[var(--text-muted)]">
                               {b.ranges.join(', ')}
                             </span>
                           )}
                         </button>
-                        <label className="ml-auto flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap text-[11px] text-[var(--text-muted)]">
+                        <label className="ml-auto flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap text-[12px] text-[var(--text-muted)]">
                           {b.cents == null ? 'Set all to' : 'Change to'}
                           <input
                             value={bucketTarget[b.key] ?? ''}

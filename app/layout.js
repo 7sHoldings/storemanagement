@@ -3,14 +3,14 @@ import { AuthProvider } from '@/components/AuthProvider';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 
 export const metadata = {
-  title: '7S Stores — Store Management System',
-  description: 'Multi-store business intelligence platform for 7S Stores',
+  title: '7s Vape Love — Store Management',
+  description: 'Daily sales, cash, buying and reports for the 7s Vape Love stores',
   manifest: '/manifest.json',
-  applicationName: '7S Stores',
+  applicationName: '7s Vape Love',
   appleWebApp: {
     capable: true,
-    title: '7S Stores',
-    statusBarStyle: 'black-translucent',
+    title: '7s Vape Love',
+    statusBarStyle: 'default',
   },
   icons: {
     icon: [
@@ -31,12 +31,12 @@ export const viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: 'cover',
-  themeColor: '#060A10',
+  themeColor: '#FFFFFF',
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" data-theme="dark" suppressHydrationWarning>
+    <html lang="en" data-theme="light" suppressHydrationWarning>
       <body>
         <ThemeProvider>
           <AuthProvider>

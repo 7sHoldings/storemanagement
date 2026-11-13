@@ -1,14 +1,11 @@
 'use client';
 import { Coins, ClipboardList, BarChart3, Bot, Check } from 'lucide-react';
 
-function Kpi({ label, value, Icon, iconColor, valueClassName = 'text-white', sub, highlight }) {
+function Kpi({ label, value, valueClassName = 'text-[#18181B]', sub, highlight }) {
   return (
-    <div className={`rounded-[10px] border bg-[#0A0A0A] p-3.5 ${highlight ? 'border-[rgba(57,255,20,0.2)]' : 'border-[#2C2C2A]'}`}>
-      <div className="flex items-start justify-between gap-2">
-        <span className="text-[9px] font-semibold uppercase tracking-[1px] text-[#888780]">{label}</span>
-        <Icon size={14} strokeWidth={1.75} className="shrink-0" style={{ color: iconColor }} />
-      </div>
-      <p className={`mt-1.5 text-[14px] md:text-[18px] font-medium leading-none tabular-nums ${valueClassName}`}>{value}</p>
+    <div className="rounded-xl border border-[#E4E4E7] bg-[#FFFFFF] px-[18px] py-4">
+      <span className="text-[13px] font-medium text-[#52525B]">{label}</span>
+      <p className={`mt-2 text-[20px] md:text-[24px] font-semibold tracking-tight leading-none tabular-nums ${valueClassName}`}>{value}</p>
       {sub}
     </div>
   );
@@ -19,17 +16,17 @@ function Kpi({ label, value, Icon, iconColor, valueClassName = 'text-white', sub
 export default function DailySalesKpis({ totalSales, entries, avgPerDay, agentCount, agentTotal, agentNote, allSynced }) {
   return (
     <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <Kpi label="Total Sales" value={totalSales} Icon={Coins} iconColor="#39FF14" valueClassName="text-[#39FF14]" />
-      <Kpi label="Entries" value={entries} Icon={ClipboardList} iconColor="#7F77DD" />
-      <Kpi label="Avg / Day" value={avgPerDay} Icon={BarChart3} iconColor="#39FF14" valueClassName="text-[#39FF14]" />
+      <Kpi label="Net sales" value={totalSales} Icon={Coins} iconColor="#A21CAF" />
+      <Kpi label="Entries" value={entries} Icon={ClipboardList} iconColor="#6D28D9" />
+      <Kpi label="Average per day" value={avgPerDay} Icon={BarChart3} iconColor="#A21CAF" />
       <Kpi
-        label="7S Agent"
+        label="Synced by 7S Agent"
         value={`${agentCount} of ${agentTotal}`}
         Icon={Bot}
-        iconColor="#FF1493"
+        iconColor="#BE185D"
         highlight
         sub={
-          <p className={`mt-1.5 flex items-center gap-1 text-[10px] ${allSynced ? 'text-[#39FF14]' : 'text-[#888780]'}`}>
+          <p className={`mt-1.5 flex items-center gap-1 text-[12px] ${allSynced ? 'text-[#A21CAF]' : 'text-[#71717A]'}`}>
             {allSynced && <Check size={11} strokeWidth={2.5} />}
             {agentNote}
           </p>

@@ -101,7 +101,7 @@ function UploadPanel({ onIngested }) {
         />
         <div className="text-3xl mb-2">📄</div>
         <div className="text-sw-text text-[13px] font-semibold">Drop PDFs here or click to choose</div>
-        <div className="text-sw-dim text-[11px] mt-1">You can select multiple files</div>
+        <div className="text-sw-dim text-[12px] mt-1">You can select multiple files</div>
       </label>
 
       {busy && <div className="mt-3 text-sw-sub text-[12px]">Parsing…</div>}
@@ -127,14 +127,14 @@ function ResultRow({ r }) {
           <div className="text-sw-sub">{r.message}</div>
           {r.snippet && (
             <button onClick={() => setShowSnippet(s => !s)}
-              className="mt-1 text-sw-blue text-[11px] hover:underline">
+              className="mt-1 text-sw-blue text-[12px] hover:underline">
               {showSnippet ? 'Hide' : 'Show'} raw extracted text
             </button>
           )}
         </div>
       </div>
       {showSnippet && r.snippet && (
-        <pre className="mt-2 text-[10px] text-sw-sub bg-sw-bg border border-sw-border rounded p-2 max-h-48 overflow-auto whitespace-pre-wrap">
+        <pre className="mt-2 text-[12px] text-sw-sub bg-sw-bg border border-sw-border rounded p-2 max-h-48 overflow-auto whitespace-pre-wrap">
           {r.snippet}
         </pre>
       )}
@@ -203,9 +203,9 @@ function SearchPanel() {
             <div className="flex items-baseline justify-between gap-3">
               <div className="min-w-0">
                 <div className="text-sw-text text-[13px] font-semibold truncate">{p.name}</div>
-                {p.variant && <div className="text-sw-sub text-[11px]">{p.variant}</div>}
+                {p.variant && <div className="text-sw-sub text-[12px]">{p.variant}</div>}
               </div>
-              {p.upc && <div className="text-sw-dim text-[10px] font-mono shrink-0">{p.upc}</div>}
+              {p.upc && <div className="text-sw-dim text-[12px] font-mono shrink-0">{p.upc}</div>}
             </div>
 
             {p.offers?.length ? (
@@ -224,26 +224,26 @@ function SearchPanel() {
                             ? 'text-sw-text border border-sw-border/60 bg-sw-card2/50'
                             : 'text-sw-sub border border-transparent'}`}>
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className={`text-[10px] font-bold shrink-0 uppercase tracking-wide
+                        <span className={`text-[12px] font-bold shrink-0
                           ${i === 0 ? 'text-sw-blue' : i === 1 ? 'text-sw-text' : 'text-sw-dim'}`}>
                           {rank}
                         </span>
                         <span className="font-semibold truncate">{o.vendor_name}</span>
                         {o.invoice_number && (o.invoice_url
                           ? <a href={o.invoice_url} target="_blank" rel="noopener noreferrer"
-                              className="text-sw-blue text-[10px] font-mono hover:underline shrink-0"
+                              className="text-sw-blue text-[12px] font-mono hover:underline shrink-0"
                               title="Open invoice PDF">#{o.invoice_number}</a>
-                          : <span className="text-sw-dim text-[10px] font-mono shrink-0">#{o.invoice_number}</span>
+                          : <span className="text-sw-dim text-[12px] font-mono shrink-0">#{o.invoice_number}</span>
                         )}
                       </div>
                       <div className="flex items-center gap-3 shrink-0">
                         {i > 0 && diff > 0 && (
-                          <span className="text-sw-red text-[10px] font-semibold"
+                          <span className="text-sw-red text-[12px] font-semibold"
                                 title={`$${diff.toFixed(2)} more per unit than 1st choice`}>
                             +{fmtMoney(diff)}
                           </span>
                         )}
-                        <span className="text-sw-dim text-[10px]">last {fmtDate(o.last_bought)}</span>
+                        <span className="text-sw-dim text-[12px]">last {fmtDate(o.last_bought)}</span>
                         <span className={`font-bold ${i === 0 ? 'text-sw-blue' : 'text-sw-text'}`}>{fmtMoney(o.unit_price)}</span>
                       </div>
                     </div>
@@ -251,7 +251,7 @@ function SearchPanel() {
                 })}
               </div>
             ) : (
-              <div className="mt-1 text-sw-dim text-[11px]">No price history yet.</div>
+              <div className="mt-1 text-sw-dim text-[12px]">No price history yet.</div>
             )}
           </div>
         ))}
@@ -308,7 +308,7 @@ function AllProductsTable({ refreshToken = 0 }) {
             className="w-full px-3 py-2.5 bg-sw-card2 border border-sw-border rounded-md text-sw-text text-[13px] focus:outline-none focus:border-sw-blue"
           />
         </div>
-        <div className="text-sw-sub text-[11px] whitespace-nowrap">
+        <div className="text-sw-sub text-[12px] whitespace-nowrap">
           {loading ? 'Loading…' : `${rows.length} ${rows.length === 1 ? 'row' : 'rows'}`}
           {q && !loading && ` for "${q}"`}
         </div>
@@ -344,22 +344,22 @@ function AllProductsTable({ refreshToken = 0 }) {
                   <td className="py-2 pr-3">
                     <div className="font-semibold truncate max-w-[320px]">{r.product?.name || '—'}</div>
                     {r.product?.variant && (
-                      <div className="text-sw-sub text-[11px] truncate max-w-[320px]">{r.product.variant}</div>
+                      <div className="text-sw-sub text-[12px] truncate max-w-[320px]">{r.product.variant}</div>
                     )}
                   </td>
-                  <td className="py-2 pr-3 font-mono text-[10px] text-sw-dim whitespace-nowrap">{r.product?.upc || '—'}</td>
+                  <td className="py-2 pr-3 font-mono text-[12px] text-sw-dim whitespace-nowrap">{r.product?.upc || '—'}</td>
                   <td className="py-2 pr-3 whitespace-nowrap">{r.vendor?.name || '—'}</td>
                   <td className="py-2 pr-3 text-right font-semibold whitespace-nowrap">{fmtMoney(r.unit_price)}</td>
                   <td className="py-2 pr-3 text-right text-sw-sub whitespace-nowrap">
                     {Number(r.quantity || 0)}
                     {r.purchase_count > 1 && (
-                      <span className="text-sw-dim text-[10px] ml-1" title={`${r.purchase_count} separate invoice lines`}>
+                      <span className="text-sw-dim text-[12px] ml-1" title={`${r.purchase_count} separate invoice lines`}>
                         ×{r.purchase_count}
                       </span>
                     )}
                   </td>
                   <td className="py-2 pr-3 text-sw-sub whitespace-nowrap">{fmtDate(r.last_bought || r.invoice?.date)}</td>
-                  <td className="py-2 pr-3 font-mono text-[11px] whitespace-nowrap">
+                  <td className="py-2 pr-3 font-mono text-[12px] whitespace-nowrap">
                     {r.invoice?.number
                       ? (r.invoice.url
                           ? <a href={r.invoice.url} target="_blank" rel="noopener noreferrer"

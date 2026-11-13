@@ -16,10 +16,10 @@ describe('<StorePill />', () => {
     expect(container.querySelectorAll('span').length).toBe(0);
   });
 
-  it('uses the brand-green active state for the All-Stores variant', () => {
+  it('uses the brand magenta active state for the All-Stores variant', () => {
     render(<StorePill label="All Stores" active onClick={() => {}} />);
     const btn = screen.getByRole('button', { name: 'All Stores' });
-    expect(btn.getAttribute('style')).toMatch(/#39FF14|rgb\(57, 255, 20\)/i);
+    expect(btn.getAttribute('style')).toMatch(/#A21CAF|rgb\(162, 28, 175\)/i);
   });
 
   it('uses the store color as background when active with a color', () => {

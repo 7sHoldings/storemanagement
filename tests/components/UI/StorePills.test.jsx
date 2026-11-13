@@ -11,21 +11,21 @@ const stores = [
 describe('<StorePills />', () => {
   it('renders "All Stores" + each store pill', () => {
     render(<StorePills stores={stores} value="" onChange={() => {}} />);
-    expect(screen.getByRole('button', { name: 'All Stores' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'All stores' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Bells/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Troup/i })).toBeInTheDocument();
   });
 
   it('hides the All Stores button when showAll={false}', () => {
     render(<StorePills stores={stores} value="" onChange={() => {}} showAll={false} />);
-    expect(screen.queryByRole('button', { name: 'All Stores' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'All stores' })).not.toBeInTheDocument();
   });
 
   it('fires onChange("") when All Stores is clicked', async () => {
     const onChange = vi.fn();
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     render(<StorePills stores={stores} value="a" onChange={onChange} />);
-    await user.click(screen.getByRole('button', { name: 'All Stores' }));
+    await user.click(screen.getByRole('button', { name: 'All stores' }));
     expect(onChange).toHaveBeenCalledWith('');
   });
 

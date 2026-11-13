@@ -85,10 +85,10 @@ export default function DepartmentSalesPanel({ stores }) {
               {[0.9, 0.95, 0.98, 0.99].map(n => <option key={n} value={n}>{n * 100}% of sales</option>)}
             </select>
           </label>
-          <Button variant="primary" onClick={run} disabled={running} className="!text-[11px]">
+          <Button variant="primary" onClick={run} disabled={running} className="!text-[12px]">
             {running ? 'Reading…' : loaded.length ? 'Reload' : 'Load sales'}
           </Button>
-          {loaded.length > 0 && <Button variant="secondary" onClick={exportCSV} className="!text-[11px]">CSV</Button>}
+          {loaded.length > 0 && <Button variant="secondary" onClick={exportCSV} className="!text-[12px]">CSV</Button>}
         </div>
         {progress && <p className="text-[12px] text-amber-500 mt-2">{progress}</p>}
       </div>
@@ -103,7 +103,7 @@ export default function DepartmentSalesPanel({ stores }) {
             <div key={s.id} className="rounded-xl border border-sw-border bg-sw-card p-4">
               <div className="flex justify-between items-baseline gap-2 flex-wrap">
                 <h4 className="text-sw-text text-[14px] font-bold">{storeShortName(s.name)}</h4>
-                <span className="text-[11px] text-[var(--text-muted)]">{json.from} → {json.to} · {money(total)} · {json.line_count} lines</span>
+                <span className="text-[12px] text-[var(--text-muted)]">{json.from} → {json.to} · {money(total)} · {json.line_count} lines</span>
               </div>
               {(json.truncated?.length > 0 || json.failedRanges?.length > 0) && (
                 <div className="mt-2">
@@ -117,8 +117,8 @@ export default function DepartmentSalesPanel({ stores }) {
                 <span className="text-sw-text font-semibold">{top.map(d => d.dept).join(', ')}</span>
               </div>
               <details className="mt-2">
-                <summary className="text-[11px] text-[var(--text-muted)] cursor-pointer">All {json.departments.length} departments by sales</summary>
-                <table className="w-full text-[11px] mt-2">
+                <summary className="text-[12px] text-[var(--text-muted)] cursor-pointer">All {json.departments.length} departments by sales</summary>
+                <table className="w-full text-[12px] mt-2">
                   <thead><tr className="text-[var(--text-muted)]"><th className="text-left">Department</th><th className="text-right">Sales</th><th className="text-right">Share</th><th className="text-right">Qty</th></tr></thead>
                   <tbody>
                     {json.departments.map(d => (

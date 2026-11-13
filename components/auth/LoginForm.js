@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Loader2 } from 'lucide-react';
+import { Mail, Lock, Eye, EyeOff, Loader2 } from 'lucide-react';
 import {
   signInWithEmail,
   signInWithOAuth,
@@ -36,11 +36,11 @@ function MicrosoftIcon({ className }) {
 }
 
 const inputIconLeft =
-  'pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#5F5E5A]';
-const fieldLabel = 'mb-1.5 block text-[11px] font-medium uppercase tracking-[1px] text-[#888780]';
-const fieldError = 'mt-1.5 text-[11px] text-[#FF6BB5]';
+  'pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#71717A]';
+const fieldLabel = 'mb-1.5 block text-[13px] font-medium text-[#3F3F46]';
+const fieldError = 'mt-1.5 text-[12px] text-[#B91C1C]';
 const socialButton =
-  'flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#2C2C2A] bg-[#0A0A0A] px-3 py-2.5 text-[12px] text-white transition hover:bg-[#1A1A1A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#39FF14] disabled:cursor-not-allowed disabled:opacity-60';
+  'flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#E4E4E7] bg-[#FFFFFF] h-11 px-3 text-[14px] font-medium text-[#18181B] transition hover:bg-[#F4F4F5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A21CAF] disabled:cursor-not-allowed disabled:opacity-60';
 
 export default function LoginForm() {
   const router = useRouter();
@@ -123,7 +123,7 @@ export default function LoginForm() {
       {formError && (
         <div
           role="alert"
-          className="mb-4 rounded-lg border border-[#FF1493]/40 bg-[#FF1493]/10 px-3 py-2 text-[12px] text-[#FF6BB5]"
+          className="mb-4 rounded-lg border border-[#FECACA] bg-[#FEF2F2] px-3 py-2.5 text-[13px] text-[#991B1B]"
         >
           {formError}
         </div>
@@ -188,7 +188,7 @@ export default function LoginForm() {
             onClick={() => setShowPassword((s) => !s)}
             aria-label={showPassword ? 'Hide password' : 'Show password'}
             aria-pressed={showPassword}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-[#5F5E5A] transition hover:text-[#888780] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#39FF14]"
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-[#71717A] transition hover:text-[#71717A] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#A21CAF]"
           >
             {showPassword ? (
               <EyeOff aria-hidden="true" className="h-4 w-4" />
@@ -205,17 +205,17 @@ export default function LoginForm() {
       </div>
 
       {/* Remember me / forgot password */}
-      <div className="mb-6 mt-4 flex items-center justify-between text-[12px]">
-        <label className="flex cursor-pointer select-none items-center gap-1.5 text-[#888780]">
+      <div className="mb-6 mt-4 flex items-center justify-between text-[13px]">
+        <label className="flex cursor-pointer select-none items-center gap-2 text-[#52525B]">
           <input
             type="checkbox"
             checked={remember}
             onChange={(e) => setRemember(e.target.checked)}
-            className="h-3.5 w-3.5 cursor-pointer accent-[#39FF14]"
+            className="h-4 w-4 cursor-pointer accent-[#A21CAF]"
           />
           Remember me
         </label>
-        <a href="/forgot-password" className="font-medium text-[#FF1493] hover:underline">
+        <a href="/forgot-password" className="font-medium text-[#A21CAF] hover:text-[#86198F]">
           Forgot password?
         </a>
       </div>
@@ -224,7 +224,7 @@ export default function LoginForm() {
       <button
         type="submit"
         disabled={loading}
-        className="flex w-full items-center justify-center gap-2 rounded-[10px] bg-[#39FF14] px-4 py-[13px] text-[14px] font-medium text-[#0A0A0A] transition hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#39FF14] focus-visible:ring-offset-2 focus-visible:ring-offset-[#141414] disabled:cursor-not-allowed disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-2 h-11 rounded-lg bg-[#A21CAF] px-4 text-[15px] font-semibold text-[#FFFFFF] transition hover:bg-[#86198F] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A21CAF] focus-visible:ring-offset-2 focus-visible:ring-offset-[#FFFFFF] disabled:cursor-not-allowed disabled:opacity-60"
       >
         {loading ? (
           <>
@@ -234,16 +234,15 @@ export default function LoginForm() {
         ) : (
           <>
             Sign in
-            <ArrowRight aria-hidden="true" className="h-4 w-4" />
           </>
         )}
       </button>
 
       {/* Divider */}
       <div className="my-5 flex items-center gap-2.5">
-        <span className="h-px flex-1 bg-[#2C2C2A]" />
-        <span className="text-[11px] uppercase tracking-[1px] text-[#5F5E5A]">Or use</span>
-        <span className="h-px flex-1 bg-[#2C2C2A]" />
+        <span className="h-px flex-1 bg-[#E4E4E7]" />
+        <span className="text-[12px] text-[#A1A1AA]">or continue with</span>
+        <span className="h-px flex-1 bg-[#E4E4E7]" />
       </div>
 
       {/* Social login */}
@@ -276,7 +275,7 @@ export default function LoginForm() {
         </button>
       </div>
 
-      <p className="mt-6 text-center text-[11px] text-[#5F5E5A]">
+      <p className="mt-6 text-center text-[12px] text-[#71717A]">
         Authorized staff only · Must be 21+
       </p>
     </form>

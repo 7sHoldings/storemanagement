@@ -148,7 +148,7 @@ export default function HouseAccountsPage() {
   return (
     <div>
       <PageHeader title="House Accounts" subtitle="Employee credit owed to the store, cleared at payroll">
-        <Button variant="secondary" onClick={exportCSV} className="!text-[11px]">CSV</Button>
+        <Button variant="secondary" onClick={exportCSV} className="!text-[12px]">CSV</Button>
       </PageHeader>
 
       {msg && <Alert type={msgType}>{msg}</Alert>}
@@ -163,7 +163,7 @@ export default function HouseAccountsPage() {
         <V2StatCard label="Period" value={`${shortDate(range.start)} – ${shortDate(range.end)}`} icon="📅" />
       </div>
 
-      <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] p-3 mb-4 text-[11px] text-[var(--text-secondary)] space-y-1">
+      <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] p-3 mb-4 text-[12px] text-[var(--text-secondary)] space-y-1">
         <div className="text-[var(--text-primary)] font-bold text-[12px]">How it works</div>
         <div>1. The employee takes goods on credit. The cashier rings it as <b>cash</b> in NRS and enters it under House Account on Daily Sales with the receipt.</div>
         <div>2. The credit is taken back out of POS cash before the drop is checked, so it does <b>not</b> show as a cash short. It is neither cash nor card. It is money the employee owes.</div>
@@ -186,22 +186,22 @@ export default function HouseAccountsPage() {
                   <div className="px-3 py-2.5 flex items-center gap-3 flex-wrap">
                     <button type="button" onClick={() => setExpanded(open ? null : e.key)} className="flex-1 min-w-[160px] text-left">
                       <div className="text-[var(--text-primary)] text-[13px] font-bold">{open ? '▾' : '▸'} {e.name}</div>
-                      <div className="text-[var(--text-muted)] text-[10px] mt-0.5 flex items-center gap-1.5">
+                      <div className="text-[var(--text-muted)] text-[12px] mt-0.5 flex items-center gap-1.5">
                         {st && <StoreBadge name={st.name} color={st.color} />}
                         {!e.employee_id && <span>not linked to a profile</span>}
                       </div>
                     </button>
-                    <div className="grid grid-cols-3 gap-4 text-right text-[11px] font-mono">
-                      <div><div className="text-[var(--text-muted)] text-[9px] uppercase font-sans">Taken</div>{fmt(e.chargedRange)}</div>
-                      <div><div className="text-[var(--text-muted)] text-[9px] uppercase font-sans">Deducted</div>{fmt(e.deductedRange)}</div>
-                      <div><div className="text-[var(--text-muted)] text-[9px] uppercase font-sans">Owes</div>{balanceCell(e.balance)}</div>
+                    <div className="grid grid-cols-3 gap-4 text-right text-[12px] font-mono">
+                      <div><div className="text-[var(--text-muted)] text-[12px] uppercase font-sans">Taken</div>{fmt(e.chargedRange)}</div>
+                      <div><div className="text-[var(--text-muted)] text-[12px] uppercase font-sans">Deducted</div>{fmt(e.deductedRange)}</div>
+                      <div><div className="text-[var(--text-muted)] text-[12px] uppercase font-sans">Owes</div>{balanceCell(e.balance)}</div>
                     </div>
-                    <Button onClick={() => openDeduct(e)} className="!text-[11px]" disabled={e.balance <= 0.005}>Record deduction</Button>
+                    <Button onClick={() => openDeduct(e)} className="!text-[12px]" disabled={e.balance <= 0.005}>Record deduction</Button>
                   </div>
                   {open && (
-                    <div className="px-3 pb-3 grid md:grid-cols-2 gap-3 text-[11px]">
+                    <div className="px-3 pb-3 grid md:grid-cols-2 gap-3 text-[12px]">
                       <div>
-                        <div className="text-[var(--text-secondary)] text-[10px] font-semibold uppercase mb-1">Credit taken · all time {fmt(e.chargedAll)}</div>
+                        <div className="text-[var(--text-secondary)] text-[12px] font-semibold uppercase mb-1">Credit taken · all time {fmt(e.chargedAll)}</div>
                         {e.charges.length === 0 && <div className="text-[var(--text-muted)]">None</div>}
                         {e.charges.map((c, i) => (
                           <div key={i} className="flex justify-between gap-2 py-0.5">
@@ -216,7 +216,7 @@ export default function HouseAccountsPage() {
                         ))}
                       </div>
                       <div>
-                        <div className="text-[var(--text-secondary)] text-[10px] font-semibold uppercase mb-1">Paid back · all time {fmt(e.deductedAll)}</div>
+                        <div className="text-[var(--text-secondary)] text-[12px] font-semibold uppercase mb-1">Paid back · all time {fmt(e.deductedAll)}</div>
                         {e.deductions.length === 0 && <div className="text-[var(--text-muted)]">None</div>}
                         {e.deductions.map(d => (
                           <div key={d.id} className="flex justify-between gap-2 py-0.5">

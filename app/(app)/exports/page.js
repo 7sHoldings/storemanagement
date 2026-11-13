@@ -40,7 +40,7 @@ export default function ExportsPage() {
         <div className="text-3xl mb-2.5">{c.icon}</div>
         <h3 className="text-[var(--text-primary)] text-base font-bold mb-1">{c.title}</h3>
         <p className="text-[var(--text-secondary)] text-xs mb-4">{c.desc}</p>
-        <Button variant="secondary" onClick={() => exportData(c.type)} className="!text-[11px]">📥 Download CSV</Button>
+        <Button variant="secondary" onClick={() => exportData(c.type)} className="!text-[12px]">📥 Download CSV</Button>
       </div>))}
     </div>
   </div>);

@@ -2,7 +2,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import Sidebar from '@/components/Sidebar';
+import TopNav from '@/components/layout/TopNav';
 import NrsStatusBar from '@/components/NrsStatusBar';
 
 export default function AppShell({ children }) {
@@ -34,9 +34,9 @@ export default function AppShell({ children }) {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-sw-bg p-6">
-        <div className="text-center">
-          <div className="text-5xl mb-4">🏪</div>
-          <div className="text-sw-blue text-lg font-bold">Loading 7S Stores...</div>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 rounded-full border-2 border-sw-border border-t-sw-blue animate-spin" aria-hidden="true" />
+          <div className="text-sw-sub text-sm font-medium">Loading 7s Vape Love…</div>
         </div>
       </div>
     );
@@ -56,12 +56,12 @@ export default function AppShell({ children }) {
   const showProfileWarning = !profile || profile.__fallback;
 
   return (
-    <div className="bg-sw-bg">
-      <Sidebar selectedStore={effectiveStoreId} onStoreChange={setSelectedStore} />
-      <main className="md:ml-[var(--sidebar-w)] h-screen overflow-y-auto px-3 md:px-6 app-main-pad transition-[margin-left] duration-200 ease-out motion-reduce:transition-none">
+    <div className="bg-sw-bg min-h-screen">
+      <TopNav selectedStore={effectiveStoreId} onStoreChange={setSelectedStore} />
+      <main className="max-w-[1360px] mx-auto px-4 md:px-7 app-main-pad">
         {showProfileWarning && (
-          <div className="mb-3 rounded-lg border border-sw-amber/30 bg-sw-amberD text-sw-amber px-3 py-2 text-[12px]">
-            ⚠️ Profile data unavailable — some permissions may be incorrect. Try signing out and back in, or contact an owner.
+          <div className="mb-3 rounded-lg border border-sw-amber/30 bg-sw-amberD text-sw-amber px-3 py-2 text-[13px]">
+            Profile data unavailable — some permissions may be incorrect. Try signing out and back in, or contact an owner.
           </div>
         )}
         <NrsStatusBar />

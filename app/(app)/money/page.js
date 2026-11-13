@@ -25,8 +25,8 @@ function Section({ title, badge, headline, headlineLabel, tone = 'plain', childr
     <section className="rounded-xl border border-sw-border bg-sw-card overflow-hidden">
       <header className="flex items-center justify-between gap-2 px-4 pt-3.5 pb-2">
         <div className="flex items-center gap-2 min-w-0">
-          <h2 className="text-[11px] font-bold uppercase tracking-[0.08em] text-sw-sub">{title}</h2>
-          {badge && <span className="text-[10px] text-sw-dim truncate">{badge}</span>}
+          <h2 className="text-[12px] font-bold text-sw-sub">{title}</h2>
+          {badge && <span className="text-[12px] text-sw-dim truncate">{badge}</span>}
         </div>
         {action}
       </header>
@@ -35,7 +35,7 @@ function Section({ title, badge, headline, headlineLabel, tone = 'plain', childr
           <div className={`font-mono tabular-nums text-[26px] font-bold leading-none ${headlineColour}`}>
             {headline < 0 ? '−' : ''}{fmt(Math.abs(headline))}
           </div>
-          {headlineLabel && <div className="text-[11px] text-sw-dim mt-1">{headlineLabel}</div>}
+          {headlineLabel && <div className="text-[12px] text-sw-dim mt-1">{headlineLabel}</div>}
         </div>
       )}
       {children && <div className="px-4 pb-3.5">{children}</div>}
@@ -553,12 +553,12 @@ export default function MoneyPage() {
                 : `${periodLabel} paid out more than it took in — the difference came from earlier months`}
             tone={activeStore ? 'plain' : cash.period.left >= 0 ? 'good' : 'bad'}
             action={isOwner && !activeStore && (
-              <Button onClick={openAdd} className="!py-1 !px-2.5 !text-[11px] !rounded-lg">
+              <Button onClick={openAdd} className="!py-1 !px-2.5 !text-[12px] !rounded-lg">
                 Take out cash
               </Button>
             )}
           >
-            <div className="text-[10px] font-bold uppercase tracking-wide text-sw-dim mt-1 mb-0.5">
+            <div className="text-[12px] font-bold text-sw-dim mt-1 mb-0.5">
               Came in
             </div>
             <Row label="Put in the safes by staff" value={cash.safe.putIn} />
@@ -567,7 +567,7 @@ export default function MoneyPage() {
             )}
             <Row label="Total came in" value={cash.period.cameIn} emphasis />
 
-            <div className="text-[10px] font-bold uppercase tracking-wide text-sw-dim mt-3 mb-0.5">
+            <div className="text-[12px] font-bold text-sw-dim mt-3 mb-0.5">
               Went out
             </div>
             <Row label="You took out" value={cash.hand.takenOut} />
@@ -672,7 +672,7 @@ export default function MoneyPage() {
               headlineLabel="Everything held — in the safes and in your hand"
               tone={cash.totalHeld >= 0 ? 'plain' : 'bad'}
               action={isOwner && (
-                <Button onClick={openAdd} className="!py-1 !px-2.5 !text-[11px] !rounded-lg">
+                <Button onClick={openAdd} className="!py-1 !px-2.5 !text-[12px] !rounded-lg">
                   Take out cash
                 </Button>
               )}
@@ -681,7 +681,7 @@ export default function MoneyPage() {
               <Row label={`Left from ${periodLabel}`} value={cash.period.left} sign={cash.period.left < 0 ? '−' : '+'} tone={cash.period.left < 0 ? 'minus' : 'plus'} />
               <Row label="Total cash" value={cash.totalHeld} emphasis />
 
-              <div className="text-[10px] font-bold uppercase tracking-wide text-sw-dim mt-3 mb-0.5">
+              <div className="text-[12px] font-bold text-sw-dim mt-3 mb-0.5">
                 Where it is
               </div>
               <Row label="In the stores' safes" value={cash.safe.closing} />
@@ -742,7 +742,7 @@ export default function MoneyPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-[12.5px]">
                   <thead>
-                    <tr className="text-sw-dim text-[10px] uppercase">
+                    <tr className="text-sw-dim text-[12px] uppercase">
                       <th className="text-left font-semibold py-1">Store</th>
                       <th className="text-right font-semibold py-1">Sales</th>
                       <th className="text-right font-semibold py-1">Buying</th>
@@ -784,7 +784,7 @@ export default function MoneyPage() {
       )}
 
       {s && (
-        <div className="mt-3 text-[11px] text-sw-dim leading-relaxed">
+        <div className="mt-3 text-[12px] text-sw-dim leading-relaxed">
           {s.days} day{s.days === 1 ? '' : 's'} with sales in this range. Everything here is
           worked out from the records each time the page opens, so anything you
           correct by hand shows up straight away.
@@ -812,7 +812,7 @@ export default function MoneyPage() {
               onChange={e => setForm({ ...form, for_month: e.target.value })}>
               {months.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
             </select>
-            <div className="mt-1 text-[11px] text-sw-dim leading-snug">
+            <div className="mt-1 text-[12px] text-sw-dim leading-snug">
               Usually the same month you took it. Set it back when the money
               was earned earlier — August cash taken out in September belongs
               to August, and counting it against September makes September
@@ -836,7 +836,7 @@ export default function MoneyPage() {
               </Alert>
             </div>
           )}
-          <div className="mt-2 text-[11px] text-sw-dim leading-snug">
+          <div className="mt-2 text-[12px] text-sw-dim leading-snug">
             Comes off the cash balance for the month it is attributed to. It
             does not change sales or profit — taking money out is not a cost
             of running the stores.

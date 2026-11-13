@@ -24,7 +24,7 @@ describe('<DailySalesHeader />', () => {
     const onSyncNrs = vi.fn();
     render(<DailySalesHeader {...baseProps} isOwner={false} onExportCsv={() => {}} onSyncNrs={onSyncNrs} onAdd={onAdd} />);
     expect(screen.queryByRole('button', { name: /sync nrs/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /^add$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^add entry$/i })).not.toBeInTheDocument();
   });
 
   it('fires onExportCsv / onSyncNrs / onAdd when their buttons are clicked', async () => {
@@ -37,7 +37,7 @@ describe('<DailySalesHeader />', () => {
     expect(onExportCsv).toHaveBeenCalled();
     await user.click(screen.getByRole('button', { name: /sync nrs/i }));
     expect(onSyncNrs).toHaveBeenCalled();
-    await user.click(screen.getByRole('button', { name: /^add$/i }));
+    await user.click(screen.getByRole('button', { name: /^add entry$/i }));
     expect(onAdd).toHaveBeenCalled();
   });
 });

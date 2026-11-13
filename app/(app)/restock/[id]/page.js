@@ -284,12 +284,12 @@ export default function RestockDetailPage() {
         title={`Restock #${id.slice(0, 8)}`}
         subtitle={request.stores?.name ? `${request.stores.name} · submitted ${fmtDate(request.created_at)} by ${request.created_by_name || '—'}` : fmtDate(request.created_at)}
       >
-        <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full ${cfg.cls}`}>{cfg.label}</span>
+        <span className={`text-[12px] font-bold px-2 py-1 rounded-full ${cfg.cls}`}>{cfg.label}</span>
       </PageHeader>
 
       {request.note && (
         <div className="mb-4 bg-sw-card border border-sw-border rounded-xl p-3 text-sw-sub text-[12px]">
-          <span className="text-sw-dim text-[10px] font-bold uppercase tracking-wider block mb-1">Note from {request.created_by_name || 'employee'}</span>
+          <span className="text-sw-dim text-[12px] font-bold block mb-1">Note from {request.created_by_name || 'employee'}</span>
           {request.note}
         </div>
       )}
@@ -340,10 +340,10 @@ export default function RestockDetailPage() {
           <div className="px-4 py-2.5 border-b border-sw-border flex items-center justify-between bg-sw-card2/40">
             <div>
               <div className="text-sw-text text-[14px] font-bold">{group.vendor}</div>
-              <div className="text-sw-sub text-[11px]">{group.items.length} {group.items.length === 1 ? 'item' : 'items'}</div>
+              <div className="text-sw-sub text-[12px]">{group.items.length} {group.items.length === 1 ? 'item' : 'items'}</div>
             </div>
             <div className="text-right">
-              <div className="text-sw-dim text-[10px] font-bold uppercase tracking-wider">Subtotal</div>
+              <div className="text-sw-dim text-[12px] font-bold">Subtotal</div>
               <div className="text-sw-text text-[14px] font-bold font-mono">{fmtMoney(group.subtotal)}</div>
             </div>
           </div>
@@ -367,9 +367,9 @@ export default function RestockDetailPage() {
                     <tr key={item.id} className="border-b border-sw-border/60">
                       <td className="py-2 px-3 text-sw-text">
                         <div className="font-semibold max-w-[320px] truncate">{item.product_name}</div>
-                        {item.variant && <div className="text-sw-sub text-[11px] truncate max-w-[320px]">{item.variant}</div>}
+                        {item.variant && <div className="text-sw-sub text-[12px] truncate max-w-[320px]">{item.variant}</div>}
                       </td>
-                      <td className="py-2 px-3 font-mono text-[10px] text-sw-dim whitespace-nowrap">{item.upc || '—'}</td>
+                      <td className="py-2 px-3 font-mono text-[12px] text-sw-dim whitespace-nowrap">{item.upc || '—'}</td>
                       <td className="py-2 px-3 text-right">
                         {readOnly ? (
                           <span className="text-sw-text font-semibold">{item.qty}</span>
@@ -405,7 +405,7 @@ export default function RestockDetailPage() {
                                 });
                               }
                             }}
-                            className="!w-auto !min-h-0 !py-1 !px-2 !text-[11px] bg-sw-card2 border border-sw-border rounded-md text-sw-text"
+                            className="!w-auto !min-h-0 !py-1 !px-2 !text-[12px] bg-sw-card2 border border-sw-border rounded-md text-sw-text"
                           >
                             <option value={item.suggested_vendor || ''}>
                               {item.suggested_vendor || 'No suggestion'}{item.suggested_unit_price != null ? ` · ${fmtMoney(item.suggested_unit_price)}` : ''}
@@ -452,8 +452,8 @@ export default function RestockDetailPage() {
       {grouped.length > 0 && (
         <div className="flex justify-end mt-2 mb-6">
           <div className="bg-sw-card border border-sw-border rounded-xl px-5 py-3 text-right">
-            <div className="text-sw-dim text-[10px] font-bold uppercase tracking-wider">Grand total</div>
-            <div className="text-sw-text text-[20px] font-extrabold font-mono">{fmtMoney(grandTotal)}</div>
+            <div className="text-sw-dim text-[12px] font-bold">Grand total</div>
+            <div className="text-sw-text text-[20px] font-semibold font-mono">{fmtMoney(grandTotal)}</div>
           </div>
         </div>
       )}

@@ -13,7 +13,7 @@ function fmtTime(iso) {
 }
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 // Convention: positive short_over = SHORT (cash missing, red), negative = OVER.
-const soColor = (v) => Math.abs(v) < 0.01 ? '#64748B' : v > 0 ? '#F87171' : '#34D399';
+const soColor = (v) => Math.abs(v) < 0.01 ? '#64748B' : v > 0 ? '#B91C1C' : '#15803D';
 const soLabel = (v) => Math.abs(v) < 0.01 ? fmt(0) : v > 0 ? `Short ${fmt(v)}` : `Over ${fmt(-v)}`;
 
 export default function EmployeeDetailPage() {
@@ -179,7 +179,7 @@ export default function EmployeeDetailPage() {
   return (
     <div>
       {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5 text-[11px] mb-3 flex-wrap">
+      <div className="flex items-center gap-1.5 text-[12px] mb-3 flex-wrap">
         <button onClick={() => router.push('/employee-tracking')} className="text-[var(--color-info)] hover:underline">Employee Tracking</button>
         <span className="text-[var(--text-muted)]">/</span>
         <span className="text-[var(--text-secondary)] flex items-center gap-1">
@@ -192,14 +192,14 @@ export default function EmployeeDetailPage() {
 
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <div>
-          <h1 className="text-[var(--text-primary)] text-[20px] font-extrabold">{employeeName}</h1>
+          <h1 className="text-[var(--text-primary)] text-[20px] font-semibold">{employeeName}</h1>
           <div className="text-[var(--text-secondary)] text-[12px] flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-sm" style={{ background: store?.color || '#64748B' }} />
             {store?.name || '—'}
             {employeeName === 'User1' && <span className="text-[var(--text-muted)] ml-2">· Generic POS login — set up individual accounts in NRS</span>}
           </div>
         </div>
-        <Button variant="secondary" onClick={exportCSV} className="!text-[11px]">CSV</Button>
+        <Button variant="secondary" onClick={exportCSV} className="!text-[12px]">CSV</Button>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
@@ -221,9 +221,9 @@ export default function EmployeeDetailPage() {
           columns={[
             { key: 'shift_date', label: 'Date', render: v => dayLabel(v) },
             { key: '_dow', label: 'Day', sortable: true, sortValue: r => new Date(r.shift_date + 'T12:00:00').getDay(),
-              render: (_, r) => <span className="text-[var(--text-secondary)] text-[11px]">{DOW[new Date(r.shift_date + 'T12:00:00').getDay()]}</span> },
-            { key: 'opened_at', label: 'Opened', render: v => <span className="font-mono text-[11px]">{fmtTime(v)}</span> },
-            { key: 'closed_at', label: 'Closed', render: v => <span className="font-mono text-[11px]">{fmtTime(v)}</span> },
+              render: (_, r) => <span className="text-[var(--text-secondary)] text-[12px]">{DOW[new Date(r.shift_date + 'T12:00:00').getDay()]}</span> },
+            { key: 'opened_at', label: 'Opened', render: v => <span className="font-mono text-[12px]">{fmtTime(v)}</span> },
+            { key: 'closed_at', label: 'Closed', render: v => <span className="font-mono text-[12px]">{fmtTime(v)}</span> },
             { key: '_hours', label: 'Hours', align: 'right', mono: true, sortValue: r => Number(r._hours || 0),
               render: (_, r) => r._hours ? <span className={`font-bold ${r._hours >= 8 ? 'text-[var(--color-success)]' : r._hours >= 4 ? 'text-[var(--color-info)]' : 'text-[var(--color-warning)]'}`}>{Number(r._hours).toFixed(1)}h</span> : <span className="text-[var(--text-muted)]">—</span> },
             { key: '_sales', label: 'Sales', align: 'right', mono: true, sortValue: r => r._sales,
@@ -240,7 +240,7 @@ export default function EmployeeDetailPage() {
           isOwner={false}
         />
         {enriched.length > 0 && (
-          <div className="px-3 py-2 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] flex justify-between items-center flex-wrap gap-2 text-[11px]">
+          <div className="px-3 py-2 border-t border-[var(--border-subtle)] bg-[var(--bg-card)] flex justify-between items-center flex-wrap gap-2 text-[12px]">
             <span className="text-[var(--text-secondary)] font-bold uppercase">{enriched.length} shifts · {stats.maxConsec} max consecutive days</span>
             <span className="font-mono font-bold" style={{ color: soColor(Number(stats.totalSO)) }}>
               Net S/O: {soLabel(Number(stats.totalSO))}
@@ -271,8 +271,8 @@ export default function EmployeeDetailPage() {
           </div>
           {creditEntries.length > 0 && (
             <div className="mt-3 pt-3 border-t border-[var(--border-subtle)]">
-              <div className="text-[var(--text-secondary)] text-[10px] font-semibold uppercase mb-1.5">Credit Breakdown</div>
-              <div className="space-y-1 text-[11px] max-w-sm">
+              <div className="text-[var(--text-secondary)] text-[12px] font-semibold uppercase mb-1.5">Credit Breakdown</div>
+              <div className="space-y-1 text-[12px] max-w-sm">
                 {creditEntries.map((c, i) => (
                   <div key={i} className="flex justify-between">
                     <span className="text-[var(--text-secondary)]">{dayLabel(c.date)}</span>
@@ -282,7 +282,7 @@ export default function EmployeeDetailPage() {
               </div>
             </div>
           )}
-          <div className="text-[var(--text-muted)] text-[10px] mt-3 space-y-0.5">
+          <div className="text-[var(--text-muted)] text-[12px] mt-3 space-y-0.5">
             <div>House Account Credit: owed by the employee — no longer counted as a cash short. Record the paycheck deduction on the House Accounts page.</div>
             <div>Short: cash missing from the drop beyond any house account.</div>
             <div>Over: extra cash in the drop — goes to the store.</div>

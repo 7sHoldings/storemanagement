@@ -117,7 +117,7 @@ export default function NRSSyncModal({ stores, onClose, onSuccess }) {
           </div>
 
           {existingId && (
-            <div className="mt-3 bg-sw-amberD border border-sw-amber/30 rounded-lg p-2.5 text-[11px] text-sw-amber">
+            <div className="mt-3 bg-sw-amberD border border-sw-amber/30 rounded-lg p-2.5 text-[12px] text-sw-amber">
               <div className="font-bold mb-1">An entry already exists for this date.</div>
               <label className="flex items-center gap-2 cursor-pointer">
                 <input

@@ -16,17 +16,15 @@ const STATUS_OPTIONS = [
 
 const statusBadge = v => {
   const styles = {
-    matched: { background: '#3B82F6', color: '#FFFFFF' },
-    over:    { background: '#22C55E', color: '#FFFFFF' },
-    short:   { background: '#EF4444', color: '#FFFFFF' },
-    pending: { background: '#F59E0B', color: '#1A1A2E' },
+    matched: { background: '#EFF6FF', color: '#1D4ED8', label: 'Matched' },
+    over:    { background: '#F0FDF4', color: '#15803D', label: 'Over' },
+    short:   { background: '#FEF2F2', color: '#B91C1C', label: 'Short' },
+    pending: { background: '#FFFBEB', color: '#92400E', label: 'Waiting' },
   };
-  const s = styles[v] || {};
+  const s = styles[v] || { label: v };
   return (
-    <span
-      style={{ ...s, fontSize: 9, fontWeight: 700, padding: '3px 8px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}
-    >
-      {v}
+    <span style={{ background: s.background, color: s.color, fontSize: 12, fontWeight: 600, padding: '2px 8px', borderRadius: 6 }}>
+      {s.label}
     </span>
   );
 };
@@ -335,13 +333,12 @@ export default function CashPage() {
 
   return (<div>
     {/* Header */}
-    <div className="flex items-start justify-between mb-4 flex-wrap gap-3">
+    <div className="flex items-end justify-between mb-5 flex-wrap gap-3">
       <div>
-        <p className="text-[var(--text-muted)] text-[11px] font-semibold uppercase tracking-wider">Cash</p>
-        <h1 className="text-[var(--text-primary)] text-[22px] font-bold tracking-tight">Cash Collection</h1>
-        <p className="text-[var(--text-secondary)] text-[12px]">{singleStoreId ? storeName : 'All Stores'} · Auto short/over vs safe drops</p>
+        <h1 className="text-[var(--text-primary)] text-[22px] font-semibold tracking-tight">Cash Collection</h1>
+        <p className="text-[var(--text-muted)] text-[13px] mt-1">{singleStoreId ? storeName : 'All stores'} · safe drops vs cash you collected</p>
       </div>
-      <Button onClick={tryOpenCollect}>+ Collect</Button>
+      <Button onClick={tryOpenCollect}>Record collection</Button>
     </div>
     {loadError && <Alert type="error">{loadError}</Alert>}
     <StorePills
@@ -375,10 +372,10 @@ export default function CashPage() {
         placeholder="Search… (store, amount, notes)"
         value={search}
         onChange={e => setSearch(e.target.value)}
-        className="!w-full sm:!flex-1 sm:!min-w-[240px] !py-1.5 !text-[11px]"
+        className="!w-full sm:!flex-1 sm:!min-w-[240px] !py-1.5 !text-[12px]"
       />
       {(storeFilter.length > 0 || statusFilter.length > 0 || search) && (
-        <button onClick={() => { setStoreFilter([]); setStatusFilter([]); setSearch(''); }} className="text-[var(--text-muted)] text-[10px] underline">clear</button>
+        <button onClick={() => { setStoreFilter([]); setStatusFilter([]); setSearch(''); }} className="text-[var(--text-muted)] text-[12px] underline">clear</button>
       )}
     </div>
 
@@ -395,40 +392,39 @@ export default function CashPage() {
           : `+${fmt(Math.abs(netShortOver))}`;
       return (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
-          <V2StatCard label="Expected Cash" value={fmt(totalExpected)} sub="From sales" icon="💵" variant="warning" />
+          <V2StatCard label="Expected in safes" value={fmt(totalExpected)} sub="Safe drops in this period" />
           <V2StatCard
             label="Cash in Hand"
             value={fmt(totalCashInHand + gameMachineCash - cashPaidOut - cashTakenOut)}
-            icon="💰"
-            variant="info"
+            variant="default"
             sub={
               <span className="block space-y-0.5">
                 <span className="flex items-baseline justify-between gap-2">
-                  <span className="text-[var(--text-muted)]">💵 Sales</span>
+                  <span className="text-[var(--text-muted)]">Collected</span>
                   <span className="font-semibold tabular-nums text-[var(--text-primary)]">{fmt(totalCashInHand)}</span>
                 </span>
                 <span className="flex items-baseline justify-between gap-2">
-                  <span className="text-[var(--text-muted)]">🎮 Games</span>
+                  <span className="text-[var(--text-muted)]">Game machines</span>
                   <span className="font-semibold tabular-nums text-[var(--text-primary)]">{fmt(gameMachineCash)}</span>
                 </span>
                 {cashPaidOut > 0 && (
                   <span className="flex items-baseline justify-between gap-2">
-                    <span className="text-[var(--text-muted)]">📋 Paid Out</span>
+                    <span className="text-[var(--text-muted)]">Cash expenses paid</span>
                     <span className="font-semibold tabular-nums text-[var(--color-danger)]">−{fmt(cashPaidOut)}</span>
                   </span>
                 )}
                 {cashTakenOut > 0 && (
                   <span className="flex items-baseline justify-between gap-2">
-                    <span className="text-[var(--text-muted)]">💸 Taken Out</span>
+                    <span className="text-[var(--text-muted)]">Profit taken out</span>
                     <span className="font-semibold tabular-nums text-[var(--color-danger)]">−{fmt(cashTakenOut)}</span>
                   </span>
                 )}
               </span>
             }
           />
-          <V2StatCard label="Net Short/Over" value={netValue} sub={`${shortRows.length} short · ${overRows.length} over`} icon="📊" variant={netVariant} />
-          <V2StatCard label="Pending" value={`${pendingRows.length} / ${fmt(pendingExpected)}`} sub={`${pendingRows.length} pending`} icon="⏳" variant="warning" />
-          <V2StatCard label="Matched" value={`${matchedRows.length} / ${fmt(matchedCollected)}`} sub={`${matchedRows.length} reconciled`} icon="✅" variant="success" />
+          <V2StatCard label="Net Short/Over" value={netValue} sub={`${shortRows.length} short · ${overRows.length} over`} variant={netVariant} />
+          <V2StatCard label="Waiting to collect" value={`${pendingRows.length} day${pendingRows.length === 1 ? '' : 's'}`} sub={`${fmt(pendingExpected)} in safes`} />
+          <V2StatCard label="Matched" value={`${matchedRows.length} day${matchedRows.length === 1 ? '' : 's'}`} sub={`${fmt(matchedCollected)} reconciled`} />
         </div>
       );
     })()}
@@ -458,7 +454,7 @@ export default function CashPage() {
               if (Math.abs(n) < 0.01) return <span className="text-[var(--text-muted)] font-bold">{fmt(0)}</span>;
               const cls = n > 0 ? 'text-[var(--color-danger)] font-bold' : 'text-[var(--color-success)] font-bold';
               const prefix = n > 0 ? '−' : '+';
-              return <span className={cls}>{prefix}{fmt(Math.abs(n))}{r.status === 'pending' ? <span className="text-[var(--text-muted)] text-[10px] ml-1">(pending)</span> : null}</span>;
+              return <span className={cls}>{prefix}{fmt(Math.abs(n))}{r.status === 'pending' ? <span className="text-[var(--text-muted)] text-[12px] ml-1">(pending)</span> : null}</span>;
             },
             sortValue: r => Number(r.short_over || 0),
             total: rows => {
@@ -471,11 +467,11 @@ export default function CashPage() {
             <div className="flex items-center justify-end gap-1.5 flex-wrap">
               <button
                 onClick={() => router.push(`/sales?date=${r.date}&store=${r.store_id}`)}
-                className="inline-flex items-center gap-1 px-2.5 rounded-md bg-sw-card2 border border-sw-border text-[var(--text-secondary)] text-[12px] font-semibold hover:bg-sw-card hover:text-[var(--color-info)]"
+                className="inline-flex items-center gap-1 px-2.5 rounded-md bg-white border border-sw-border text-[var(--text-secondary)] text-[13px] font-medium hover:bg-[#F4F4F5]"
                 style={{ minHeight: 32 }}
                 title="Open the matching daily sales entry"
               >
-                📊 Daily Sales
+                View sales
               </button>
               {r.status === 'pending' ? (
                 <>
@@ -483,19 +479,19 @@ export default function CashPage() {
                     <button
                       onClick={() => handleQuickMatch(r)}
                       disabled={matchingId === r.id}
-                      className="inline-flex items-center gap-1 px-3 rounded-md bg-sw-blueD border border-sw-blue/30 text-[var(--color-info)] text-[12px] font-semibold disabled:opacity-50"
+                      className="inline-flex items-center gap-1 px-3 rounded-md bg-[#FAE8FF] border border-[#FAE8FF] text-[#86198F] text-[13px] font-semibold hover:bg-[#F5D0FE] disabled:opacity-50"
                       style={{ minHeight: 32 }}
                       title={`Record collected = expected (${fmt(r.expected)}) in one click`}
                     >
-                      {matchingId === r.id ? '…' : '✓ Match'}
+                      {matchingId === r.id ? '…' : 'Matches drop'}
                     </button>
                   )}
                   <button
                     onClick={() => openEdit(r)}
-                    className="inline-flex items-center gap-1 px-3 rounded-md bg-sw-greenD border border-sw-green/30 text-[var(--color-success)] text-[12px] font-semibold"
+                    className="inline-flex items-center gap-1 px-3 rounded-md bg-white border border-sw-border text-sw-text text-[13px] font-medium hover:bg-[#F4F4F5]"
                     style={{ minHeight: 32 }}
                   >
-                    💰 Collect
+                    Enter amount
                   </button>
                 </>
               ) : (
@@ -516,12 +512,12 @@ export default function CashPage() {
       {visibleRows.length > 0 && (
         <div className="px-3 py-2 border-t border-[var(--border-subtle)] bg-[var(--bg-card)]">
           <div className="flex justify-between items-center flex-wrap gap-2">
-            <span className="text-[var(--text-secondary)] text-[11px] font-bold uppercase tracking-wide">
+            <span className="text-[var(--text-secondary)] text-[12px] font-bold">
               Showing {visibleRows.length} of {recon.length} records
             </span>
             <div className="flex gap-4 items-center">
-              <span className="text-[var(--text-secondary)] text-[11px]">Expected: <span className="text-[var(--text-primary)] font-mono font-bold">{fmt(totalExpected)}</span></span>
-              <span className="text-[var(--text-secondary)] text-[11px]">Collected: <span className="text-[var(--color-info)] font-mono font-bold">{fmt(totalCollected)}</span></span>
+              <span className="text-[var(--text-secondary)] text-[12px]">Expected: <span className="text-[var(--text-primary)] font-mono font-bold">{fmt(totalExpected)}</span></span>
+              <span className="text-[var(--text-secondary)] text-[12px]">Collected: <span className="text-[var(--color-info)] font-mono font-bold">{fmt(totalCollected)}</span></span>
             </div>
           </div>
         </div>
@@ -534,19 +530,19 @@ export default function CashPage() {
         <select
           value={formStoreId}
           onChange={e => setFormStoreId(e.target.value)}
-          style={!formStoreId ? { borderColor: '#F87171' } : undefined}
+          style={!formStoreId ? { borderColor: '#B91C1C' } : undefined}
         >
           <option value="">Select store…</option>
           {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-        {!formStoreId && <div className="text-[var(--color-danger)] text-[11px] font-semibold mt-1">Please select a store</div>}
+        {!formStoreId && <div className="text-[var(--color-danger)] text-[12px] font-semibold mt-1">Please select a store</div>}
       </Field>
       <Field label="Date"><SmartDatePicker value={form.date} onChange={v => setForm({...form, date: v})} /></Field>
 
       {/* Expected breakdown */}
       {expectedBreakdown.total > 0 && (
         <div className="bg-sw-card2 rounded-lg p-3 mb-3 border border-sw-border">
-          <div className="text-[var(--text-secondary)] text-[10px] font-bold uppercase mb-2">Expected Cash</div>
+          <div className="text-[var(--text-secondary)] text-[13px] font-medium mb-2">Expected cash</div>
           <div className="space-y-1 text-[12px]">
             <div className="flex justify-between">
               <span className="text-[var(--text-secondary)]">R1 Safe Drop</span>
@@ -560,7 +556,7 @@ export default function CashPage() {
             )}
             <div className="border-t border-[var(--border-subtle)] pt-1 mt-1 flex justify-between">
               <span className="text-[var(--text-primary)] font-bold">Total Expected</span>
-              <span className="text-[var(--text-primary)] font-mono font-extrabold text-[14px]">{fmt(expectedBreakdown.total)}</span>
+              <span className="text-[var(--text-primary)] font-mono font-semibold text-[14px]">{fmt(expectedBreakdown.total)}</span>
             </div>
           </div>
         </div>
@@ -581,7 +577,7 @@ export default function CashPage() {
               className="shrink-0 px-3 rounded-md bg-sw-blueD border border-sw-blue/30 text-[var(--color-info)] text-[12px] font-semibold whitespace-nowrap"
               title="Fill with the expected amount"
             >
-              ✓ Match ({fmt(expectedBreakdown.total)})
+              Matches drop ({fmt(expectedBreakdown.total)})
             </button>
           )}
         </div>

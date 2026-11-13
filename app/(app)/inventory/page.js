@@ -357,7 +357,7 @@ function CountView({ supabase, profile, isOwner, storeId, stores, departments, b
       </PageHeader>
 
       {count && lastTs && (
-        <div className="text-[11px] text-[var(--text-secondary)] mb-2">
+        <div className="text-[12px] text-[var(--text-secondary)] mb-2">
           Last updated {new Date(lastTs).toLocaleString()}
           {isOwner && <span className="ml-2 italic">(viewing as owner — edits allowed)</span>}
         </div>
@@ -394,7 +394,7 @@ function CountView({ supabase, profile, isOwner, storeId, stores, departments, b
                 >
                   <span className="mr-1">{DEPT_ICONS[d.name] || '📦'}</span>
                   {d.name}
-                  {n > 0 && <span className="ml-2 text-[11px] opacity-80">({n})</span>}
+                  {n > 0 && <span className="ml-2 text-[12px] opacity-80">({n})</span>}
                 </button>
               );
             })}
@@ -457,7 +457,7 @@ function CountView({ supabase, profile, isOwner, storeId, stores, departments, b
 
       {pastCounts.length > 0 && (
         <div className="mt-8">
-          <div className="text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-wider mb-2">Previous Counts</div>
+          <div className="text-[var(--text-secondary)] text-[12px] font-bold mb-2">Previous Counts</div>
           <div className="space-y-2">
             {pastCounts.map(pc => (
               <button
@@ -504,7 +504,7 @@ function DeptPanel({ dept, items, brands = [], flavors = [], onAdd, onUpdate, on
   return (
     <div className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl p-4">
       <div className="flex justify-between items-center mb-3">
-        <div className="text-[var(--text-primary)] font-bold text-sm uppercase tracking-wide">
+        <div className="text-[var(--text-primary)] font-bold text-sm">
           {DEPT_ICONS[dept.name] || '📦'} {dept.name}
         </div>
         {!readonly && !showForm && !editingId && (
@@ -548,9 +548,9 @@ function DeptPanel({ dept, items, brands = [], flavors = [], onAdd, onUpdate, on
                     <span className="ml-3">→ Need to order: <span className="text-[var(--color-warning)] font-semibold">{it.need_to_order}</span></span>
                   )}
                 </div>
-                {it.notes && <div className="text-[11px] text-[var(--text-secondary)] mt-1 italic">{it.notes}</div>}
+                {it.notes && <div className="text-[12px] text-[var(--text-secondary)] mt-1 italic">{it.notes}</div>}
                 {it.created_by && profileMap[it.created_by] && (
-                  <div className="text-[10px] text-[var(--text-secondary)] mt-1">
+                  <div className="text-[12px] text-[var(--text-secondary)] mt-1">
                     added by {profileMap[it.created_by].name || 'Unknown'}
                     {profileMap[it.created_by].role && <span className="opacity-70"> ({profileMap[it.created_by].role})</span>}
                   </div>
@@ -807,7 +807,7 @@ function OwnerView({ supabase, stores, departments }) {
           return (
             <div key={s.id} className="bg-[var(--bg-elevated)] border border-[var(--border-subtle)] rounded-xl p-4">
               <div className="flex items-center gap-2 mb-2">
-                <span className="w-3 h-3 rounded-full" style={{ background: s.color || '#39FF14' }} />
+                <span className="w-3 h-3 rounded-full" style={{ background: s.color || '#A21CAF' }} />
                 <span className="text-[var(--text-primary)] font-bold">{s.name}</span>
               </div>
               <div className="text-[var(--text-secondary)] text-xs mb-1">{statusIcon} {statusText}</div>
@@ -920,7 +920,7 @@ function OwnerCountView({ supabase, count, store, departments, onBack }) {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-[var(--text-secondary)] text-[10px] uppercase tracking-wider text-left border-b border-[var(--border-subtle)]">
+                <tr className="text-[var(--text-secondary)] text-[12px] text-left border-b border-[var(--border-subtle)]">
                   <th className="py-2 pr-2">Brand</th>
                   <th className="py-2 pr-2">Flavor</th>
                   <th className="py-2 pr-2 text-right">Stock</th>
@@ -1072,7 +1072,7 @@ function CombinedOrderView({ supabase, stores, departments, onBack }) {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-[var(--text-secondary)] text-[10px] uppercase tracking-wider text-left border-b border-[var(--border-subtle)]">
+                    <tr className="text-[var(--text-secondary)] text-[12px] text-left border-b border-[var(--border-subtle)]">
                       <th className="py-2 pr-2">Brand</th>
                       <th className="py-2 pr-2">Flavor</th>
                       {stores.map(s => <th key={s.id} className="py-2 pr-2 text-right">{s.name}</th>)}

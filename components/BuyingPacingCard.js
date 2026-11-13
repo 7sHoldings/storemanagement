@@ -48,13 +48,13 @@ export default function BuyingPacingCard({ className = '', start, end, storeIds 
       style={{ borderColor: o.overBudget ? 'rgba(226,75,74,0.3)' : 'var(--border-subtle)' }}
     >
       <div className="mb-3 flex items-center justify-between gap-2 flex-wrap">
-        <h3 className="text-[var(--text-primary)] text-[14px] font-bold">
-          🛒 Buying vs Sales · {data.label}
+        <h3 className="text-[var(--text-primary)] text-[15px] font-semibold">
+          Buying vs sales · {data.label}
           {data.inProgress && (
             <span className="text-[var(--text-muted)] font-normal text-[12px]"> ({data.daysElapsed} of {data.daysInPeriod} days)</span>
           )}
         </h3>
-        <span className="text-[10px] font-bold rounded-full px-2 py-0.5 uppercase tracking-wide" style={{ background: c(o.overBudget) + '22', color: c(o.overBudget) }}>
+        <span className="text-[12px] font-bold rounded-full px-2 py-0.5" style={{ background: c(o.overBudget) + '22', color: c(o.overBudget) }}>
           {o.overBudget ? 'Over target' : 'On target'}
         </span>
       </div>
@@ -68,7 +68,7 @@ export default function BuyingPacingCard({ className = '', start, end, storeIds 
 
       {data.inProgress && (
       <div className="rounded-lg bg-[var(--bg-card)] border border-[var(--border-subtle)] p-3 text-[12px]">
-        <p className="text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-wider mb-1">Projected for the full period (current pace)</p>
+        <p className="text-[var(--text-muted)] text-[12px] font-bold mb-1">Projected for the full period (current pace)</p>
         <p className="text-[var(--text-secondary)]">
           Sales ~<span className="text-[var(--text-primary)] font-semibold tabular-nums">{fmt(o.projSales)}</span>
           {' · '}Buying ~<span className="font-semibold tabular-nums" style={{ color: c(o.projOverBudget) }}>{fmt(o.projBuying)}</span>
@@ -105,9 +105,9 @@ export default function BuyingPacingCard({ className = '', start, end, storeIds 
 function Stat({ label, value, sub, color }) {
   return (
     <div>
-      <p className="text-[var(--text-muted)] text-[10px] font-bold uppercase tracking-wider">{label}</p>
-      <p className="text-[18px] font-bold tabular-nums" style={{ color: color || 'var(--text-primary)' }}>{value}</p>
-      {sub && <p className="text-[var(--text-muted)] text-[10px]">{sub}</p>}
+      <p className="text-[var(--text-muted)] text-[13px] font-medium">{label}</p>
+      <p className="text-[20px] font-semibold tabular-nums" style={{ color: color || 'var(--text-primary)' }}>{value}</p>
+      {sub && <p className="text-[var(--text-muted)] text-[12px]">{sub}</p>}
     </div>
   );
 }

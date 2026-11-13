@@ -143,20 +143,20 @@ export default function ActivityPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${style.bg} ${style.text} uppercase tracking-wide`}>
+                      <span className={`text-[12px] font-bold px-1.5 py-0.5 rounded ${style.bg} ${style.text}`}>
                         {style.label}
                       </span>
-                      <span className="text-[var(--text-secondary)] text-[10px] font-semibold uppercase tracking-wide">
+                      <span className="text-[var(--text-secondary)] text-[12px] font-semibold">
                         {ENTITY_LABEL[r.entity_type] || r.entity_type}
                       </span>
                       {r.store_name && (
-                        <span className="text-[var(--text-muted)] text-[10px]">· {r.store_name}</span>
+                        <span className="text-[var(--text-muted)] text-[12px]">· {r.store_name}</span>
                       )}
                     </div>
                     <div className="text-[var(--text-primary)] text-[13px] font-medium break-words">
                       {r.description}
                     </div>
-                    <div className="text-[var(--text-muted)] text-[11px] mt-1">
+                    <div className="text-[var(--text-muted)] text-[12px] mt-1">
                       <span className="text-[var(--text-secondary)] font-semibold">{r.user_name}</span>
                       <span className="capitalize"> ({r.user_role})</span>
                       <span> · {fmtTime(r.created_at)}</span>
@@ -164,13 +164,13 @@ export default function ActivityPage() {
                     {hasMeta && (
                       <button
                         onClick={() => setExpanded(isOpen ? null : r.id)}
-                        className="mt-2 text-[var(--color-info)] text-[11px] underline"
+                        className="mt-2 text-[var(--color-info)] text-[12px] underline"
                       >
                         {isOpen ? 'Hide details' : 'Show deleted data'}
                       </button>
                     )}
                     {hasMeta && isOpen && (
-                      <pre className="mt-2 text-[10px] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-lg p-2 overflow-auto text-[var(--text-secondary)] max-h-60">
+                      <pre className="mt-2 text-[12px] bg-[var(--bg-card)] border border-[var(--border-subtle)] rounded-lg p-2 overflow-auto text-[var(--text-secondary)] max-h-60">
 {JSON.stringify(r.metadata, null, 2)}
                       </pre>
                     )}

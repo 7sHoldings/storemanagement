@@ -82,7 +82,7 @@ export default function NRSSyncHistoryPage() {
   return (
     <div>
       <PageHeader title="🤖 7S Agent Logs" subtitle={`${filtered.length} sync records`}>
-        <Button variant="secondary" onClick={load} className="!text-[11px]">Refresh</Button>
+        <Button variant="secondary" onClick={load} className="!text-[12px]">Refresh</Button>
         <Button onClick={manualRun} disabled={running}>
           {running ? 'Running…' : 'Run Sync Now'}
         </Button>
@@ -97,23 +97,23 @@ export default function NRSSyncHistoryPage() {
       )}
 
       <div className="grid grid-cols-3 gap-2.5 mb-3">
-        <StatCard label="Successful" value={stats.success} icon="✅" color="#34D399" />
-        <StatCard label="Failed" value={stats.failed} icon="❌" color="#F87171" />
-        <StatCard label="Skipped" value={stats.skipped} icon="⏭️" color="#FBBF24" />
+        <StatCard label="Successful" value={stats.success} icon="✅" color="#15803D" />
+        <StatCard label="Failed" value={stats.failed} icon="❌" color="#B91C1C" />
+        <StatCard label="Skipped" value={stats.skipped} icon="⏭️" color="#B45309" />
       </div>
 
       <DateBar preset={preset} onPreset={selectPreset} startDate={range.start} endDate={range.end} onStartChange={setStart} onEndChange={setEnd} />
 
       <div className="bg-[var(--bg-elevated)] rounded-lg p-2.5 border border-[var(--border-subtle)] mb-3 flex gap-2 flex-wrap items-center">
-        <label className="text-[var(--text-secondary)] text-[10px] font-bold uppercase">Status</label>
-        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="!w-auto !min-w-[140px] !py-1.5 !text-[11px]">
+        <label className="text-[var(--text-secondary)] text-[12px] font-bold uppercase">Status</label>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} className="!w-auto !min-w-[140px] !py-1.5 !text-[12px]">
           <option value="">All</option>
           <option value="success">Success</option>
           <option value="failed">Failed</option>
           <option value="skipped">Skipped</option>
         </select>
-        <label className="text-[var(--text-secondary)] text-[10px] font-bold uppercase">Store</label>
-        <select value={storeFilter} onChange={e => setStoreFilter(e.target.value)} className="!w-auto !min-w-[160px] !py-1.5 !text-[11px]">
+        <label className="text-[var(--text-secondary)] text-[12px] font-bold uppercase">Store</label>
+        <select value={storeFilter} onChange={e => setStoreFilter(e.target.value)} className="!w-auto !min-w-[160px] !py-1.5 !text-[12px]">
           <option value="">All Stores</option>
           {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
@@ -127,47 +127,47 @@ export default function NRSSyncHistoryPage() {
             <div key={date} className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
               <div className="px-3 py-2 bg-[var(--bg-card)] border-b border-[var(--border-subtle)] flex justify-between">
                 <span className="text-[var(--text-primary)] text-[13px] font-bold">{dayLabel(date)}</span>
-                <span className="text-[var(--text-muted)] text-[11px]">{byDate[date].length} entries</span>
+                <span className="text-[var(--text-muted)] text-[12px]">{byDate[date].length} entries</span>
               </div>
               {byDate[date].map(l => (
                 <div key={l.id} className="px-3 py-2 border-b border-[var(--border-subtle)] last:border-b-0">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase ${STATUS_STYLE[l.status] || 'bg-[var(--bg-card)] text-[var(--text-muted)]'}`}>
+                      <span className={`text-[12px] font-bold px-2 py-0.5 rounded uppercase ${STATUS_STYLE[l.status] || 'bg-[var(--bg-card)] text-[var(--text-muted)]'}`}>
                         {l.status}
                       </span>
                       <span className="text-[var(--text-primary)] text-[12px] font-semibold truncate">{storeName(l.store_id)}</span>
                       {l.created_daily_sales_id && (
-                        <span className="text-[var(--text-muted)] text-[10px]">ID: {l.created_daily_sales_id.slice(0, 8)}…</span>
+                        <span className="text-[var(--text-muted)] text-[12px]">ID: {l.created_daily_sales_id.slice(0, 8)}…</span>
                       )}
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <span className="text-[var(--text-muted)] text-[10px]">{new Date(l.created_at).toLocaleTimeString()}</span>
+                      <span className="text-[var(--text-muted)] text-[12px]">{new Date(l.created_at).toLocaleTimeString()}</span>
                       <button
                         onClick={() => setExpanded(expanded === l.id ? null : l.id)}
-                        className="text-[var(--color-info)] text-[10px] underline"
+                        className="text-[var(--color-info)] text-[12px] underline"
                       >
                         {expanded === l.id ? 'Hide' : 'Details'}
                       </button>
                     </div>
                   </div>
-                  {l.error_message && <div className="text-[var(--color-danger)] text-[11px] mt-1">{l.error_message}</div>}
+                  {l.error_message && <div className="text-[var(--color-danger)] text-[12px] mt-1">{l.error_message}</div>}
                   {expanded === l.id && (
                     <div className="mt-2 space-y-2">
                       {l.error_detail?.hint && (
-                        <div className="p-2 rounded bg-sw-amberD text-[var(--color-warning)] text-[11px]">
+                        <div className="p-2 rounded bg-sw-amberD text-[var(--color-warning)] text-[12px]">
                           {l.error_detail.hint}
                         </div>
                       )}
                       {l.error_detail && (
-                        <div className="text-[10px] text-[var(--text-secondary)] flex flex-wrap gap-x-4 gap-y-1">
+                        <div className="text-[12px] text-[var(--text-secondary)] flex flex-wrap gap-x-4 gap-y-1">
                           {l.error_detail.label && <span>Endpoint: <b className="text-[var(--text-primary)]">{l.error_detail.method || 'GET'} {l.error_detail.label}</b></span>}
                           {l.error_detail.status != null && <span>Status: <b className="text-[var(--text-primary)]">{l.error_detail.status}</b></span>}
                           {l.error_detail.attempts != null && <span>Attempts: <b className="text-[var(--text-primary)]">{l.error_detail.attempts}</b></span>}
                         </div>
                       )}
                       {l.error_detail?.tries?.length > 0 && (
-                        <div className="text-[10px] text-[var(--text-muted)]">
+                        <div className="text-[12px] text-[var(--text-muted)]">
                           {l.error_detail.tries.map(t => (
                             <div key={t.attempt}>
                               Attempt {t.attempt}: {t.error || `HTTP ${t.status}${t.body ? ` — ${t.body}` : ' — empty response body'}`}
@@ -176,12 +176,12 @@ export default function NRSSyncHistoryPage() {
                         </div>
                       )}
                       {l.nrs_response && (
-                        <pre className="p-2 bg-black/30 rounded text-[10px] text-[var(--text-muted)] overflow-auto max-h-[300px]">
+                        <pre className="p-2 bg-black/30 rounded text-[12px] text-[var(--text-muted)] overflow-auto max-h-[300px]">
                           {JSON.stringify(l.nrs_response, null, 2)}
                         </pre>
                       )}
                       {!l.nrs_response && !l.error_detail && (
-                        <div className="text-[var(--text-muted)] text-[11px] italic">
+                        <div className="text-[var(--text-muted)] text-[12px] italic">
                           No further detail was recorded for this entry.
                         </div>
                       )}

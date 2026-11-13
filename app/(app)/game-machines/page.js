@@ -207,7 +207,7 @@ export default function GameMachinesPage() {
   return (
     <div>
       <PageHeader title="Game Machines" subtitle="Cash collected from in-store game machines — separate from sales revenue, available for profit take-out">
-        <Button variant="secondary" onClick={exportCSV} className="!text-[11px] mr-2">CSV</Button>
+        <Button variant="secondary" onClick={exportCSV} className="!text-[12px] mr-2">CSV</Button>
         <Button onClick={openAdd}>+ Collect</Button>
       </PageHeader>
 
@@ -238,7 +238,7 @@ export default function GameMachinesPage() {
       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] overflow-hidden mb-4">
         <div className="px-3 py-2 border-b border-[var(--border-subtle)] flex justify-between items-center">
           <h3 className="text-[var(--text-primary)] text-xs font-bold">Collections · {range.start} → {range.end}</h3>
-          <span className="text-[var(--text-muted)] text-[10px]">
+          <span className="text-[var(--text-muted)] text-[12px]">
             Total {fmt(stats.totalRange)}
           </span>
         </div>
@@ -262,7 +262,7 @@ export default function GameMachinesPage() {
                   title={`View ${urls.length} receipt${urls.length > 1 ? 's' : ''}`}
                   className="inline-flex items-center gap-0.5 text-[var(--color-info)]"
                 >
-                  <span className="text-base">📷</span><span className="text-[10px] font-bold">{urls.length}</span>
+                  <span className="text-base">📷</span><span className="text-[12px] font-bold">{urls.length}</span>
                 </button>
               );
             } },
@@ -334,7 +334,7 @@ export default function GameMachinesPage() {
                         className="block w-full aspect-square rounded-lg overflow-hidden border border-sw-blue/40 bg-black/20">
                         <img src={p.preview} alt="New receipt" className="w-full h-full object-cover" />
                       </button>
-                      <span className="absolute top-1 left-1 bg-sw-blueD text-[var(--color-info)] border border-sw-blue/40 text-[9px] font-bold px-1 rounded">NEW</span>
+                      <span className="absolute top-1 left-1 bg-sw-blueD text-[var(--color-info)] border border-sw-blue/40 text-[12px] font-bold px-1 rounded">NEW</span>
                       <button type="button" onClick={() => removePendingReceipt(p.id)} title="Remove"
                         className="absolute top-1 right-1 w-7 h-7 rounded-md bg-sw-redD border border-sw-red/50 text-[var(--color-danger)] text-sm flex items-center justify-center">✕</button>
                     </div>

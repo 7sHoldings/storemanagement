@@ -167,12 +167,12 @@ export default function InvoicesPage() {
           placeholder="Search invoices… (vendor, store, amount, notes)"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="!w-full sm:!flex-1 sm:!min-w-[260px] !py-1.5 !text-[11px]"
+          className="!w-full sm:!flex-1 sm:!min-w-[260px] !py-1.5 !text-[12px]"
         />
         {selected.size > 0 && (
           <button
             onClick={() => setConfirmBulk(true)}
-            className="text-[var(--color-danger)] text-[11px] font-bold border border-sw-red/40 rounded px-3 py-1.5 bg-sw-redD"
+            className="text-[var(--color-danger)] text-[12px] font-bold border border-sw-red/40 rounded px-3 py-1.5 bg-sw-redD"
           >
             🗑 Delete Selected ({selected.size})
           </button>
@@ -194,7 +194,7 @@ export default function InvoicesPage() {
                   ${vendorFilter.length === 0 ? 'bg-sw-blueD text-[var(--color-info)] border-sw-blue/30' : 'bg-[var(--bg-card)] text-[var(--text-primary)] border-[var(--border-subtle)] hover:border-sw-blue/30'}`}
               >
                 <span className="text-[12px] font-semibold truncate">📁 All Vendors</span>
-                <span className="text-[10px] text-[var(--text-secondary)] flex-shrink-0">{invoices.length}</span>
+                <span className="text-[12px] text-[var(--text-secondary)] flex-shrink-0">{invoices.length}</span>
               </button>
               {vendorGroups.map(g => {
                 const active = vendorFilter.includes(g.name);
@@ -206,7 +206,7 @@ export default function InvoicesPage() {
                       ${active ? 'bg-sw-blueD text-[var(--color-info)] border-sw-blue/30' : 'bg-[var(--bg-card)] text-[var(--text-primary)] border-[var(--border-subtle)] hover:border-sw-blue/30'}`}
                   >
                     <span className="text-[12px] font-semibold truncate">📁 {g.name}</span>
-                    <span className="text-[10px] text-[var(--text-secondary)] flex-shrink-0">{g.list.length}</span>
+                    <span className="text-[12px] text-[var(--text-secondary)] flex-shrink-0">{g.list.length}</span>
                   </button>
                 );
               })}
@@ -255,7 +255,7 @@ export default function InvoicesPage() {
                         {(/\.pdf($|\?)/i.test(inv.image_url || '') || inv.parse_source) ? (
                           <div className="flex flex-col items-center justify-center gap-1 text-[var(--text-muted)]">
                             <span className="text-4xl">📄</span>
-                            <span className="text-[10px] font-mono truncate max-w-[90%] px-1">{inv.invoice_number || 'PDF'}</span>
+                            <span className="text-[12px] font-mono truncate max-w-[90%] px-1">{inv.invoice_number || 'PDF'}</span>
                           </div>
                         ) : (
                           <img
@@ -267,10 +267,10 @@ export default function InvoicesPage() {
                         )}
                       </div>
                       <div className="p-2 space-y-0.5">
-                        <div className="text-[var(--text-primary)] text-[11px] font-bold truncate">{inv.vendor_name || 'Unknown'}</div>
-                        <div className="text-[var(--text-muted)] text-[10px] truncate">{inv.stores?.name || '—'}</div>
-                        <div className="text-[var(--text-secondary)] text-[10px]">{utilDate(inv.date)}</div>
-                        <div className="text-[var(--color-warning)] text-[11px] font-mono font-bold">{fmtMoney(inv.amount)}</div>
+                        <div className="text-[var(--text-primary)] text-[12px] font-bold truncate">{inv.vendor_name || 'Unknown'}</div>
+                        <div className="text-[var(--text-muted)] text-[12px] truncate">{inv.stores?.name || '—'}</div>
+                        <div className="text-[var(--text-secondary)] text-[12px]">{utilDate(inv.date)}</div>
+                        <div className="text-[var(--color-warning)] text-[12px] font-mono font-bold">{fmtMoney(inv.amount)}</div>
                       </div>
                     </button>
                     <button

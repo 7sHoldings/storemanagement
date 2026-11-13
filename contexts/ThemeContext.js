@@ -1,45 +1,17 @@
 'use client';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect } from 'react';
 
-const ThemeContext = createContext({ theme: 'dark', resolvedTheme: 'dark', changeTheme: () => {} });
+// The app has one look: the light 7s Vape Love theme. This provider stays so
+// existing useTheme() callers keep working, but it always reports light.
+const ThemeContext = createContext({ theme: 'light', resolvedTheme: 'light', changeTheme: () => {} });
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState('dark');
-  const [resolvedTheme, setResolvedTheme] = useState('dark');
-
   useEffect(() => {
-    const saved = localStorage.getItem('7s-theme') || 'dark';
-    setTheme(saved);
+    document.documentElement.setAttribute('data-theme', 'light');
+    try { localStorage.removeItem('7s-theme'); } catch { /* storage unavailable */ }
   }, []);
-
-  useEffect(() => {
-    let actual = theme;
-    if (theme === 'auto') {
-      actual = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    }
-    setResolvedTheme(actual);
-    document.documentElement.setAttribute('data-theme', actual);
-  }, [theme]);
-
-  useEffect(() => {
-    if (theme !== 'auto') return;
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = (e) => {
-      const actual = e.matches ? 'dark' : 'light';
-      setResolvedTheme(actual);
-      document.documentElement.setAttribute('data-theme', actual);
-    };
-    mq.addEventListener('change', handler);
-    return () => mq.removeEventListener('change', handler);
-  }, [theme]);
-
-  const changeTheme = (t) => {
-    setTheme(t);
-    localStorage.setItem('7s-theme', t);
-  };
-
   return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, changeTheme }}>
+    <ThemeContext.Provider value={{ theme: 'light', resolvedTheme: 'light', changeTheme: () => {} }}>
       {children}
     </ThemeContext.Provider>
   );

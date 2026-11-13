@@ -69,7 +69,7 @@ export default function ComparePage() {
   return (
     <div>
       <div className="mb-4">
-        <p className="text-[var(--text-muted)] text-[11px] font-semibold uppercase tracking-wider">Analytics</p>
+        <p className="text-[var(--text-muted)] text-[12px] font-semibold">Analytics</p>
         <h1 className="text-[var(--text-primary)] text-[22px] font-bold tracking-tight">Compare Stores</h1>
         <p className="text-[var(--text-secondary)] text-[12px]">{range.start} to {range.end}</p>
       </div>
@@ -89,14 +89,14 @@ export default function ComparePage() {
           {best && worst && best.id !== worst.id && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
               <div className="bg-sw-greenD border border-sw-green/30 rounded-xl p-4">
-                <div className="text-[var(--color-success)] text-[10px] font-bold uppercase tracking-wide mb-1">🏆 Best Performer</div>
-                <div className="text-[var(--text-primary)] text-base font-extrabold">{best.name}</div>
-                <div className="text-[var(--text-secondary)] text-[11px] mt-1">Net profit: <span className="text-[var(--color-success)] font-mono font-bold">{fmt(best.net)}</span> · Margin: {best.margin.toFixed(1)}%</div>
+                <div className="text-[var(--color-success)] text-[12px] font-bold mb-1">🏆 Best Performer</div>
+                <div className="text-[var(--text-primary)] text-base font-semibold">{best.name}</div>
+                <div className="text-[var(--text-secondary)] text-[12px] mt-1">Net profit: <span className="text-[var(--color-success)] font-mono font-bold">{fmt(best.net)}</span> · Margin: {best.margin.toFixed(1)}%</div>
               </div>
               <div className="bg-sw-redD border border-sw-red/30 rounded-xl p-4">
-                <div className="text-[var(--color-danger)] text-[10px] font-bold uppercase tracking-wide mb-1">⚠️ Needs Attention</div>
-                <div className="text-[var(--text-primary)] text-base font-extrabold">{worst.name}</div>
-                <div className="text-[var(--text-secondary)] text-[11px] mt-1">Net profit: <span className="text-[var(--color-danger)] font-mono font-bold">{fmt(worst.net)}</span> · Margin: {worst.margin.toFixed(1)}%</div>
+                <div className="text-[var(--color-danger)] text-[12px] font-bold mb-1">⚠️ Needs Attention</div>
+                <div className="text-[var(--text-primary)] text-base font-semibold">{worst.name}</div>
+                <div className="text-[var(--text-secondary)] text-[12px] mt-1">Net profit: <span className="text-[var(--color-danger)] font-mono font-bold">{fmt(worst.net)}</span> · Margin: {worst.margin.toFixed(1)}%</div>
               </div>
             </div>
           )}
@@ -110,10 +110,10 @@ export default function ComparePage() {
                   <div key={r.id} className="flex items-center gap-2">
                     <div className="w-40 flex items-center gap-1.5 flex-shrink-0">
                       <span className="w-2 h-2 rounded-sm" style={{ background: r.color }} />
-                      <span className="text-[var(--text-primary)] text-[11px] font-semibold truncate">{r.name}</span>
+                      <span className="text-[var(--text-primary)] text-[12px] font-semibold truncate">{r.name}</span>
                     </div>
-                    <div className="flex-1"><Bar value={r.revenue} max={maxRev} color="#34D399" /></div>
-                    <span className="w-20 text-right text-[var(--color-success)] font-mono text-[11px] font-bold">{fmt(r.revenue)}</span>
+                    <div className="flex-1"><Bar value={r.revenue} max={maxRev} color="#15803D" /></div>
+                    <span className="w-20 text-right text-[var(--color-success)] font-mono text-[12px] font-bold">{fmt(r.revenue)}</span>
                   </div>
                 ))}
               </div>
@@ -127,10 +127,10 @@ export default function ComparePage() {
                   <div key={r.id} className="flex items-center gap-2">
                     <div className="w-40 flex items-center gap-1.5 flex-shrink-0">
                       <span className="w-2 h-2 rounded-sm" style={{ background: r.color }} />
-                      <span className="text-[var(--text-primary)] text-[11px] font-semibold truncate">{r.name}</span>
+                      <span className="text-[var(--text-primary)] text-[12px] font-semibold truncate">{r.name}</span>
                     </div>
                     <div className="flex-1"><Bar value={r.expenses} max={maxExp} color="#FBBF2488" /></div>
-                    <span className="w-20 text-right text-[var(--color-warning)] font-mono text-[11px]">{fmt(r.expenses)}</span>
+                    <span className="w-20 text-right text-[var(--color-warning)] font-mono text-[12px]">{fmt(r.expenses)}</span>
                   </div>
                 ))}
               </div>
@@ -144,10 +144,10 @@ export default function ComparePage() {
                   <div key={r.id} className="flex items-center gap-2">
                     <div className="w-40 flex items-center gap-1.5 flex-shrink-0">
                       <span className="w-2 h-2 rounded-sm" style={{ background: r.color }} />
-                      <span className="text-[var(--text-primary)] text-[11px] font-semibold truncate">{r.name}</span>
+                      <span className="text-[var(--text-primary)] text-[12px] font-semibold truncate">{r.name}</span>
                     </div>
                     <div className="flex-1"><Bar value={r.net} max={maxNet} color="#39FF14aa" negative={r.net < 0} /></div>
-                    <span className={`w-20 text-right font-mono text-[11px] font-bold ${r.net >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
+                    <span className={`w-20 text-right font-mono text-[12px] font-bold ${r.net >= 0 ? 'text-[var(--color-success)]' : 'text-[var(--color-danger)]'}`}>
                       {r.net >= 0 ? '' : '-'}{fmt(Math.abs(r.net))}
                     </span>
                   </div>

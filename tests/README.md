@@ -30,7 +30,6 @@ tests/
 │   └── utils.test.js
 └── components/              # UI component tests (render + interact)
     ├── auth/
-    │   ├── LogoBadge.test.jsx
     │   └── LoginForm.test.jsx
     ├── dashboard/
     │   ├── AlertCard.test.jsx
@@ -89,7 +88,7 @@ own); the helpers and isolated UI components are mostly at 90–100%.
 - `components/dashboard/shared/{KpiCard, AlertCard, StorePill}`
 - `components/daily-sales/{DailySalesHeader, DailySalesKpis, EntryCard, EntriesCardList, ViewModeToggle}`
 - `components/daily-sales/shared/StatusIndicator`
-- `components/auth/{LoginForm, LogoBadge}`
+- `components/auth/LoginForm, components/BrandLogo`
 - `app/api/cron/wednesday-buying-report`
 
 ### Still uncovered — clear punch-list for the next round
@@ -103,8 +102,7 @@ own); the helpers and isolated UI components are mostly at 90–100%.
   `components/dashboard/shared/DateRangeSegmented` (debounce timing),
   `components/dashboard/{DashboardFilters, WeeklyChartCard}`,
   `components/daily-sales/{DailySalesFilters, FiltersPopover}`,
-  `components/layout/SidebarFooter` (uses ThemeToggle),
-  `components/{Sidebar, AppShell, AuthProvider, ThemeToggle, NrsStatusBar,
+  `components/{layout/TopNav, AppShell, AuthProvider, NrsStatusBar,
   NRSSyncModal, ImageGallery}`.
 - **Big shared `components/UI.js`**: `DataTable`, `MultiSelect`, `Modal`,
   `TrendChart`, `SmartDatePicker`, `StorePills`, `DateBar`,
