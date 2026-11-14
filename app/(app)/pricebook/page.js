@@ -3,6 +3,8 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { PageHeader, Button, Alert, Loading, EmptyState, ConfirmModal, Field, Modal } from '@/components/UI';
 import BarcodeScanModal from '@/components/BarcodeScanner';
+import { decodeBarcodeFromFile } from '@/components/barcodeImage';
+import { Camera, ImagePlus, X as XIcon, Loader2 } from 'lucide-react';
 import MultiStorePanel from '@/components/pricebook/MultiStorePanel';
 import CatalogPanel from '@/components/pricebook/CatalogPanel';
 import DepartmentsPanel from '@/components/pricebook/DepartmentsPanel';
@@ -661,6 +663,18 @@ function AddItemPanel({ stores }) {
   const lookedUp = useRef('');
   const upcRef = useRef(null);
 
+  // ── Barcodes from photos ────────────────────────────────────
+  // One photo behaves like Scan. Several photos (e.g. flavours of the same
+  // product) become a list of items that share department, cost, stores and
+  // prices, and are all added in one go.
+  const photoInputRef = useRef(null);
+  const [batch, setBatch] = useState(null); // null | Array<row>
+  const [batchSubmitting, setBatchSubmitting] = useState(false);
+  const [photoNote, setPhotoNote] = useState('');
+  const rowSeq = useRef(0);
+  const deptRef = useRef('');
+  deptRef.current = dept;
+
   // Load every store's departments once, merged by name.
   useEffect(() => {
     (async () => {
@@ -748,6 +762,103 @@ function AddItemPanel({ stores }) {
     }
   }, [applyStoreResults]);
 
+  // Look one batch row up: fills its name/size and records which stores
+  // already carry it. The first department found becomes the shared one.
+  const lookupRow = useCallback(async (key, code) => {
+    const u = String(code || '').trim();
+    if (!u) return;
+    setBatch(b => b && b.map(r => r.key === key ? { ...r, lookup: 'searching' } : r));
+    try {
+      const res = await fetch(`/api/pricebook/lookup?upc=${encodeURIComponent(u)}`);
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Lookup failed');
+      const list = Array.isArray(json.stores) ? json.stores : [];
+      const status = Object.fromEntries(list.map(x => [x.store_id, { status: x.status, cents: x.cents }]));
+      setBatch(b => b && b.map(r => r.key !== key || r.upc.trim() !== u ? r : {
+        ...r,
+        lookup: json.found ? 'found' : 'notfound',
+        source: json.found ? (json.source === 'store' ? json.foundInStore : 'product database') : '',
+        name: r.name.trim() ? r.name : (json.name || ''),
+        size: r.size.trim() ? r.size : (json.size || ''),
+        storeStatus: status,
+      }));
+      if (json.found && json.source === 'store' && (json.dept || json.deptLabel)) {
+        if (!deptRef.current) setFoundDept({ dept: json.dept, label: json.deptLabel, store: json.foundInStore });
+      }
+      if (json.found && json.costCents) setCost(c => c.trim() ? c : (json.costCents / 100).toFixed(2));
+      if (Number.isFinite(json.suggestedCents)) {
+        const fill = (json.suggestedCents / 100).toFixed(2);
+        setPrices(p => (Object.values(p).some(v => String(v ?? '').trim()) ? p : Object.fromEntries(stores.map(st => [st.id, fill]))));
+      }
+    } catch {
+      setBatch(b => b && b.map(r => r.key === key ? { ...r, lookup: 'error' } : r));
+    }
+  }, [stores]);
+
+  const updateRow = (key, patch) => setBatch(b => b && b.map(r => r.key === key ? { ...r, ...patch } : r));
+  const removeRow = (key) => setBatch(b => {
+    const left = (b || []).filter(r => r.key !== key);
+    return left.length ? left : null;
+  });
+
+  const handlePhotos = async (fileList) => {
+    const files = Array.from(fileList || []).filter(f => f.type.startsWith('image/') || /\.(heic|heif)$/i.test(f.name));
+    if (photoInputRef.current) photoInputRef.current.value = '';
+    if (!files.length) return;
+    setPhotoNote(''); setResult(null);
+
+    // A single photo with no list open works exactly like Scan.
+    if (files.length === 1 && !batch) {
+      setLookup({ status: 'searching', msg: 'Reading barcode from photo…' });
+      try {
+        const hit = await decodeBarcodeFromFile(files[0]);
+        if (!hit?.upc) {
+          setLookup({ status: 'notfound', msg: 'Couldn’t read a barcode in that photo. Try a closer, sharper photo, or type the number.' });
+          return;
+        }
+        setUpc(hit.upc); lookedUp.current = ''; resetStoreStatus();
+        lookupUpc(hit.upc);
+      } catch (e) {
+        setLookup({ status: 'notfound', msg: e.message || 'Couldn’t open that photo.' });
+      }
+      return;
+    }
+
+    // Several photos: build (or extend) the list. An item already typed in
+    // the single form joins the list as its first row.
+    const seed = !batch && upc.trim()
+      ? [{ key: ++rowSeq.current, preview: '', fileName: 'Typed', read: 'read', upc: upc.trim(), name, size, lookup: lookup?.status === 'found' ? 'found' : 'idle', storeStatus: { ...storeStatus }, error: '' }]
+      : [];
+    const added = files.map(f => ({ key: ++rowSeq.current, preview: URL.createObjectURL(f), fileName: f.name, read: 'reading', upc: '', name: '', size: '', lookup: 'idle', storeStatus: {}, error: '' }));
+    setBatch(b => [...(b || seed), ...added]);
+    if (!batch && upc.trim()) { setUpc(''); setName(''); setSize(''); lookedUp.current = ''; setLookup(null); setStoreStatus({}); }
+
+    // Barcodes already in the list (or read earlier in this upload).
+    const known = new Set([...(batch || []), ...seed].map(r => r.upc.trim()).filter(Boolean));
+    let dupes = 0;
+    for (let i = 0; i < files.length; i++) {
+      const row = added[i];
+      let hit = null;
+      try { hit = await decodeBarcodeFromFile(files[i]); } catch { /* unreadable image */ }
+      const code = hit?.upc || '';
+      if (code && known.has(code)) {
+        dupes++;
+        if (row.preview) URL.revokeObjectURL(row.preview);
+        setBatch(b => { const left = (b || []).filter(r => r.key !== row.key); return left.length ? left : null; });
+        continue;
+      }
+      if (code) known.add(code);
+      setBatch(b => b && b.map(r => r.key === row.key ? { ...r, read: code ? 'read' : 'unread', upc: code } : r));
+      if (code) lookupRow(row.key, code);
+    }
+    if (dupes) setPhotoNote(`${dupes} photo${dupes === 1 ? ' had' : 's had'} a barcode already in the list and ${dupes === 1 ? 'was' : 'were'} skipped.`);
+  };
+
+  const clearBatch = () => {
+    (batch || []).forEach(r => r.preview && URL.revokeObjectURL(r.preview));
+    setBatch(null); setPhotoNote('');
+  };
+
   const toggleSel = (id) => storeStatus[id]?.status !== 'has' && setSel(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const setPrice = (id, v) => setPrices(p => ({ ...p, [id]: v }));
   // Every ticked store plus every store that already carries the item, so
@@ -790,6 +901,62 @@ function AddItemPanel({ stores }) {
     selectedStores.length ? `Add to ${selectedStores.length} store${selectedStores.length === 1 ? '' : 's'}` : '',
     changes.length ? `${selectedStores.length ? 'update' : 'Update'} ${changes.length} price${changes.length === 1 ? '' : 's'}` : '',
   ].filter(Boolean).join(' · ') || 'Add to stores';
+
+  // ── Batch: who gets each item, and whether the list can be added ──
+  const batchRows = batch || [];
+  const rowTargets = (r) => stores.filter(s => sel.has(s.id) && r.storeStatus?.[s.id]?.status !== 'has');
+  const batchBusy = batchRows.some(r => r.read === 'reading' || r.lookup === 'searching');
+  const batchSelected = stores.filter(s => sel.has(s.id));
+  const batchDeptMissing = deptRow ? batchSelected.filter(s => deptRow.missingIds.includes(s.id)) : [];
+  const batchCanSubmit = batchRows.length > 0 && !batchBusy && !!deptRow && batchDeptMissing.length === 0
+    && batchSelected.length > 0 && batchSelected.every(s => validPrice(prices[s.id]))
+    && batchRows.every(r => r.upc.trim() && r.name.trim())
+    && batchRows.some(r => rowTargets(r).length > 0);
+  const batchNew = batchRows.filter(r => rowTargets(r).length > 0).length;
+
+  // Adds every row to the ticked stores that don't carry it yet, one row at
+  // a time through the same endpoint as a single item. Stores that already
+  // carry a row's UPC are skipped for that row (their price is left alone).
+  const submitBatch = async () => {
+    setBatchSubmitting(true); setResult(null);
+    const summary = { items: 0, stores: 0, skipped: 0, failed: 0, errors: [] };
+    const failedKeys = new Set();
+    for (const r of batchRows) {
+      const targets = rowTargets(r);
+      if (!targets.length) { summary.skipped++; continue; }
+      try {
+        const res = await fetch('/api/pricebook/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            item: { upc: r.upc.trim(), name: r.name.trim(), size: r.size.trim(), dept: deptRow.dept, deptLabel: deptRow.label, costCents: cost ? Math.round(parseFloat(cost) * 100) : 0 },
+            targets: targets.map(s => ({ store_id: s.id, cents: Math.round(parseFloat(prices[s.id]) * 100) })),
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || 'Create failed');
+        const bad = (json.results || []).filter(x => !x.ok);
+        if (json.created) { summary.items++; summary.stores += json.created; }
+        if (bad.length) {
+          summary.failed += bad.length; failedKeys.add(r.key);
+          bad.forEach(x => summary.errors.push(`${r.name.trim()} — ${x.store}: ${x.error}`));
+          updateRow(r.key, { error: bad.map(x => `${x.store}: ${x.error}`).join('; ') });
+        }
+      } catch (e) {
+        summary.failed++; failedKeys.add(r.key);
+        summary.errors.push(`${r.name.trim()}: ${e.message}`);
+        updateRow(r.key, { error: e.message });
+      }
+    }
+    setResult({ batch: summary });
+    // Done rows leave the list; rows that failed stay so they can be retried.
+    setBatch(b => {
+      const left = (b || []).filter(r => failedKeys.has(r.key));
+      (b || []).filter(r => !failedKeys.has(r.key)).forEach(r => r.preview && URL.revokeObjectURL(r.preview));
+      return left.length ? left : null;
+    });
+    setBatchSubmitting(false);
+  };
 
   // Creates the item in the ticked stores that lack it and re-prices the
   // stores that already carry it, then reports both together.
@@ -843,10 +1010,70 @@ function AddItemPanel({ stores }) {
     <div className="grid gap-5 lg:grid-cols-[1fr_360px]">
       {/* Item details */}
       <div className="rounded-xl border border-sw-border bg-sw-card p-4">
-        <h3 className="text-sw-text text-[15px] font-semibold mb-3">Item details</h3>
+        <input ref={photoInputRef} type="file" accept="image/*" multiple className="hidden" onChange={e => handlePhotos(e.target.files)} />
+        {batch && (
+          <div className="mb-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+              <h3 className="text-sw-text text-[15px] font-semibold">Items from photos ({batchRows.length})</h3>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => photoInputRef.current?.click()}><ImagePlus size={16} strokeWidth={1.75} aria-hidden="true" />Add photos</Button>
+                <Button variant="secondary" onClick={clearBatch}>Clear list</Button>
+              </div>
+            </div>
+            <p className="text-sw-dim text-[12px] mb-3">Department, cost, stores and prices below apply to every item in this list. Stores that already carry an item are skipped for that item.</p>
+            {photoNote && <p className="text-[12px] text-amber-600 mb-2">{photoNote}</p>}
+            <ul className="flex flex-col gap-2">
+              {batchRows.map((r, i) => {
+                const has = stores.filter(st => r.storeStatus?.[st.id]?.status === 'has');
+                const targets = rowTargets(r);
+                return (
+                  <li key={r.key} className={`rounded-lg border ${r.error ? 'border-red-300 bg-red-50/40' : 'border-sw-border'} p-2.5 flex gap-3`}>
+                    <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-md bg-[#F4F4F5] overflow-hidden shrink-0 flex items-center justify-center text-[11px] text-sw-dim">
+                      {r.preview ? <img src={r.preview} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" /> : 'Typed'}
+                    </div>
+                    <div className="flex-1 min-w-0 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)_minmax(0,0.6fr)]">
+                      <label className="flex flex-col gap-1 min-w-0">
+                        <span className="text-[12px] text-sw-dim">UPC</span>
+                        <input value={r.upc} inputMode="numeric"
+                          onChange={e => updateRow(r.key, { upc: e.target.value, storeStatus: {}, lookup: 'idle', error: '' })}
+                          onBlur={e => e.target.value.trim() && r.lookup === 'idle' && lookupRow(r.key, e.target.value)}
+                          placeholder={r.read === 'reading' ? 'Reading photo…' : 'Type the number'}
+                          className="w-full rounded-lg border border-sw-border bg-sw-bg px-2.5 py-1.5 text-[14px] text-sw-text" />
+                      </label>
+                      <label className="flex flex-col gap-1 min-w-0">
+                        <span className="text-[12px] text-sw-dim">Item name</span>
+                        <input value={r.name} onChange={e => updateRow(r.key, { name: e.target.value })} placeholder="e.g. Geek Bar Pulse Blue Razz"
+                          className="w-full rounded-lg border border-sw-border bg-sw-bg px-2.5 py-1.5 text-[14px] text-sw-text" />
+                      </label>
+                      <label className="flex flex-col gap-1 min-w-0">
+                        <span className="text-[12px] text-sw-dim">Size</span>
+                        <input value={r.size} onChange={e => updateRow(r.key, { size: e.target.value })} placeholder="1 ct"
+                          className="w-full rounded-lg border border-sw-border bg-sw-bg px-2.5 py-1.5 text-[14px] text-sw-text" />
+                      </label>
+                      <div className="sm:col-span-3 text-[12px] flex items-center gap-1.5">
+                        {r.read === 'reading' && <><Loader2 size={13} className="animate-spin text-sw-dim" aria-hidden="true" /><span className="text-sw-dim">Reading barcode…</span></>}
+                        {r.read === 'unread' && !r.upc.trim() && <span className="text-amber-600">Couldn’t read a barcode in this photo — type the number.</span>}
+                        {r.lookup === 'searching' && <><Loader2 size={13} className="animate-spin text-sw-dim" aria-hidden="true" /><span className="text-sw-dim">Looking up…</span></>}
+                        {r.lookup === 'found' && <span className="text-green-700">Found in {r.source || 'a store'}.</span>}
+                        {r.lookup === 'notfound' && <span className="text-sw-dim">New product — check the name.</span>}
+                        {r.lookup === 'error' && <span className="text-amber-600">Lookup failed — check the details.</span>}
+                        {has.length > 0 && <span className="text-sw-dim">· Already in {has.map(st => st.name?.split(' - ').pop()).join(', ')}{targets.length ? '' : ' — nothing to add'}</span>}
+                        {r.error && <span className="text-red-700">· {r.error}</span>}
+                      </div>
+                    </div>
+                    <button type="button" onClick={() => removeRow(r.key)} aria-label={`Remove item ${i + 1}`} className="self-start w-8 h-8 rounded-md text-sw-dim hover:bg-[#F4F4F5] flex items-center justify-center shrink-0">
+                      <XIcon size={16} aria-hidden="true" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+        <h3 className="text-sw-text text-[15px] font-semibold mb-3">{batch ? 'Shared details' : 'Item details'}</h3>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="UPC / barcode">
-            <div className="flex gap-2">
+          {!batch && <Field label="UPC / barcode">
+            <div className="flex flex-wrap sm:flex-nowrap gap-2">
               <input ref={upcRef} value={upc}
                 onChange={e => {
                   setUpc(e.target.value);
@@ -857,15 +1084,18 @@ function AddItemPanel({ stores }) {
                 onBlur={() => lookupUpc(upc)}
                 onKeyDown={e => { if (e.key === 'Enter') lookupUpc(upc); }}
                 placeholder="Scan or type…"
-                className="flex-1 min-w-0 rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text" />
-              <Button variant="secondary" onClick={() => setScanOpen(true)} title="Scan with camera">Scan</Button>
+                className="w-full sm:w-auto sm:flex-1 min-w-0 rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text" />
+              <Button variant="secondary" className="flex-1 sm:flex-none" onClick={() => setScanOpen(true)} title="Scan with camera"><Camera size={16} strokeWidth={1.75} aria-hidden="true" />Scan</Button>
+              <Button variant="secondary" className="flex-1 sm:flex-none" onClick={() => photoInputRef.current?.click()} title="Read barcodes from photos — pick several for flavours of one product">
+                <ImagePlus size={16} strokeWidth={1.75} aria-hidden="true" />Photos
+              </Button>
             </div>
             {lookup?.msg && (
               <span className={`text-[12px] ${lookup.status === 'found' ? 'text-green-500' : lookup.status === 'searching' ? 'text-[var(--text-muted)]' : 'text-amber-500'}`}>
                 {lookup.msg}
               </span>
             )}
-          </Field>
+          </Field>}
           <Field label="Department">
             <select value={dept} onChange={e => setDept(e.target.value)}
               className="w-full rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text">
@@ -892,14 +1122,14 @@ function AddItemPanel({ stores }) {
               </span>
             )}
           </Field>
-          <Field label="Item name">
+          {!batch && <Field label="Item name">
             <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Zig Zag Orange"
               className="w-full rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text" />
-          </Field>
-          <Field label="Size (optional)">
+          </Field>}
+          {!batch && <Field label="Size (optional)">
             <input value={size} onChange={e => setSize(e.target.value)} placeholder="e.g. 1 ct"
               className="w-full rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text" />
-          </Field>
+          </Field>}
           <Field label="Cost (optional)">
             <div className="flex items-center gap-1">
               <span className="text-[var(--text-muted)]">$</span>
@@ -997,11 +1227,46 @@ function AddItemPanel({ stores }) {
           </div>
         )}
 
-        <Button variant="primary" className="w-full" disabled={!canSubmit || submitting} onClick={submit}>
-          {submitting ? 'Saving…' : submitLabel}
-        </Button>
+        {batch && batchDeptMissing.length > 0 && deptMissingIn.length === 0 && (
+          <div className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-700">
+            The “{deptRow.label}” department isn’t set up in {batchDeptMissing.map(s => s.name).join(', ')}. Add it in NRS or untick {batchDeptMissing.length === 1 ? 'that store' : 'those stores'}.
+          </div>
+        )}
+        {batch ? (
+          <Button variant="primary" className="w-full" disabled={!batchCanSubmit || batchSubmitting} onClick={submitBatch}>
+            {batchSubmitting ? 'Adding items…' : batchBusy ? 'Reading photos…' : `Add ${batchNew} item${batchNew === 1 ? '' : 's'} to ${batchSelected.length} store${batchSelected.length === 1 ? '' : 's'}`}
+          </Button>
+        ) : (
+          <Button variant="primary" className="w-full" disabled={!canSubmit || submitting} onClick={submit}>
+            {submitting ? 'Saving…' : submitLabel}
+          </Button>
+        )}
+        {batch && !batchCanSubmit && !batchBusy && (
+          <p className="mt-2 text-[12px] text-sw-dim">
+            {!deptRow ? 'Pick a department. ' : ''}
+            {batchRows.some(r => !r.upc.trim() || !r.name.trim()) ? 'Every item needs a UPC and a name. ' : ''}
+            {batchSelected.length === 0 ? 'Tick at least one store. ' : ''}
+            {batchSelected.some(s => !validPrice(prices[s.id])) ? 'Set a price for each ticked store.' : ''}
+          </p>
+        )}
 
-        {result && (
+        {result?.batch && (
+          <div className="mt-4">
+            <Alert type={result.batch.failed ? 'warning' : 'success'}>
+              {[
+                result.batch.items ? `Added ${result.batch.items} item${result.batch.items === 1 ? '' : 's'} (${result.batch.stores} store listing${result.batch.stores === 1 ? '' : 's'})` : 'Nothing was added',
+                result.batch.skipped ? `${result.batch.skipped} already in every ticked store` : '',
+                result.batch.failed ? `${result.batch.failed} failed — still in the list to retry` : '',
+              ].filter(Boolean).join(', ')}.
+              {result.batch.errors.length > 0 && (
+                <ul className="mt-2 text-[12px] list-disc pl-4">
+                  {result.batch.errors.map((e, i) => <li key={i}>{e}</li>)}
+                </ul>
+              )}
+            </Alert>
+          </div>
+        )}
+        {result && !result.batch && (
           <div className="mt-4">
             {result.error && <Alert type="error">{result.error}</Alert>}
             {(result.created > 0 || result.updated > 0 || result.failed > 0) && (
