@@ -1,5 +1,5 @@
 -- Department clean-up (Nov 2026): the app's Inventory departments use the
--- same 15 departments as the registers.
+-- same 18 departments as the registers.
 -- Existing departments are renamed in place (counted items keep their link),
 -- the missing ones are added, and the order matches the register list.
 -- Safe to run more than once.
@@ -21,7 +21,8 @@ select v.name, v.ord, v.ord, true
   from (values
     ('Prerolls', 1), ('Kratom pills', 2), ('Kratom', 3), ('Cigars', 4), ('Vapes', 5),
     ('Syringes', 6), ('Gummies', 7), ('Glass pipes', 8), ('Coils & pods', 9), ('E-Liquids', 10),
-    ('Vape Devices', 11), ('Pills', 12), ('Novelty', 13), ('Cigarettes', 14), ('Drinks', 15)
+    ('Vape Devices', 11), ('Pills', 12), ('Novelty', 13), ('Cigarettes', 14), ('Drinks', 15),
+    ('Soft drinks', 16), ('CBD drinks', 17), ('Taxable', 18)
   ) as v(name, ord)
  where not exists (select 1 from inventory_departments d where d.name = v.name);
 
@@ -29,7 +30,8 @@ update inventory_departments d set sort_order = v.ord, display_order = v.ord, is
   from (values
     ('Prerolls', 1), ('Kratom pills', 2), ('Kratom', 3), ('Cigars', 4), ('Vapes', 5),
     ('Syringes', 6), ('Gummies', 7), ('Glass pipes', 8), ('Coils & pods', 9), ('E-Liquids', 10),
-    ('Vape Devices', 11), ('Pills', 12), ('Novelty', 13), ('Cigarettes', 14), ('Drinks', 15)
+    ('Vape Devices', 11), ('Pills', 12), ('Novelty', 13), ('Cigarettes', 14), ('Drinks', 15),
+    ('Soft drinks', 16), ('CBD drinks', 17), ('Taxable', 18)
   ) as v(name, ord)
  where d.name = v.name;
 

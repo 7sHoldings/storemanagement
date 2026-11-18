@@ -47,10 +47,11 @@ describe('planRegister', () => {
     expect(isShown({ donotshow: null })).toBe(true);
   });
 
-  it('uses the Nov 2026 clean-up list (15 departments)', () => {
-    expect(DEFAULT_REGISTER_DEPARTMENTS).toHaveLength(15);
+  it('uses the Nov 2026 clean-up list (18 departments)', () => {
+    expect(DEFAULT_REGISTER_DEPARTMENTS).toHaveLength(18);
     expect(DEFAULT_REGISTER_DEPARTMENTS).toContain('Kratom pills');
-    expect(DEFAULT_REGISTER_DEPARTMENTS).not.toContain('Taxable');
+    expect(DEFAULT_REGISTER_DEPARTMENTS).toContain('Taxable');
+    expect(DEFAULT_REGISTER_DEPARTMENTS).not.toContain('Non-Tax');
   });
 });
 

@@ -17,16 +17,29 @@ describe('departmentSuggestion', () => {
     expect(departmentSuggestion('7-hydroxy').target).toBe('Kratom pills');
     expect(departmentSuggestion('Limitless singles').target).toBe('Kratom pills');
     expect(departmentSuggestion("Drink's").target).toBe('Drinks');
-    expect(departmentSuggestion('Tobacco').target).toBe('Cigarettes');
+    expect(departmentSuggestion('Tobacco').target).toBe('Cigars');
+    expect(departmentSuggestion('Cone').target).toBe('Prerolls');
+    expect(departmentSuggestion('Wraps').target).toBe('Prerolls');
+    expect(departmentSuggestion('Leaf').target).toBe('Prerolls');
+    expect(departmentSuggestion('Grinders').target).toBe('Novelty');
+    expect(departmentSuggestion('Hookah').target).toBe('Novelty');
+    expect(departmentSuggestion('Scale').target).toBe('Novelty');
+    expect(departmentSuggestion('Detox').target).toBe('Novelty');
+    expect(departmentSuggestion('Cartridges').target).toBe('Vape Devices');
+    expect(departmentSuggestion('Vape pen').target).toBe('Vape Devices');
+    expect(departmentSuggestion('Candy').target).toBe('Taxable');
+    expect(departmentSuggestion('CBD').target).toBe('Gummies');
+    expect(departmentSuggestion('Soda').target).toBe('Soft drinks');
     expect(departmentSuggestion('Lighters').target).toBe('Novelty');
   });
 
   it('marks mixed departments', () => {
-    expect(departmentSuggestion('Thc')).toEqual({ target: 'Prerolls', mixed: false }); // owner: whole THC → Prerolls
+    expect(departmentSuggestion('Thc')).toEqual({ target: 'Syringes', mixed: false }); // owner: whole THC → Syringes
     expect(departmentSuggestion('THC Drinks').target).toBe('Drinks');
-    expect(departmentSuggestion('Incenses').target).toBe('Novelty');
+    expect(departmentSuggestion('Incenses').target).toBe('Taxable');
     expect(departmentSuggestion('TAXABLE').mixed).toBe(true);
     expect(departmentSuggestion('Non-Tax').mixed).toBe(true);
+    expect(departmentSuggestion('TAXABLE')).toEqual({ target: 'Taxable', mixed: true });
     expect(departmentSuggestion('DEFAULT').mixed).toBe(true);
   });
 
@@ -49,7 +62,9 @@ describe('classifyProduct (real names)', () => {
     ['Tigers blood blood orange', 'Kratom pills'],
     ['16oz slushie', 'Drinks'],
     ['Uncle skunks 100mg rootbeer', 'Drinks'],
-    ['Red Bull Total Zero Energy Drink 12 oz', 'Drinks'],
+    ['Red Bull Total Zero Energy Drink 12 oz', 'Soft drinks'],
+    ['Great Value Purified Water 16.9 oz', 'Soft drinks'],
+    ['CBD seltzer lemon', 'CBD drinks'],
     ['Remarkable Herbs Kratom Red Maeng Da 3oz', 'Kratom'],
     ['OPMS Silver Capsules Bag of 60ct | Green Vein Thai', 'Kratom'],
     ['Smok Novo 3 pod mesh 0.8 ohm pods', 'Coils & pods'],
@@ -62,9 +77,11 @@ describe('classifyProduct (real names)', () => {
     ['Smok Morph 2 Kit | Black Carbon Fiber', 'Vape Devices'],
     ['trinity 4ml devices', 'Vape Devices'],
     ['Camel Snus Frost', 'Cigarettes'],
-    ['HH vegan wraps', 'Cigars'],
+    ['HH vegan wraps', 'Prerolls'],
+    ['Unbleached Zig-Zag Cones', 'Prerolls'],
     ['Molly watermelon mushroom', 'Pills'],
     ['royal honey', 'Pills'],
+    ['Sour candy rope', 'Taxable'],
   ];
   it.each(cases)('%s → %s', (name, target) => expect(classifyProduct(name)).toBe(target));
 
@@ -78,8 +95,10 @@ describe('targetForProduct', () => {
   it('sorts products of a mixed department by name, falling back to its default', () => {
     expect(targetForProduct({ upc: '1', dept: 'THCA', name: 'Booster syringe' })).toBe('Syringes');
     expect(targetForProduct({ upc: '2', dept: 'DEFAULT', name: 'Remarkable Herbs Kratom Bali 8oz' })).toBe('Kratom');
-    expect(targetForProduct({ upc: '6', dept: 'Thc', name: 'Booster syringe' })).toBe('Prerolls'); // whole dept
-    expect(targetForProduct({ upc: '3', dept: 'TAXABLE', name: 'Trippy socks' })).toBe('Novelty');
+    expect(targetForProduct({ upc: '6', dept: 'Thc', name: '3.5 gram flower' })).toBe('Syringes'); // whole dept
+    expect(targetForProduct({ upc: '3', dept: 'TAXABLE', name: 'Trippy socks' })).toBe('Taxable');
+    expect(targetForProduct({ upc: '3b', dept: 'Taxable', name: 'Trippy socks' })).toBe('Taxable');
+    expect(targetForProduct({ upc: '3c', dept: 'Non-Tax', name: 'Trippy socks' })).toBe('Novelty');
   });
 
   it('sorts the existing Pills department: 7-OH tablets to Kratom pills, the rest stay in Pills', () => {
