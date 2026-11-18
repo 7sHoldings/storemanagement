@@ -13,6 +13,7 @@ import RegisterScreenPanel from '@/components/pricebook/RegisterScreenPanel';
 import DeptCleanupPanel from '@/components/pricebook/DeptCleanupPanel';
 import { existingPrices, priceChanges as findPriceChanges } from '@/lib/pricebook-prefill';
 import { findMergedDepartment, splitFrequentDepartments } from '@/lib/pricebook-departments';
+import { TARGET_DEPARTMENTS } from '@/lib/dept-migration';
 
 const fmtCents = (c) => `$${(Number(c || 0) / 100).toFixed(2)}`;
 // "29.99" / "$29.99" / "2999¢"? → integer cents. Returns null if unparseable.
@@ -882,6 +883,13 @@ function AddItemPanel({ stores }) {
   const changes = findPriceChanges(storeStatus, prices);
   // Busiest departments first (A–Z), then the rest (A–Z).
   const deptGroups = useMemo(() => splitFrequentDepartments(departments), [departments]);
+  // Only the owner's departments (Nov 2026 clean-up) are offered for new
+  // items; the old ones stay in NRS (hidden on the register) until emptied.
+  const [showOldDepts, setShowOldDepts] = useState(false);
+  const newDeptChoices = useMemo(() => TARGET_DEPARTMENTS.map(name => {
+    const d = findMergedDepartment(departments, { label: name });
+    return d ? { ...d, label: name } : { key: `missing:${name}`, label: name, items: 0, missing: [], missingIds: [], unavailable: true };
+  }), [departments]);
   const deptOption = (d) => (
     <option key={d.key} value={d.key}>
       {d.label}{d.items ? ` (${d.items})` : ''}{d.missing.length ? ` — not in ${d.missing.length} store${d.missing.length === 1 ? '' : 's'}` : ''}
@@ -1103,15 +1111,24 @@ function AddItemPanel({ stores }) {
             <select value={dept} onChange={e => setDept(e.target.value)}
               className="w-full rounded-lg border border-sw-border bg-sw-bg px-3 py-2 text-[14px] text-sw-text">
               <option value="">Select department…</option>
-              {deptGroups.frequent.length > 0 && (
+              {!showOldDepts && newDeptChoices.map(d => (d.unavailable
+                ? <option key={d.key} value="" disabled>{d.label} — not set up yet (run Department clean-up)</option>
+                : deptOption(d)))}
+              {showOldDepts && deptGroups.frequent.length > 0 && (
                 <optgroup label="Most used">
                   {deptGroups.frequent.map(deptOption)}
                 </optgroup>
               )}
-              <optgroup label={deptGroups.frequent.length ? 'All other departments' : 'Departments'}>
-                {deptGroups.rest.map(deptOption)}
-              </optgroup>
+              {showOldDepts && (
+                <optgroup label={deptGroups.frequent.length ? 'All other departments' : 'Departments'}>
+                  {deptGroups.rest.map(deptOption)}
+                </optgroup>
+              )}
             </select>
+            <label className="flex items-center gap-1.5 text-[12px] text-[var(--text-muted)] cursor-pointer w-max">
+              <input type="checkbox" checked={showOldDepts} onChange={e => setShowOldDepts(e.target.checked)} />
+              Show old departments
+            </label>
             {deptError && <span className="text-[12px] text-red-500">{deptError}</span>}
             {deptHint && <span className="text-[12px] text-amber-500">{deptHint}</span>}
             {deptRow?.missing.length > 0 && (
