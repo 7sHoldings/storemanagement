@@ -10,6 +10,7 @@ import CatalogPanel from '@/components/pricebook/CatalogPanel';
 import DepartmentsPanel from '@/components/pricebook/DepartmentsPanel';
 import DepartmentSalesPanel from '@/components/pricebook/DepartmentSalesPanel';
 import RegisterScreenPanel from '@/components/pricebook/RegisterScreenPanel';
+import DeptCleanupPanel from '@/components/pricebook/DeptCleanupPanel';
 import { existingPrices, priceChanges as findPriceChanges } from '@/lib/pricebook-prefill';
 import { findMergedDepartment, splitFrequentDepartments } from '@/lib/pricebook-departments';
 
@@ -113,7 +114,7 @@ export default function PricebookPage() {
 
       {/* Tabs */}
       <div className="flex gap-1 mb-4 border-b border-sw-border overflow-x-auto -mx-1 px-1">
-        {[['update', 'One store'], ['multi', 'All stores'], ['catalog', 'By UPC'], ['add', 'Add new item'], ['departments', 'Departments'], ['deptsales', 'Department sales'], ['register', 'Register screen']].map(([key, label]) => (
+        {[['update', 'One store'], ['multi', 'All stores'], ['catalog', 'By UPC'], ['add', 'Add new item'], ['departments', 'Departments'], ['deptsales', 'Department sales'], ['register', 'Register screen'], ['cleanup', 'Department clean-up']].map(([key, label]) => (
           <button
             key={key}
             onClick={() => setTab(key)}
@@ -161,6 +162,8 @@ export default function PricebookPage() {
       {tab === 'deptsales' && <DepartmentSalesPanel stores={stores} />}
 
       {tab === 'register' && <RegisterScreenPanel stores={stores} />}
+
+      {tab === 'cleanup' && <DeptCleanupPanel stores={stores} />}
 
       {confirmOpen && (
         <ConfirmModal

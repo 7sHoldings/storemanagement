@@ -47,8 +47,10 @@ describe('planRegister', () => {
     expect(isShown({ donotshow: null })).toBe(true);
   });
 
-  it('keeps the agreed list of 20', () => {
-    expect(DEFAULT_REGISTER_DEPARTMENTS).toHaveLength(20);
+  it('uses the Nov 2026 clean-up list (15 departments)', () => {
+    expect(DEFAULT_REGISTER_DEPARTMENTS).toHaveLength(15);
+    expect(DEFAULT_REGISTER_DEPARTMENTS).toContain('Kratom pills');
+    expect(DEFAULT_REGISTER_DEPARTMENTS).not.toContain('Taxable');
   });
 });
 
