@@ -51,7 +51,8 @@ describe('planRegister', () => {
     expect(DEFAULT_REGISTER_DEPARTMENTS).toHaveLength(18);
     expect(DEFAULT_REGISTER_DEPARTMENTS).toContain('Kratom pills');
     expect(DEFAULT_REGISTER_DEPARTMENTS).toContain('Taxable');
-    expect(DEFAULT_REGISTER_DEPARTMENTS).not.toContain('Non-Tax');
+    expect(DEFAULT_REGISTER_DEPARTMENTS).toContain('Non-Tax');
+    expect(DEFAULT_REGISTER_DEPARTMENTS).not.toContain('Drinks');
   });
 });
 

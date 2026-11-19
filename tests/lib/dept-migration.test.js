@@ -16,7 +16,9 @@ describe('departmentSuggestion', () => {
     expect(departmentSuggestion('Flower').target).toBe('Prerolls');
     expect(departmentSuggestion('7-hydroxy').target).toBe('Kratom pills');
     expect(departmentSuggestion('Limitless singles').target).toBe('Kratom pills');
-    expect(departmentSuggestion("Drink's").target).toBe('Drinks');
+    expect(departmentSuggestion("Drink's").target).toBe('CBD drinks');
+    expect(departmentSuggestion('Drinks').target).toBe('CBD drinks');
+    expect(departmentSuggestion('Non-Tax')).toEqual({ target: 'Non-Tax', mixed: false });
     expect(departmentSuggestion('Tobacco').target).toBe('Cigars');
     expect(departmentSuggestion('Cone').target).toBe('Prerolls');
     expect(departmentSuggestion('Wraps').target).toBe('Prerolls');
@@ -35,10 +37,10 @@ describe('departmentSuggestion', () => {
 
   it('marks mixed departments', () => {
     expect(departmentSuggestion('Thc')).toEqual({ target: 'Syringes', mixed: false }); // owner: whole THC → Syringes
-    expect(departmentSuggestion('THC Drinks').target).toBe('Drinks');
+    expect(departmentSuggestion('THC Drinks').target).toBe('CBD drinks');
     expect(departmentSuggestion('Incenses').target).toBe('Taxable');
     expect(departmentSuggestion('TAXABLE').mixed).toBe(true);
-    expect(departmentSuggestion('Non-Tax').mixed).toBe(true);
+    expect(departmentSuggestion('Non-Tax').mixed).toBe(false); // owner: Non-Tax is kept
     expect(departmentSuggestion('TAXABLE')).toEqual({ target: 'Taxable', mixed: true });
     expect(departmentSuggestion('DEFAULT').mixed).toBe(true);
   });
@@ -60,10 +62,12 @@ describe('classifyProduct (real names)', () => {
     ['Limitless 2pk 50mg', 'Kratom pills'],
     ['ZOURZ 7OH FRUIT PUNCH', 'Kratom pills'],
     ['Tigers blood blood orange', 'Kratom pills'],
-    ['16oz slushie', 'Drinks'],
-    ['Uncle skunks 100mg rootbeer', 'Drinks'],
+    ['16oz slushie', 'CBD drinks'],
+    ['Uncle skunks 100mg rootbeer', 'CBD drinks'],
+    ['Water pipe 10 inch', 'Glass pipes'],
+    ['Watermelon gummies', 'Gummies'],
     ['Red Bull Total Zero Energy Drink 12 oz', 'Soft drinks'],
-    ['Great Value Purified Water 16.9 oz', 'Soft drinks'],
+    ['Great Value Purified Water 16.9 oz', 'Non-Tax'],
     ['CBD seltzer lemon', 'CBD drinks'],
     ['Remarkable Herbs Kratom Red Maeng Da 3oz', 'Kratom'],
     ['OPMS Silver Capsules Bag of 60ct | Green Vein Thai', 'Kratom'],
@@ -98,7 +102,7 @@ describe('targetForProduct', () => {
     expect(targetForProduct({ upc: '6', dept: 'Thc', name: '3.5 gram flower' })).toBe('Syringes'); // whole dept
     expect(targetForProduct({ upc: '3', dept: 'TAXABLE', name: 'Trippy socks' })).toBe('Taxable');
     expect(targetForProduct({ upc: '3b', dept: 'Taxable', name: 'Trippy socks' })).toBe('Taxable');
-    expect(targetForProduct({ upc: '3c', dept: 'Non-Tax', name: 'Trippy socks' })).toBe('Novelty');
+    expect(targetForProduct({ upc: '3c', dept: 'Non-Tax', name: 'Trippy socks' })).toBe('Non-Tax');
   });
 
   it('sorts the existing Pills department: 7-OH tablets to Kratom pills, the rest stay in Pills', () => {
@@ -113,9 +117,9 @@ describe('targetForProduct', () => {
   });
 
   it('applies owner overrides: product first, then department', () => {
-    const o = { departments: { flower: 'Novelty' }, products: { '9': 'Drinks' } };
+    const o = { departments: { flower: 'Novelty' }, products: { '9': 'CBD drinks' } };
     expect(targetForProduct({ upc: '5', dept: 'Flower', name: 'x' }, o)).toBe('Novelty');
-    expect(targetForProduct({ upc: '9', dept: 'Flower', name: 'x' }, o)).toBe('Drinks');
+    expect(targetForProduct({ upc: '9', dept: 'Flower', name: 'x' }, o)).toBe('CBD drinks');
   });
 });
 

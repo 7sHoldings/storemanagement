@@ -21,8 +21,8 @@ select v.name, v.ord, v.ord, true
   from (values
     ('Prerolls', 1), ('Kratom pills', 2), ('Kratom', 3), ('Cigars', 4), ('Vapes', 5),
     ('Syringes', 6), ('Gummies', 7), ('Glass pipes', 8), ('Coils & pods', 9), ('E-Liquids', 10),
-    ('Vape Devices', 11), ('Pills', 12), ('Novelty', 13), ('Cigarettes', 14), ('Drinks', 15),
-    ('Soft drinks', 16), ('CBD drinks', 17), ('Taxable', 18)
+    ('Vape Devices', 11), ('Pills', 12), ('Novelty', 13), ('Cigarettes', 14),
+    ('Soft drinks', 15), ('CBD drinks', 16), ('Taxable', 17), ('Non-Tax', 18)
   ) as v(name, ord)
  where not exists (select 1 from inventory_departments d where d.name = v.name);
 
@@ -30,9 +30,14 @@ update inventory_departments d set sort_order = v.ord, display_order = v.ord, is
   from (values
     ('Prerolls', 1), ('Kratom pills', 2), ('Kratom', 3), ('Cigars', 4), ('Vapes', 5),
     ('Syringes', 6), ('Gummies', 7), ('Glass pipes', 8), ('Coils & pods', 9), ('E-Liquids', 10),
-    ('Vape Devices', 11), ('Pills', 12), ('Novelty', 13), ('Cigarettes', 14), ('Drinks', 15),
-    ('Soft drinks', 16), ('CBD drinks', 17), ('Taxable', 18)
+    ('Vape Devices', 11), ('Pills', 12), ('Novelty', 13), ('Cigarettes', 14),
+    ('Soft drinks', 15), ('CBD drinks', 16), ('Taxable', 17), ('Non-Tax', 18)
   ) as v(name, ord)
  where d.name = v.name;
+
+-- Owner (Nov 19): no Drinks department; remove it if nothing is counted under it.
+delete from inventory_departments d
+ where d.name = 'Drinks'
+   and not exists (select 1 from inventory_count_items i where i.department_id = d.id);
 
 commit;
