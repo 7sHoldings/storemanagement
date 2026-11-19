@@ -28,6 +28,7 @@ export default function InventoryPage() {
     const { data, error } = await supabase
       .from('inventory_departments')
       .select('*')
+      .neq('is_active', false) // switched-off departments (e.g. Drinks) stay hidden
       .order('sort_order', { ascending: true });
     if (error) throw error;
     setDepartments(data || []);
