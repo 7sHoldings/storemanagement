@@ -87,7 +87,7 @@ export default function DeptCleanupPanel({ stores }) {
     return [...m.values()].map(g => {
       const label = [...g.labels][0];
       const sug = departmentSuggestion(label);
-      return { ...g, label, labels: [...g.labels], mixed: sug.mixed, suggested: sug.target, products: [...g.products.values()] };
+      return { ...g, label, labels: [...g.labels], mixed: sug.mixed, guessed: !!sug.guessed, suggested: sug.target, products: [...g.products.values()] };
     }).sort((a, b) => b.count - a.count);
   }, [items, scanned.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -187,7 +187,7 @@ export default function DeptCleanupPanel({ stores }) {
                     <span className="text-[var(--text-muted)]">{g.count} product(s)</span>
                     <span className="text-[var(--text-muted)]">→</span>
                     {g.mixed ? (
-                      <span className="text-amber-500 text-[12px]">sorted product by product (default {chosen}) — open to check</span>
+                      <span className="text-amber-500 text-[12px]">{g.guessed ? 'unknown department — ' : ''}sorted product by product (default {chosen}) — open to check</span>
                     ) : (
                       <Select value={chosen} onChange={v => setDept(g.key, v)} />
                     )}
