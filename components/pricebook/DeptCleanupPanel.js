@@ -21,13 +21,33 @@ const PREFS_KEY = 'pricebook.deptCleanup.v1';
 const BATCH = 30;
 const pct = (d) => (d == null ? '—' : `${(d / 1000).toFixed(2).replace(/\.?0+$/, '')}%`);
 
-const post = async (body) => {
-  const res = await fetch('/api/pricebook/departments/cleanup', {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(json.error || `Request failed (${res.status})`);
-  return json;
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+// A phone drops requests now and then ("Load failed") or the server times out.
+// Every action here is safe to repeat (a move re-saves the same department),
+// so network errors and 5xx answers are retried before giving up.
+const post = async (body, tries = 4) => {
+  for (let attempt = 1; ; attempt++) {
+    let res, json;
+    try {
+      res = await fetch('/api/pricebook/departments/cleanup', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      });
+      json = await res.json().catch(() => ({}));
+    } catch (e) {
+      if (attempt >= tries) throw new Error(`${e.message || 'Network error'} (tried ${tries} times)`);
+      await sleep(2000 * attempt);
+      continue;
+    }
+    if (res.ok) return json;
+    if (res.status >= 500 && attempt < tries) { await sleep(2000 * attempt); continue; }
+    throw new Error(json.error || `Request failed (${res.status})`);
+  }
+};
+
+// Keep the phone screen on during a long run (iOS stops requests when it locks).
+const keepAwake = async () => {
+  try { return await navigator.wakeLock?.request('screen'); } catch { return null; }
 };
 
 export default function DeptCleanupPanel({ stores }) {
@@ -49,6 +69,7 @@ export default function DeptCleanupPanel({ stores }) {
 
   const scan = async () => {
     setItems({}); setScanErr({}); setCreates({}); setLog([]);
+    const lock = await keepAwake();
     for (const s of stores) {
       try {
         const all = [];
@@ -66,6 +87,7 @@ export default function DeptCleanupPanel({ stores }) {
         setScanErr(m => ({ ...m, [s.id]: e.message }));
       }
     }
+    lock?.release?.().catch?.(() => {});
     setBusy('');
   };
 
@@ -100,8 +122,10 @@ export default function DeptCleanupPanel({ stores }) {
   const setProduct = (upc, value) => saveOverrides({ ...overrides, products: { ...overrides.products, [upc]: value || undefined } });
 
   const run = async () => {
+    const targets = confirm === true ? scanned : scanned.filter(s => s.id === confirm);
     setConfirm(false); setLog([]);
-    for (const s of scanned) {
+    const lock = await keepAwake();
+    for (const s of targets) {
       try {
         setBusy(`${s.name}: adding missing departments…`);
         if (creates[s.id]?.length) {
@@ -111,11 +135,20 @@ export default function DeptCleanupPanel({ stores }) {
         const moves = plans[s.id].moves;
         let moved = 0, failed = 0;
         const failures = [];
+        let badBatches = 0;
         for (let i = 0; i < moves.length; i += BATCH) {
-          setBusy(`${s.name}: moving products ${Math.min(i + BATCH, moves.length)} / ${moves.length}…`);
-          const r = await post({ action: 'move', store_id: s.id, moves: moves.slice(i, i + BATCH).map(m => ({ upc: m.upc, to: m.to })) });
-          moved += r.moved; failed += r.failed;
-          failures.push(...r.results.filter(x => !x.ok).slice(0, 5));
+          setBusy(`${s.name}: moving products ${Math.min(i + BATCH, moves.length)} / ${moves.length}… keep this screen open`);
+          const batch = moves.slice(i, i + BATCH);
+          try {
+            const r = await post({ action: 'move', store_id: s.id, moves: batch.map(m => ({ upc: m.upc, to: m.to })) });
+            moved += r.moved; failed += r.failed;
+            failures.push(...r.results.filter(x => !x.ok).slice(0, 5));
+            badBatches = 0;
+          } catch (e) {
+            // One bad batch does not stop the store; three in a row does.
+            failed += batch.length; failures.push({ upc: batch[0].upc, error: e.message });
+            if (++badBatches >= 3) throw new Error(`${e.message} — ${moved} moved so far; press Scan again then Run to carry on`);
+          }
         }
         note(`${s.name}: moved ${moved} product(s)${failed ? `, ${failed} failed (e.g. ${failures.slice(0, 3).map(f => `${f.upc}: ${f.error}`).join('; ')})` : ''}`);
 
@@ -137,6 +170,7 @@ export default function DeptCleanupPanel({ stores }) {
         note(`${s.name}: stopped — ${e.message}`);
       }
     }
+    lock?.release?.().catch?.(() => {});
     setBusy('');
     note('Done. Scan again to check nothing is left.');
   };
@@ -230,7 +264,12 @@ export default function DeptCleanupPanel({ stores }) {
           {scanned.map(s => (
             <div key={s.id} className="bg-sw-card border border-sw-border rounded-xl p-4 text-[13px]">
               <div className="font-semibold text-sw-text mb-1">{s.name}</div>
-              <div className="text-[var(--text-muted)]">{items[s.id].length} products · {plans[s.id].moves.length} to move</div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-[var(--text-muted)]">{items[s.id].length} products · {plans[s.id].moves.length} to move</div>
+                {(plans[s.id].moves.length > 0 || creates[s.id]?.length > 0) && (
+                  <Button variant="secondary" className="!px-3 !py-1 text-[12px] shrink-0" onClick={() => setConfirm(s.id)} disabled={!!busy || plans[s.id].unassigned.length > 0}>Run this store</Button>
+                )}
+              </div>
               {creates[s.id]?.length > 0 && (
                 <div className="mt-2">
                   <div className="text-[12px] text-[var(--text-muted)]">New departments to add (settings copied from):</div>
@@ -261,7 +300,9 @@ export default function DeptCleanupPanel({ stores }) {
       {confirm && (
         <ConfirmModal
           title="Run the department clean-up?"
-          message={`This writes to NRS in all ${scanned.length} stores: adds ${totalCreates} department(s), moves ${totalMoves} product(s) (each takes its new department’s tax), and hides every department except the ${TARGET_DEPARTMENTS.length} on the register. It takes a while — keep this page open.`}
+          message={confirm === true
+            ? `This writes to NRS in all ${scanned.length} stores: adds ${totalCreates} department(s), moves ${totalMoves} product(s) (each takes its new department’s tax), and hides every department except the ${TARGET_DEPARTMENTS.length} on the register. It takes a long time — keep this screen open and the phone plugged in.`
+            : `This writes to NRS for ${scanned.find(s => s.id === confirm)?.name}: adds ${creates[confirm]?.length || 0} department(s), moves ${plans[confirm]?.moves.length || 0} product(s) (each takes its new department’s tax), and hides every department except the ${TARGET_DEPARTMENTS.length} on the register. Keep this screen open.`}
           confirmLabel="Run clean-up"
           confirmVariant="primary"
           onCancel={() => setConfirm(false)}
