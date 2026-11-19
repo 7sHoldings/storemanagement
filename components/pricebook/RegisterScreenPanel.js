@@ -6,7 +6,9 @@ import { logActivity } from '@/lib/activity';
 import { storeShortName } from '@/lib/utils';
 import { DEFAULT_REGISTER_DEPARTMENTS } from '@/lib/register-departments';
 
-const LIST_KEY = 'pricebook.registerDepartments.v1';
+// v2 (Nov 19): lists saved on a phone before Drinks was dropped and Non-Tax
+// added are ignored, so every device starts from the agreed list.
+const LIST_KEY = 'pricebook.registerDepartments.v2';
 const parseNames = (text) => [...new Set(String(text || '').split(/[\n,]+/).map(s => s.trim()).filter(Boolean))];
 
 // Choose which department buttons every register shows. The chosen
