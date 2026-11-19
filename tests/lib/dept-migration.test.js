@@ -50,8 +50,14 @@ describe('departmentSuggestion', () => {
     expect(targetFor('coils & pods')).toBe('Coils & pods');
   });
 
-  it('leaves unknown departments unassigned', () => {
-    expect(departmentSuggestion('Something odd').target).toBe(null);
+  it('sorts unknown departments by product name, falling back to Novelty', () => {
+    expect(departmentSuggestion('Something odd')).toEqual({ target: 'Novelty', mixed: true, guessed: true });
+    expect(targetForProduct({ upc: 'a1', dept: 'Alcohol', name: 'Smok tfv18 tank' })).toBe('Vape Devices');
+    expect(targetForProduct({ upc: 'a2', dept: 'Alcohol', name: 'VAPORESSO XROS' })).toBe('Vape Devices');
+    expect(targetForProduct({ upc: 'a3', dept: 'Alcohol', name: 'Bud Light' })).toBe('Novelty');
+    expect(departmentSuggestion('Coils').target).toBe('Coils & pods');
+    expect(departmentSuggestion('Chew tobacco').target).toBe('Cigars');
+    expect(departmentSuggestion('Cap/hat').target).toBe('Novelty');
   });
 });
 
@@ -132,9 +138,9 @@ describe('planMoves', () => {
       { upc: 'd', name: 'x', dept: 'Mystery' },
     ];
     const p = planMoves(items);
-    expect(p.moves.map(m => m.upc)).toEqual(['b', 'c']);
-    expect(p.unassigned.map(u => u.upc)).toEqual(['d']);
-    expect(p.byPair).toEqual([{ from: 'Vape', to: 'Vapes', count: 2 }]);
+    expect(p.moves.map(m => m.upc)).toEqual(['b', 'c', 'd']); // unknown dept → Novelty
+    expect(p.unassigned).toEqual([]);
+    expect(p.byPair).toEqual([{ from: 'Vape', to: 'Vapes', count: 2 }, { from: 'Mystery', to: 'Novelty', count: 1 }]);
   });
 
   it('moves a loose spelling of a new department to the exact one', () => {
