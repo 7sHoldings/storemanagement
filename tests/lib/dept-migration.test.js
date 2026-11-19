@@ -13,7 +13,7 @@ describe('departmentSuggestion', () => {
     expect(departmentSuggestion('Pods/coils').target).toBe('Coils & pods');
     expect(departmentSuggestion('Vapor devices').target).toBe('Vape Devices');
     expect(departmentSuggestion('Glass').target).toBe('Glass pipes');
-    expect(departmentSuggestion('Flower').target).toBe('Prerolls');
+    expect(departmentSuggestion('Flower').target).toBe('CBD flower');
     expect(departmentSuggestion('7-hydroxy').target).toBe('Kratom pills');
     expect(departmentSuggestion('Limitless singles').target).toBe('Kratom pills');
     expect(departmentSuggestion("Drink's").target).toBe('CBD drinks');
@@ -81,7 +81,9 @@ describe('classifyProduct (real names)', () => {
     ['GeekVape B0.4 coil 25-35w', 'Coils & pods'],
     ['SPACE GODS 900MG GUMMIES 60MG D9THC+CBD 15CT | WILD BERRY', 'Gummies'],
     ['Just CBD 500mg Peach Rings', 'Gummies'],
-    ['3.5 gram flower', 'Prerolls'],
+    ['3.5 gram flower', 'CBD flower'],
+    ['Sticky green exotic 7g', 'CBD flower'],
+    ['Delta pro preroll 2g', 'Prerolls'],
     ['ZOUR HASH HOLE ELECTRIC LEMONADE', 'Prerolls'],
     ['formula 420 cleaner 12oz pipe pyrex metal glass', 'Glass pipes'],
     ['Smok Morph 2 Kit | Black Carbon Fiber', 'Vape Devices'],
