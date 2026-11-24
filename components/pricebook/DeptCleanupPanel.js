@@ -60,6 +60,7 @@ export default function DeptCleanupPanel({ stores }) {
   const [busy, setBusy] = useState('');
   const [log, setLog] = useState([]);
   const [confirm, setConfirm] = useState(false);
+  const [createConfirm, setCreateConfirm] = useState(false);
 
   useEffect(() => {
     try { const s = JSON.parse(localStorage.getItem(PREFS_KEY) || 'null'); if (s) setOverrides({ departments: {}, products: {}, ...s }); } catch { /* storage unavailable */ }
@@ -120,6 +121,39 @@ export default function DeptCleanupPanel({ stores }) {
 
   const setDept = (key, value) => saveOverrides({ ...overrides, departments: { ...overrides.departments, [key]: value || undefined } });
   const setProduct = (upc, value) => saveOverrides({ ...overrides, products: { ...overrides.products, [upc]: value || undefined } });
+
+  // Adds the new departments a store is missing (e.g. CBD flower) and shows
+  // them on the register, without moving any products. Quick, so it can be
+  // done for every store at once; the product moves can follow store by store.
+  const addDepartmentsOnly = async () => {
+    setCreateConfirm(false); setLog([]);
+    const lock = await keepAwake();
+    for (const s of scanned.filter(x => creates[x.id]?.length)) {
+      try {
+        setBusy(`${s.name}: adding ${creates[s.id].map(c => c.name).join(', ')}…`);
+        const c = await post({ action: 'create', store_id: s.id, apply: true });
+        const bad = c.results.filter(x => !x.ok);
+        note(`${s.name}: added ${c.results.filter(x => x.ok).map(x => x.name).join(', ') || 'nothing'}${bad.length ? ` — failed: ${bad.map(x => `${x.name} (${x.error})`).join(', ')}` : ''}`);
+        const res = await fetch('/api/pricebook/departments/visibility', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ store_id: s.id, show: TARGET_DEPARTMENTS, apply: true }),
+        });
+        const v = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(v.error || 'Register update failed');
+        await logActivity(supabase, profile, {
+          action: 'update', entityType: 'nrs_department', storeName: s.name,
+          description: `${profile?.name} added departments to ${s.name}: ${c.results.filter(x => x.ok).map(x => x.name).join(', ') || 'none'}${bad.length ? ` (${bad.length} failed)` : ''}`,
+          metadata: { results: c.results },
+        });
+        setCreates(m => ({ ...m, [s.id]: (m[s.id] || []).filter(x => bad.some(b => b.name === x.name)) }));
+      } catch (e) {
+        note(`${s.name}: stopped — ${e.message}`);
+      }
+    }
+    lock?.release?.().catch?.(() => {});
+    setBusy('');
+    note('Done adding departments. Product moves still need Run this store.');
+  };
 
   const run = async () => {
     const targets = confirm === true ? scanned : scanned.filter(s => s.id === confirm);
@@ -196,6 +230,11 @@ export default function DeptCleanupPanel({ stores }) {
         {scanned.length > 0 && (
           <Button variant="primary" onClick={() => setConfirm(true)} disabled={!!busy || unassigned > 0 || (totalMoves === 0 && totalCreates === 0)}>
             3. Run clean-up ({totalMoves} moves, {totalCreates} new departments)
+          </Button>
+        )}
+        {totalCreates > 0 && (
+          <Button variant="secondary" onClick={() => setCreateConfirm(true)} disabled={!!busy}>
+            Add missing departments only ({totalCreates})
           </Button>
         )}
         {busy && <span className="text-[13px] text-[var(--text-muted)]">{busy}</span>}
@@ -295,6 +334,17 @@ export default function DeptCleanupPanel({ stores }) {
         <div className="bg-sw-card border border-sw-border rounded-xl p-4 text-[13px] space-y-1">
           {log.map((l, i) => <div key={i} className="text-sw-text">{l}</div>)}
         </div>
+      )}
+
+      {createConfirm && (
+        <ConfirmModal
+          title="Add the missing departments?"
+          message={`Adds ${scanned.filter(x => creates[x.id]?.length).map(x => `${x.name}: ${creates[x.id].map(c => c.name).join(', ')}`).join(' · ')}. Each copies its tax and age-check settings from the store's matching old department, and the register shows only the ${TARGET_DEPARTMENTS.length} departments. No products are moved.`}
+          confirmLabel="Add departments"
+          confirmVariant="primary"
+          onCancel={() => setCreateConfirm(false)}
+          onConfirm={addDepartmentsOnly}
+        />
       )}
 
       {confirm && (
